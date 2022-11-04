@@ -2,4 +2,5 @@
 
 members = [
     "libcamera-sys",
+    "libcamera-rs",
 ]
