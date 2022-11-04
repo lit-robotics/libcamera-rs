@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::{ffi::CStr, marker::PhantomData};
 
 use libcamera_sys::*;
 
@@ -27,9 +27,7 @@ impl CameraManager {
     }
 
     pub fn cameras(&self) -> CameraList {
-        CameraList {
-            ptr: unsafe { libcamera_camera_manager_cameras(self.ptr) },
-        }
+        unsafe { CameraList::from_ptr(libcamera_camera_manager_cameras(self.ptr)) }
     }
 }
 
@@ -42,11 +40,19 @@ impl Drop for CameraManager {
     }
 }
 
-pub struct CameraList {
+pub struct CameraList<'d> {
     ptr: *mut libcamera_camera_list_t,
+    _phantom: PhantomData<&'d ()>,
 }
 
-impl CameraList {
+impl<'d> CameraList<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_camera_list_t) -> Self {
+        Self {
+            ptr,
+            _phantom: Default::default(),
+        }
+    }
+
     pub fn len(&self) -> usize {
         unsafe { libcamera_camera_list_size(self.ptr) as usize }
     }
@@ -62,7 +68,7 @@ impl CameraList {
     }
 }
 
-impl Drop for CameraList {
+impl<'d> Drop for CameraList<'d> {
     fn drop(&mut self) {
         unsafe {
             libcamera_camera_list_destroy(self.ptr);
