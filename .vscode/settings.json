@@ -2,4 +2,5 @@
     "[rust]": {
         "editor.formatOnSave": true
     },
+    "C_Cpp.autoAddFileAssociations": false
 }

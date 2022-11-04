@@ -21,7 +21,7 @@ void libcamera_camera_manager_stop(libcamera_camera_manager_t *mgr) {
     mgr->stop();
 }
 
-libcamera_camera_list_t *libcamera_camera_manager_cameras(libcamera_camera_manager_t *mgr) {
+libcamera_camera_list_t *libcamera_camera_manager_cameras(const libcamera_camera_manager_t *mgr) {
     return new libcamera_camera_list_t(std::move(mgr->cameras()));
 }
 

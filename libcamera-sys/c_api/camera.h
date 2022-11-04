@@ -1,5 +1,9 @@
 #pragma once
 
+#include "controls.h"
+
+#include <stddef.h>
+
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 
@@ -10,10 +14,13 @@ extern "C" {
 typedef struct libcamera_camera_t libcamera_camera_t;
 #endif
 
+libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam);
 void libcamera_camera_destroy(libcamera_camera_t *cam);
-const char *libcamera_camera_id(libcamera_camera_t *cam);
+const char *libcamera_camera_id(const libcamera_camera_t *cam);
 int libcamera_camera_acquire(libcamera_camera_t *cam);
 int libcamera_camera_release(libcamera_camera_t *cam);
+int libcamera_camera_start(libcamera_camera_t *cam, const libcamera_control_list_t *controls);
+int libcamera_camera_stop(libcamera_camera_t *cam);
 
 #ifdef __cplusplus
 }

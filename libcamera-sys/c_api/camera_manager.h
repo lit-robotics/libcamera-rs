@@ -1,6 +1,7 @@
 #pragma once
 
 #include "camera.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -20,7 +21,7 @@ libcamera_camera_manager_t *libcamera_camera_manager_create();
 void libcamera_camera_manager_destroy(libcamera_camera_manager_t *mgr);
 int libcamera_camera_manager_start(libcamera_camera_manager_t *mgr);
 void libcamera_camera_manager_stop(libcamera_camera_manager_t *mgr);
-libcamera_camera_list_t *libcamera_camera_manager_cameras(libcamera_camera_manager_t *mgr);
+libcamera_camera_list_t *libcamera_camera_manager_cameras(const libcamera_camera_manager_t *mgr);
 libcamera_camera_t *libcamera_camera_manager_get_id(libcamera_camera_manager_t *mgr, const char *id);
 libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, dev_t dev);
 const char *libcamera_camera_manager_version(libcamera_camera_manager_t *mgr);
