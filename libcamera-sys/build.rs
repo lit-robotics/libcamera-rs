@@ -1,28 +1,51 @@
-use std::{env, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 fn main() {
     let libcamera = pkg_config::find_library("libcamera").unwrap();
-    let include_path = libcamera
+    let libcamera_include_path = libcamera
         .include_paths
         .get(0)
         .expect("Unable to get libcamera include path");
 
     println!("cargo:rustc-link-lib=camera");
 
-    let headers = [
-        "libcamera/c_api/camera_manager.h",
-        "libcamera/c_api/camera.h",
-    ];
+    let mut c_api_headers: Vec<PathBuf> = Vec::new();
+    let mut c_api_sources: Vec<PathBuf> = Vec::new();
+
+    for entry in fs::read_dir("c_api").unwrap() {
+        let entry = entry.unwrap();
+
+        if !entry.file_type().unwrap().is_file() {
+            continue;
+        }
+
+        match entry.path().extension().map(|s| s.to_str()).flatten() {
+            Some("h") => c_api_headers.push(entry.path()),
+            Some("cpp") => c_api_sources.push(entry.path()),
+            _ => {}
+        }
+    }
+
+    for file in c_api_headers.iter().chain(c_api_sources.iter()) {
+        println!("cargo:rerun-if-changed={}", file.display());
+    }
+
+    cc::Build::new()
+        .cpp(true)
+        .flag("-std=c++17")
+        .files(c_api_sources)
+        .include(libcamera_include_path)
+        .compile("camera_c_api");
 
     let mut builder = bindgen::Builder::default()
-        .clang_arg(format!("-I{}", include_path.display()))
+        .clang_arg(format!("-I{}", libcamera_include_path.display()))
         .allowlist_type("regex")
         .allowlist_function("libcamera_.*")
         .allowlist_var("LIBCAMERA_.*")
         .allowlist_type("libcamera_.*");
 
-    for header in headers {
-        builder = builder.header(include_path.join(header).display().to_string());
+    for header in c_api_headers {
+        builder = builder.header(header.to_str().unwrap());
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
