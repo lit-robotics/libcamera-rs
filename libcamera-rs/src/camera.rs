@@ -6,6 +6,8 @@ use std::{
 
 use libcamera_sys::*;
 
+use crate::{utils::Immutable, ControlInfoMapRef, ControlListRef};
+
 pub struct Camera<'d> {
     ptr: *mut libcamera_camera_t,
     _phantom: PhantomData<&'d ()>,
@@ -23,6 +25,14 @@ impl<'d> Camera<'d> {
         unsafe { CStr::from_ptr(libcamera_camera_id(self.ptr)) }
             .to_str()
             .unwrap()
+    }
+
+    pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
+        unsafe { Immutable(ControlInfoMapRef::from_ptr(libcamera_camera_controls(self.ptr) as _)) }
+    }
+
+    pub fn properties(&self) -> Immutable<ControlListRef> {
+        unsafe { Immutable(ControlListRef::from_ptr(libcamera_camera_properties(self.ptr) as _)) }
     }
 
     pub fn acquire(&self) -> Result<ActiveCamera> {

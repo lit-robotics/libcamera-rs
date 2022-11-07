@@ -1,4 +1,5 @@
 #include "camera_manager.h"
+
 #include <libcamera/camera_manager.h>
 
 #ifdef __cplusplus

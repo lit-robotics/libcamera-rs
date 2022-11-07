@@ -24,6 +24,14 @@ int libcamera_camera_release(libcamera_camera_t *cam) {
     return cam->get()->release();
 }
 
+const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_camera_t *cam) {
+    return &cam->get()->controls();
+}
+
+const libcamera_control_list_t *libcamera_camera_properties(const libcamera_camera_t *cam) {
+    return &cam->get()->properties();
+}
+
 int libcamera_camera_start(libcamera_camera_t *cam, const libcamera_control_list_t *controls) {
     return cam->get()->start(controls);
 }

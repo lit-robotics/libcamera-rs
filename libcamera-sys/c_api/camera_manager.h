@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __LIBCAMERA_C_CAMERA_MANAGER__
+#define __LIBCAMERA_C_CAMERA_MANAGER__
 
 #include "camera.h"
 
@@ -32,4 +33,6 @@ libcamera_camera_t *libcamera_camera_list_get(libcamera_camera_list_t *list, siz
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
