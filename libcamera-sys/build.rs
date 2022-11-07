@@ -39,6 +39,7 @@ fn main() {
 
     let mut builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", libcamera_include_path.display()))
+        .constified_enum_module("libcamera_.*")
         .allowlist_type("regex")
         .allowlist_function("libcamera_.*")
         .allowlist_var("LIBCAMERA_.*")

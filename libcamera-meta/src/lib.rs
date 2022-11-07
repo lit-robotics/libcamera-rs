@@ -4,7 +4,7 @@ pub const CONTROL_IDS_YAML: &'static str = include_str!("./control_ids.yaml");
 pub const PROPERTY_IDS_YAML: &'static str = include_str!("./property_ids.yaml");
 pub const FORMATS_YAML: &'static str = include_str!("./formats.yaml");
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ControlType {
     Bool,
     Byte,

@@ -2,6 +2,10 @@ use std::marker::PhantomData;
 
 use libcamera_sys::*;
 
+pub trait Control: TryFrom<Self::T> + Into<Self::T> {
+    type T;
+}
+
 pub struct ControlInfoMap {
     ptr: *mut libcamera_control_info_map_t,
 }
