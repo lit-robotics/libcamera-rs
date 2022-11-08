@@ -49,7 +49,11 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
 // }
 
 const libcamera_control_value_t *libcamera_control_list_get(const libcamera_control_list_t *list, enum libcamera_property_id id) {
-    return &list->get(id);
+    if (list->contains(id)) {
+        return &list->get(id);
+    } else {
+        return nullptr;
+    }
 }
 
 enum libcamera_control_type libcamera_control_value_type(const libcamera_control_value_t *val) {

@@ -1,8 +1,17 @@
 use std::marker::PhantomData;
 
 use libcamera_sys::*;
+use thiserror::Error;
 
-use crate::{ControlValue, ControlValueError};
+use crate::control_value::{ControlValue, ControlValueError};
+
+#[derive(Debug, Error)]
+pub enum ControlError {
+    #[error("Control id {0} not found")]
+    NotFound(u32),
+    #[error("Control value error: {0}")]
+    ValueError(#[from] ControlValueError),
+}
 
 pub trait Control: TryFrom<Self::T, Error = ControlValueError> + Into<Self::T> {
     const ID: u32;
@@ -36,9 +45,14 @@ impl<'d> ControlListRef<'d> {
         }
     }
 
-    pub fn get<C: Control>(&self) -> Result<C, ControlValueError> {
+    pub fn get<C: Control>(&self) -> Result<C, ControlError> {
         let val_ptr = unsafe { libcamera_control_list_get(self.ptr, C::ID as _) };
-        let val = unsafe { ControlValue::read(val_ptr) }?;
-        C::try_from(val)
+
+        if val_ptr.is_null() {
+            Err(ControlError::NotFound(C::ID))
+        } else {
+            let val = unsafe { ControlValue::read(val_ptr) }?;
+            Ok(C::try_from(val)?)
+        }
     }
 }

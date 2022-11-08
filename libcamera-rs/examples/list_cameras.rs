@@ -1,4 +1,4 @@
-use libcamera_rs::{properties, CameraManager};
+use libcamera_rs::{camera_manager::CameraManager, properties};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();
@@ -11,10 +11,16 @@ fn main() {
         println!("ID: {}", cam.id());
 
         let props = cam.properties();
-        println!("Model: {}", props.get::<properties::Model>().unwrap().0);
+        println!("Location: {:?}", props.get::<properties::Location>());
+        println!("Rotation: {:?}", props.get::<properties::Rotation>());
+        println!("Model: {:?}", props.get::<properties::Model>());
+        println!("UnitCellSize: {:?}", props.get::<properties::UnitCellSize>());
+        println!("PixelArraySize: {:?}", props.get::<properties::PixelArraySize>());
+        println!("SensorSensitivity: {:?}", props.get::<properties::SensorSensitivity>());
         println!(
-            "Location: {:?}",
-            props.get::<properties::Location>().unwrap()
+            "ColorFilterArrangement: {:?}",
+            props.get::<properties::ColorFilterArrangement>()
         );
+        println!("");
     }
 }

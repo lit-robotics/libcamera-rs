@@ -2,7 +2,7 @@ use std::{ffi::CStr, marker::PhantomData};
 
 use libcamera_sys::*;
 
-use crate::Camera;
+use crate::camera::Camera;
 
 pub struct CameraManager {
     ptr: *mut libcamera_camera_manager_t,

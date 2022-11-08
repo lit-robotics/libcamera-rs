@@ -6,7 +6,10 @@ use std::{
 
 use libcamera_sys::*;
 
-use crate::{utils::Immutable, ControlInfoMapRef, ControlListRef};
+use crate::{
+    control::{ControlInfoMapRef, ControlListRef},
+    utils::Immutable,
+};
 
 pub struct Camera<'d> {
     ptr: *mut libcamera_camera_t,

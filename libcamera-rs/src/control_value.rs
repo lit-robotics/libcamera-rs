@@ -14,6 +14,20 @@ pub enum ControlValueError {
     InvalidLength { expected: usize, found: usize },
 }
 
+#[derive(Debug, Clone)]
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct Rectangle {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
 pub trait ControlValue: Sized {
     const LIBCAMERA_TYPE: libcamera_control_type::Type;
 
@@ -37,15 +51,12 @@ pub trait ControlValue: Sized {
     }
 
     unsafe fn num_elements(val: *const libcamera_control_value_t) -> usize {
-        return unsafe { libcamera_control_value_num_elements(val) }
-            .try_into()
-            .unwrap();
+        return unsafe { libcamera_control_value_num_elements(val) }.try_into().unwrap();
     }
 }
 
 impl ControlValue for bool {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_BOOL;
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_BOOL;
 
     unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
         Self::check_type(val)?;
@@ -67,8 +78,7 @@ impl ControlValue for bool {
 }
 
 impl ControlValue for i32 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT32;
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT32;
 
     unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
         Self::check_type(val)?;
@@ -90,8 +100,7 @@ impl ControlValue for i32 {
 }
 
 impl ControlValue for i64 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT64;
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT64;
 
     unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
         Self::check_type(val)?;
@@ -113,8 +122,7 @@ impl ControlValue for i64 {
 }
 
 impl ControlValue for f32 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_FLOAT;
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_FLOAT;
 
     unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
         Self::check_type(val)?;
@@ -136,8 +144,7 @@ impl ControlValue for f32 {
 }
 
 impl ControlValue for String {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING;
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING;
 
     unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
         Self::check_type(val)?;
@@ -146,14 +153,70 @@ impl ControlValue for String {
             return Err(ControlValueError::InvalidData);
         }
 
-        let val = unsafe {
-            core::ffi::CStr::from_ptr(libcamera_control_value_get(val) as *const core::ffi::c_char)
-        }
-        .to_str()
-        .map_err(|_| ControlValueError::InvalidData)?
-        .to_string();
+        let val = unsafe { core::ffi::CStr::from_ptr(libcamera_control_value_get(val) as *const core::ffi::c_char) }
+            .to_str()
+            .map_err(|_| ControlValueError::InvalidData)?
+            .to_string();
 
         Ok(val)
+    }
+
+    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
+        unsafe {
+            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self.as_ptr() as _, self.len() as _);
+        }
+
+        Ok(())
+    }
+}
+
+impl ControlValue for Rectangle {
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_RECTANGLE;
+
+    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
+        Self::check_type(val)?;
+
+        if Self::is_array(val) {
+            return Err(ControlValueError::InvalidData);
+        }
+
+        let vals = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const i32, 4) };
+
+        Ok(Self {
+            x: vals[0],
+            y: vals[1],
+            width: vals[2] as u32,
+            height: vals[3] as u32,
+        })
+    }
+
+    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
+        let data = [self.x, self.y, self.width as i32, self.height as i32];
+
+        unsafe {
+            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, &data as *const i32 as _, 1);
+        }
+
+        Ok(())
+    }
+}
+
+impl ControlValue for Size {
+    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_SIZE;
+
+    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
+        Self::check_type(val)?;
+
+        if Self::is_array(val) {
+            return Err(ControlValueError::InvalidData);
+        }
+
+        let vals = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const u32, 2) };
+
+        Ok(Self {
+            width: vals[0] as u32,
+            height: vals[1] as u32,
+        })
     }
 
     unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
@@ -161,24 +224,11 @@ impl ControlValue for String {
             libcamera_control_value_set(
                 val,
                 Self::LIBCAMERA_TYPE,
-                self.as_ptr() as _,
-                self.len() as _,
+                &[self.width, self.height] as *const u32 as _,
+                1,
             );
         }
 
         Ok(())
-    }
-}
-
-impl ControlValue for () {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type =
-        libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT32;
-
-    unsafe fn read(_val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        todo!()
-    }
-
-    unsafe fn write(&self, _val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        todo!()
     }
 }
