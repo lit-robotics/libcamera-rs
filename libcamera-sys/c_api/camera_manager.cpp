@@ -2,9 +2,7 @@
 
 #include <libcamera/camera_manager.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 libcamera_camera_manager_t *libcamera_camera_manager_create() {
     return new libcamera::CameraManager();
@@ -63,6 +61,4 @@ void libcamera_camera_list_destroy(libcamera_camera_list_t *list) {
     delete list;
 }
 
-#ifdef __cplusplus
 }
-#endif

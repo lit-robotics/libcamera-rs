@@ -1,8 +1,6 @@
 #include "camera.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {
     return new libcamera_camera_t(*cam);
@@ -40,6 +38,4 @@ int libcamera_camera_stop(libcamera_camera_t *cam) {
     return cam->get()->stop();
 }
 
-#ifdef __cplusplus
 }
-#endif

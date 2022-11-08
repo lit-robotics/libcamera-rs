@@ -3,9 +3,7 @@
 #include <libcamera/libcamera.h>
 #include <string.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 const char *libcamera_control_name(enum libcamera_control_id id) {
     auto it = libcamera::controls::controls.find(id);
@@ -38,15 +36,6 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
     else
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
-
-// const char *libcamera_control_list_get_str(const libcamera_control_list_t *list, enum libcamera_property_id id) {
-//     const libcamera::ControlValue &val = list->get(id);
-//     if (val.type() == LIBCAMERA_CONTROL_TYPE_STRING) {
-//         return val.get<std::string>().c_str();
-//     } else {
-//         return nullptr;
-//     }
-// }
 
 const libcamera_control_value_t *libcamera_control_list_get(const libcamera_control_list_t *list, enum libcamera_property_id id) {
     if (list->contains(id)) {
@@ -82,34 +71,4 @@ void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_
     memcpy(storage.data(), data, storage.size());
 }
 
-// const libcamera_control_id_t *libcamera_control_id(unsigned int id) {
-//     auto it = libcamera::controls::controls.find(id);
-//     if (it != libcamera::controls::controls.end())
-//         return it->second;
-//     else
-//         return nullptr;
-// }
-
-// const libcamera_control_id_t *libcamera_property_id(unsigned int id) {
-//     auto it = libcamera::properties::properties.find(id);
-//     if (it != libcamera::properties::properties.end())
-//         return it->second;
-//     else
-//         return nullptr;
-// }
-
-// unsigned int libcamera_control_id_id(const libcamera_control_id_t *ctrl_id) {
-//     return ctrl_id->id();
-// }
-
-// const char *libcamera_control_id_name(const libcamera_control_id_t *ctrl_id) {
-//     return ctrl_id->name().c_str();
-// }
-
-// unsigned int libcamera_control_id_type(const libcamera_control_id_t *ctrl_id) {
-//     return ctrl_id->type();
-// }
-
-#ifdef __cplusplus
 }
-#endif
