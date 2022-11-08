@@ -1,13 +1,14 @@
 mod camera;
 mod camera_manager;
-mod controls;
+mod control;
+mod control_value;
 mod controls_generated;
+mod generated;
 pub mod utils;
 
 pub use camera::*;
 pub use camera_manager::*;
-pub use controls::*;
+pub use control::*;
+pub use control_value::*;
 
-pub mod control_types {
-    pub use crate::controls_generated::*;
-}
+pub use generated::*;
