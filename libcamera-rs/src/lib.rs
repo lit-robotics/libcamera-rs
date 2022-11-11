@@ -2,6 +2,7 @@ pub mod camera;
 pub mod camera_manager;
 pub mod control;
 pub mod control_value;
+pub mod stream;
 pub mod utils;
 
 mod generated;

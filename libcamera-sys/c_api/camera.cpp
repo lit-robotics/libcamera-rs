@@ -2,6 +2,10 @@
 
 extern "C" {
 
+void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
+    delete config;
+}
+
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {
     return new libcamera_camera_t(*cam);
 }
@@ -28,6 +32,11 @@ const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_ca
 
 const libcamera_control_list_t *libcamera_camera_properties(const libcamera_camera_t *cam) {
     return &cam->get()->properties();
+}
+
+libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count) {
+    libcamera::StreamRoles roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
+    return cam->get()->generateConfiguration(roles_vec).release();
 }
 
 int libcamera_camera_start(libcamera_camera_t *cam, const libcamera_control_list_t *controls) {

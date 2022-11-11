@@ -8,8 +8,25 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMapRef, ControlListRef},
+    stream::StreamRole,
     utils::Immutable,
 };
+
+pub struct CameraConfiguration {
+    ptr: *mut libcamera_camera_configuration_t,
+}
+
+impl CameraConfiguration {
+    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_camera_configuration_t) -> Self {
+        Self { ptr }
+    }
+}
+
+impl Drop for CameraConfiguration {
+    fn drop(&mut self) {
+        unsafe { libcamera_camera_configuration_destroy(self.ptr) }
+    }
+}
 
 pub struct Camera<'d> {
     ptr: *mut libcamera_camera_t,
@@ -31,18 +48,20 @@ impl<'d> Camera<'d> {
     }
 
     pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
-        unsafe {
-            Immutable(ControlInfoMapRef::from_ptr(
-                libcamera_camera_controls(self.ptr) as _,
-            ))
-        }
+        unsafe { Immutable(ControlInfoMapRef::from_ptr(libcamera_camera_controls(self.ptr) as _)) }
     }
 
     pub fn properties(&self) -> Immutable<ControlListRef> {
-        unsafe {
-            Immutable(ControlListRef::from_ptr(
-                libcamera_camera_properties(self.ptr) as _,
-            ))
+        unsafe { Immutable(ControlListRef::from_ptr(libcamera_camera_properties(self.ptr) as _)) }
+    }
+
+    pub fn generate_configuration(&self, roles: &[StreamRole]) -> Option<CameraConfiguration> {
+        let roles: Vec<libcamera_stream_role::Type> = roles.iter().map(|r| (*r).into()).collect();
+        let cfg = unsafe { libcamera_camera_generate_configuration(self.ptr, roles.as_ptr(), roles.len() as _) };
+        if cfg.is_null() {
+            None
+        } else {
+            Some(unsafe { CameraConfiguration::from_ptr(cfg) })
         }
     }
 
