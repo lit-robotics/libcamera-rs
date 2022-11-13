@@ -1,6 +1,8 @@
 use libcamera_sys::*;
 use thiserror::Error;
 
+use crate::geometry::{Rectangle, Size};
+
 #[derive(Error, Debug)]
 pub enum ControlValueError {
     /// Control value type does not match the one being read/written
@@ -12,20 +14,6 @@ pub enum ControlValueError {
     /// Control value dimensionality mismatch
     #[error("Expected {expected} elements, found {found}")]
     InvalidLength { expected: usize, found: usize },
-}
-
-#[derive(Debug, Clone)]
-pub struct Size {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct Rectangle {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
 }
 
 pub trait ControlValue: Sized {

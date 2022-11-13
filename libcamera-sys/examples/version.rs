@@ -6,9 +6,7 @@ fn main() {
     unsafe {
         let mgr = libcamera_camera_manager_create();
 
-        let version = CStr::from_ptr(libcamera_camera_manager_version(mgr))
-            .to_str()
-            .unwrap();
+        let version = CStr::from_ptr(libcamera_camera_manager_version(mgr)).to_str().unwrap();
         println!("libcamera: {}", version);
 
         libcamera_camera_manager_destroy(mgr);

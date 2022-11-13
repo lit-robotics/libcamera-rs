@@ -16,13 +16,7 @@ fn to_type_name(str: &str) -> String {
             }
 
             // Split if characters is uppercase and following char is lowercase
-            if chars[i].is_uppercase()
-                && chars
-                    .get(i + 1)
-                    .copied()
-                    .map(char::is_lowercase)
-                    .unwrap_or(false)
-            {
+            if chars[i].is_uppercase() && chars.get(i + 1).copied().map(char::is_lowercase).unwrap_or(false) {
                 split = true;
             }
 
@@ -91,19 +85,12 @@ fn generate_controls(controls: &Vec<Control>, name: &str) {
     for ctrl in controls.iter() {
         if let Some(enumeration) = &ctrl.enumeration {
             println!("/**");
-            println!(
-                " * \\brief Supported values for {}",
-                to_enum_name(&ctrl.name)
-            );
+            println!(" * \\brief Supported values for {}", to_enum_name(&ctrl.name));
             println!(" */");
             println!("enum libcamera_{} {{", to_type_name(&ctrl.name));
             for val in enumeration {
                 print!("{}", format_docstring(&val.description, 4));
-                println!(
-                    "    LIBCAMERA_{} = {},",
-                    to_const_name(&val.name),
-                    val.value
-                );
+                println!("    LIBCAMERA_{} = {},", to_const_name(&val.name), val.value);
             }
             println!("}};\n");
         }

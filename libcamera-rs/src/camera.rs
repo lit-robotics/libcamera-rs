@@ -8,7 +8,7 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMapRef, ControlListRef},
-    stream::StreamRole,
+    stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
 
@@ -19,6 +19,28 @@ pub struct CameraConfiguration {
 impl CameraConfiguration {
     pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_camera_configuration_t) -> Self {
         Self { ptr }
+    }
+
+    pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef>> {
+        let ptr = unsafe { libcamera_camera_configuration_at(self.ptr, index as _) };
+        if ptr.is_null() {
+            return None;
+        } else {
+            return Some(Immutable(unsafe { StreamConfigurationRef::from_ptr(ptr) }));
+        }
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef> {
+        let ptr = unsafe { libcamera_camera_configuration_at(self.ptr, index as _) };
+        if ptr.is_null() {
+            return None;
+        } else {
+            return Some(unsafe { StreamConfigurationRef::from_ptr(ptr) });
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        return unsafe { libcamera_camera_configuration_size(self.ptr) } as _;
     }
 }
 
