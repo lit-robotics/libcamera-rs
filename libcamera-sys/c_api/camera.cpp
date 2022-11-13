@@ -55,6 +55,10 @@ libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcam
     return cam->get()->generateConfiguration(roles_vec).release();
 }
 
+int libcamera_camera_configure(libcamera_camera_t *cam, libcamera_camera_configuration_t *config) {
+    return cam->get()->configure(config);
+}
+
 int libcamera_camera_start(libcamera_camera_t *cam, const libcamera_control_list_t *controls) {
     return cam->get()->start(controls);
 }

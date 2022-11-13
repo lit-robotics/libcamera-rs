@@ -12,6 +12,8 @@ fn main() {
         *cam.properties().get::<properties::Model>().unwrap()
     );
 
+    let mut cam = cam.acquire().expect("Unable to acquire camera");
+
     let mut cfgs = cam.generate_configuration(&[StreamRole::StillCapture]).unwrap();
     let cfg = cfgs.get_mut(0).unwrap();
 
@@ -20,4 +22,6 @@ fn main() {
     if cfgs.validate().is_invalid() {
         panic!("Error validating camera configuration");
     }
+
+    cam.configure(&mut cfgs).expect("Unable to configure camera");
 }

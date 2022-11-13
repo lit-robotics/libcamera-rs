@@ -1,4 +1,9 @@
-use std::{ffi::CStr, io, marker::PhantomData};
+use std::{
+    ffi::CStr,
+    io,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 use libcamera_sys::*;
 
@@ -150,25 +155,45 @@ impl<'d> Drop for Camera<'d> {
 
 /// A [Camera] with exclusive access granted by [Camera::acquire()].
 pub struct ActiveCamera<'d> {
-    ptr: *mut libcamera_camera_t,
-    _phantom: PhantomData<&'d ()>,
+    cam: Camera<'d>,
 }
 
 impl<'d> ActiveCamera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_camera_t) -> Self {
         Self {
-            ptr,
-            _phantom: Default::default(),
+            cam: Camera::from_ptr(ptr),
         }
+    }
+
+    pub fn configure(&mut self, config: &mut CameraConfiguration) -> io::Result<()> {
+        let ret = unsafe { libcamera_camera_configure(self.cam.ptr, config.ptr) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<'d> Deref for ActiveCamera<'d> {
+    type Target = Camera<'d>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.cam
+    }
+}
+
+impl<'d> DerefMut for ActiveCamera<'d> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.cam
     }
 }
 
 impl<'d> Drop for ActiveCamera<'d> {
     fn drop(&mut self) {
         unsafe {
-            libcamera_camera_stop(self.ptr);
-            libcamera_camera_release(self.ptr);
-            libcamera_camera_destroy(self.ptr);
+            libcamera_camera_stop(self.cam.ptr);
+            libcamera_camera_release(self.cam.ptr);
         }
     }
 }
