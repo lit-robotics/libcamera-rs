@@ -25,13 +25,9 @@ fn main() {
 
         let config = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
         let view_finder_cfg = config.get(0).unwrap();
-        let formats = view_finder_cfg.formats();
-        for pixel_format in &formats.pixel_formats() {
-            println!("{:?}", pixel_format);
-            for size in formats.sizes(pixel_format) {
-                println!("  {:?}", size);
-            }
-            println!("  {:?}", formats.range(pixel_format));
-        }
+
+        println!("Generated config: {:#?}", *view_finder_cfg);
+        println!("");
+        println!("Available formats: {:#?}", view_finder_cfg.formats());
     }
 }

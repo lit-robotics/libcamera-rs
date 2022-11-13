@@ -6,11 +6,36 @@
 
 #include <stddef.h>
 
+struct libcamera_stream_configuration {
+    libcamera_pixel_format_t pixel_format;
+    libcamera_size_t size;
+    unsigned int stride;
+    unsigned int frame_size;
+    unsigned int buffer_count;
+    uint8_t __padding[72];
+};
+
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 
 typedef libcamera::StreamFormats libcamera_stream_formats_t;
+
 typedef libcamera::StreamConfiguration libcamera_stream_configuration_t;
+static_assert(sizeof(struct libcamera_stream_configuration) == sizeof(libcamera_stream_configuration_t));
+
+// Read more about this in https://github.com/google/benchmark/issues/552
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+static_assert(offsetof(struct libcamera_stream_configuration, pixel_format) == offsetof(libcamera_stream_configuration_t, pixelFormat));
+static_assert(offsetof(struct libcamera_stream_configuration, size) == offsetof(libcamera_stream_configuration_t, size));
+static_assert(offsetof(struct libcamera_stream_configuration, stride) == offsetof(libcamera_stream_configuration_t, stride));
+static_assert(offsetof(struct libcamera_stream_configuration, frame_size) == offsetof(libcamera_stream_configuration_t, frameSize));
+static_assert(offsetof(struct libcamera_stream_configuration, buffer_count) == offsetof(libcamera_stream_configuration_t, bufferCount));
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 extern "C" {
 #else
@@ -30,12 +55,6 @@ libcamera_sizes_t *libcamera_stream_formats_sizes(const libcamera_stream_formats
 libcamera_size_range_t libcamera_stream_formats_range(const libcamera_stream_formats_t* formats, const libcamera_pixel_format_t *pixel_format);
 
 void libcamera_stream_configuration_destroy(libcamera_stream_configuration_t *config);
-libcamera_pixel_format_t *libcamera_stream_configuration_pixel_format(libcamera_stream_configuration_t *config);
-libcamera_size_t *libcamera_stream_configuration_size(libcamera_stream_configuration_t *config);
-unsigned int *libcamera_stream_configuration_stride(libcamera_stream_configuration_t *config);
-unsigned int *libcamera_stream_configuration_frame_size(libcamera_stream_configuration_t *config);
-unsigned int *libcamera_stream_configuration_buffer_count(libcamera_stream_configuration_t *config);
-unsigned int *libcamera_stream_configuration_color_space(libcamera_stream_configuration_t *config);
 const libcamera_stream_formats_t *libcamera_stream_configuration_formats(const libcamera_stream_configuration_t *config);
 
 #ifdef __cplusplus

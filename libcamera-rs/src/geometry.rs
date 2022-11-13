@@ -27,6 +27,15 @@ impl From<libcamera_size_t> for Size {
     }
 }
 
+impl From<Size> for libcamera_size_t {
+    fn from(s: Size) -> Self {
+        Self {
+            width: s.width,
+            height: s.height,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SizeRange {
     pub min: Size,
@@ -46,6 +55,17 @@ impl From<libcamera_size_range_t> for SizeRange {
     }
 }
 
+impl From<SizeRange> for libcamera_size_range_t {
+    fn from(r: SizeRange) -> Self {
+        Self {
+            min: r.min.into(),
+            max: r.max.into(),
+            hStep: r.h_step,
+            vStep: r.v_step,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Rectangle {
     pub x: i32,
@@ -56,6 +76,17 @@ pub struct Rectangle {
 
 impl From<libcamera_rectangle_t> for Rectangle {
     fn from(r: libcamera_rectangle_t) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+        }
+    }
+}
+
+impl From<Rectangle> for libcamera_rectangle_t {
+    fn from(r: Rectangle) -> Self {
         Self {
             x: r.x,
             y: r.y,

@@ -74,6 +74,16 @@ impl<'d> StreamFormatsRef<'d> {
     }
 }
 
+impl<'d> core::fmt::Debug for StreamFormatsRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut map = f.debug_map();
+        for pixel_format in &self.pixel_formats() {
+            map.entry(&pixel_format, &self.sizes(pixel_format));
+        }
+        map.finish()
+    }
+}
+
 pub struct StreamConfigurationRef<'d> {
     ptr: *mut libcamera_stream_configuration_t,
     _phantom: PhantomData<&'d ()>,
@@ -87,7 +97,59 @@ impl<'d> StreamConfigurationRef<'d> {
         }
     }
 
+    pub fn get_pixel_format(&self) -> PixelFormat {
+        PixelFormat(unsafe { *self.ptr }.pixel_format)
+    }
+
+    pub fn set_pixel_format(&mut self, pixel_format: PixelFormat) {
+        unsafe { *self.ptr }.pixel_format = pixel_format.0;
+    }
+
+    pub fn get_size(&self) -> Size {
+        unsafe { *self.ptr }.size.into()
+    }
+
+    pub fn set_size(&mut self, size: Size) {
+        unsafe { *self.ptr }.size = size.into()
+    }
+
+    pub fn get_stride(&self) -> u32 {
+        unsafe { *self.ptr }.stride
+    }
+
+    pub fn set_stride(&self, stride: u32) {
+        unsafe { *self.ptr }.stride = stride
+    }
+
+    pub fn get_frame_size(&self) -> u32 {
+        unsafe { *self.ptr }.frame_size
+    }
+
+    pub fn set_frame_size(&self, frame_size: u32) {
+        unsafe { *self.ptr }.frame_size = frame_size
+    }
+
+    pub fn get_buffer_count(&self) -> u32 {
+        unsafe { *self.ptr }.buffer_count
+    }
+
+    pub fn set_buffer_count(&self, buffer_count: u32) {
+        unsafe { *self.ptr }.buffer_count = buffer_count;
+    }
+
     pub fn formats(&self) -> StreamFormatsRef {
         unsafe { StreamFormatsRef::from_ptr(libcamera_stream_configuration_formats(self.ptr)) }
+    }
+}
+
+impl<'d> core::fmt::Debug for StreamConfigurationRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamConfigurationRef")
+            .field("pixel_format", &self.get_pixel_format())
+            .field("size", &self.get_size())
+            .field("stride", &self.get_stride())
+            .field("frame_size", &self.get_frame_size())
+            .field("buffer_count", &self.get_buffer_count())
+            .finish()
     }
 }
