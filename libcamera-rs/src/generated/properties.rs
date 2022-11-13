@@ -4,6 +4,7 @@ use crate::control::Control;
 use crate::control_value::ControlValueError;
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Size};
+use std::ops::{Deref, DerefMut};
 
 pub enum PropertyId {
     /// Camera mounting location
@@ -1050,6 +1051,20 @@ impl Control for Location {
 #[derive(Debug, Clone)]
 pub struct Rotation(pub i32);
 
+impl Deref for Rotation {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Rotation {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<i32> for Rotation {
     type Error = ControlValueError;
 
@@ -1091,6 +1106,20 @@ impl Control for Rotation {
 #[derive(Debug, Clone)]
 pub struct Model(pub String);
 
+impl Deref for Model {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Model {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<String> for Model {
     type Error = ControlValueError;
 
@@ -1121,6 +1150,20 @@ impl Control for Model {
 /// pixel array area and for calibration purposes.
 #[derive(Debug, Clone)]
 pub struct UnitCellSize(pub Size);
+
+impl Deref for UnitCellSize {
+    type Target = Size;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for UnitCellSize {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<Size> for UnitCellSize {
     type Error = ControlValueError;
@@ -1211,6 +1254,20 @@ impl Control for UnitCellSize {
 ///       categories (i.e. Properties::PixelArray::Size)
 #[derive(Debug, Clone)]
 pub struct PixelArraySize(pub Size);
+
+impl Deref for PixelArraySize {
+    type Target = Size;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PixelArraySize {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<Size> for PixelArraySize {
     type Error = ControlValueError;
@@ -1324,6 +1381,20 @@ impl Control for PixelArraySize {
 #[derive(Debug, Clone)]
 pub struct PixelArrayOpticalBlackRectangles(pub Rectangle);
 
+impl Deref for PixelArrayOpticalBlackRectangles {
+    type Target = Rectangle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PixelArrayOpticalBlackRectangles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<Rectangle> for PixelArrayOpticalBlackRectangles {
     type Error = ControlValueError;
 
@@ -1414,6 +1485,20 @@ impl Control for PixelArrayOpticalBlackRectangles {
 #[derive(Debug, Clone)]
 pub struct PixelArrayActiveAreas(pub Rectangle);
 
+impl Deref for PixelArrayActiveAreas {
+    type Target = Rectangle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PixelArrayActiveAreas {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<Rectangle> for PixelArrayActiveAreas {
     type Error = ControlValueError;
 
@@ -1447,6 +1532,20 @@ impl Control for PixelArrayActiveAreas {
 #[derive(Debug, Clone)]
 pub struct ScalerCropMaximum(pub Rectangle);
 
+impl Deref for ScalerCropMaximum {
+    type Target = Rectangle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ScalerCropMaximum {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<Rectangle> for ScalerCropMaximum {
     type Error = ControlValueError;
 
@@ -1476,6 +1575,20 @@ impl Control for ScalerCropMaximum {
 /// after the configure method has returned successfully.
 #[derive(Debug, Clone)]
 pub struct SensorSensitivity(pub f32);
+
+impl Deref for SensorSensitivity {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SensorSensitivity {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<f32> for SensorSensitivity {
     type Error = ControlValueError;

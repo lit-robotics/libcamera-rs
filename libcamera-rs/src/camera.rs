@@ -1,8 +1,4 @@
-use std::{
-    ffi::CStr,
-    io::{Error, Result},
-    marker::PhantomData,
-};
+use std::{ffi::CStr, io, marker::PhantomData};
 
 use libcamera_sys::*;
 
@@ -11,6 +7,49 @@ use crate::{
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum CameraConfigurationStatus {
+    Valid,
+    Adjusted,
+    Invalid,
+}
+
+impl CameraConfigurationStatus {
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Self::Valid => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_adjusted(&self) -> bool {
+        match self {
+            Self::Adjusted => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_invalid(&self) -> bool {
+        match self {
+            Self::Invalid => true,
+            _ => false,
+        }
+    }
+}
+
+impl TryFrom<libcamera_camera_configuration_status_t> for CameraConfigurationStatus {
+    type Error = ();
+
+    fn try_from(value: libcamera_camera_configuration_status_t) -> Result<Self, Self::Error> {
+        match value {
+            libcamera_camera_configuration_status::LIBCAMERA_CAMERA_CONFIGURATION_STATUS_VALID => Ok(Self::Valid),
+            libcamera_camera_configuration_status::LIBCAMERA_CAMERA_CONFIGURATION_STATUS_ADJUSTED => Ok(Self::Adjusted),
+            libcamera_camera_configuration_status::LIBCAMERA_CAMERA_CONFIGURATION_STATUS_INVALID => Ok(Self::Invalid),
+            _ => Err(()),
+        }
+    }
+}
 
 pub struct CameraConfiguration {
     ptr: *mut libcamera_camera_configuration_t,
@@ -41,6 +80,12 @@ impl CameraConfiguration {
 
     pub fn size(&self) -> usize {
         return unsafe { libcamera_camera_configuration_size(self.ptr) } as _;
+    }
+
+    pub fn validate(&mut self) -> CameraConfigurationStatus {
+        unsafe { libcamera_camera_configuration_validate(self.ptr) }
+            .try_into()
+            .unwrap()
     }
 }
 
@@ -87,10 +132,10 @@ impl<'d> Camera<'d> {
         }
     }
 
-    pub fn acquire(&self) -> Result<ActiveCamera> {
+    pub fn acquire(&self) -> io::Result<ActiveCamera> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr) };
         if ret < 0 {
-            Err(Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(ret))
         } else {
             Ok(unsafe { ActiveCamera::from_ptr(libcamera_camera_copy(self.ptr)) })
         }

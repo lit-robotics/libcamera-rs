@@ -6,14 +6,22 @@
 
 #include <stddef.h>
 
+enum libcamera_camera_configuration_status {
+    LIBCAMERA_CAMERA_CONFIGURATION_STATUS_VALID,
+    LIBCAMERA_CAMERA_CONFIGURATION_STATUS_ADJUSTED,
+    LIBCAMERA_CAMERA_CONFIGURATION_STATUS_INVALID,
+};
+
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 
 typedef libcamera::CameraConfiguration libcamera_camera_configuration_t;
+typedef libcamera::CameraConfiguration::Status libcamera_camera_configuration_status_t;
 typedef std::shared_ptr<libcamera::Camera> libcamera_camera_t;
 
 extern "C" {
 #else
+typedef enum libcamera_camera_configuration_status libcamera_camera_configuration_status_t;
 typedef struct libcamera_camera_configuration_t libcamera_camera_configuration_t;
 typedef struct libcamera_camera_t libcamera_camera_t;
 #endif
@@ -21,6 +29,7 @@ typedef struct libcamera_camera_t libcamera_camera_t;
 void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config);
 size_t libcamera_camera_configuration_size(const libcamera_camera_configuration_t* config);
 libcamera_stream_configuration_t *libcamera_camera_configuration_at(libcamera_camera_configuration_t* config, size_t index);
+libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(libcamera_camera_configuration_t* config);
 
 libcamera_camera_t *libcamera_camera_copy(libcamera_camera_t *cam);
 void libcamera_camera_destroy(libcamera_camera_t *cam);

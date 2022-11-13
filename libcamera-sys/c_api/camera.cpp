@@ -2,6 +2,10 @@
 
 extern "C" {
 
+void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
+    delete config;
+}
+
 size_t libcamera_camera_configuration_size(const libcamera_camera_configuration_t* config) {
     return config->size();
 }
@@ -14,8 +18,8 @@ libcamera_stream_configuration_t *libcamera_camera_configuration_at(libcamera_ca
     }
 }
 
-void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
-    delete config;
+libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(libcamera_camera_configuration_t* config) {
+    return config->validate();
 }
 
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {

@@ -16,3 +16,9 @@ impl<T> Deref for Immutable<T> {
         &self.0
     }
 }
+
+impl<T: core::fmt::Debug> core::fmt::Debug for Immutable<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Immutable").field(&self.0).finish()
+    }
+}

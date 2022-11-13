@@ -4,6 +4,7 @@ use crate::control::Control;
 use crate::control_value::ControlValueError;
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Size};
+use std::ops::{Deref, DerefMut};
 
 pub enum ControlId {
     /// Enable or disable the AE.
@@ -378,6 +379,20 @@ pub enum ControlId {
 #[derive(Debug, Clone)]
 pub struct AeEnable(pub bool);
 
+impl Deref for AeEnable {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AeEnable {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<bool> for AeEnable {
     type Error = ControlValueError;
 
@@ -406,6 +421,20 @@ impl Control for AeEnable {
 /// \sa AeEnable
 #[derive(Debug, Clone)]
 pub struct AeLocked(pub bool);
+
+impl Deref for AeLocked {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AeLocked {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<bool> for AeLocked {
     type Error = ControlValueError;
@@ -560,6 +589,20 @@ impl Control for AeExposureMode {
 #[derive(Debug, Clone)]
 pub struct ExposureValue(pub f32);
 
+impl Deref for ExposureValue {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ExposureValue {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for ExposureValue {
     type Error = ControlValueError;
 
@@ -595,6 +638,20 @@ impl Control for ExposureValue {
 /// better be handled through a separate AE mode control.
 #[derive(Debug, Clone)]
 pub struct ExposureTime(pub i32);
+
+impl Deref for ExposureTime {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ExposureTime {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i32> for ExposureTime {
     type Error = ControlValueError;
@@ -633,6 +690,20 @@ impl Control for ExposureTime {
 #[derive(Debug, Clone)]
 pub struct AnalogueGain(pub f32);
 
+impl Deref for AnalogueGain {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AnalogueGain {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for AnalogueGain {
     type Error = ControlValueError;
 
@@ -658,6 +729,20 @@ impl Control for AnalogueGain {
 #[derive(Debug, Clone)]
 pub struct Brightness(pub f32);
 
+impl Deref for Brightness {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Brightness {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for Brightness {
     type Error = ControlValueError;
 
@@ -681,6 +766,20 @@ impl Control for Brightness {
 /// value 1.0; larger values produce images with more contrast.
 #[derive(Debug, Clone)]
 pub struct Contrast(pub f32);
+
+impl Deref for Contrast {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Contrast {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<f32> for Contrast {
     type Error = ControlValueError;
@@ -706,6 +805,20 @@ impl Control for Contrast {
 #[derive(Debug, Clone)]
 pub struct Lux(pub f32);
 
+impl Deref for Lux {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Lux {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for Lux {
     type Error = ControlValueError;
 
@@ -730,6 +843,20 @@ impl Control for Lux {
 /// \sa ColourGains
 #[derive(Debug, Clone)]
 pub struct AwbEnable(pub bool);
+
+impl Deref for AwbEnable {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AwbEnable {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<bool> for AwbEnable {
     type Error = ControlValueError;
@@ -811,6 +938,20 @@ impl Control for AwbMode {
 #[derive(Debug, Clone)]
 pub struct AwbLocked(pub bool);
 
+impl Deref for AwbLocked {
+    type Target = bool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AwbLocked {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<bool> for AwbLocked {
     type Error = ControlValueError;
 
@@ -838,6 +979,20 @@ impl Control for AwbLocked {
 #[derive(Debug, Clone)]
 pub struct ColourGains(pub f32);
 
+impl Deref for ColourGains {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ColourGains {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for ColourGains {
     type Error = ControlValueError;
 
@@ -860,6 +1015,20 @@ impl Control for ColourGains {
 /// Report the current estimate of the colour temperature, in kelvin, for this frame. The ColourTemperature control can only be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct ColourTemperature(pub i32);
+
+impl Deref for ColourTemperature {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ColourTemperature {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i32> for ColourTemperature {
     type Error = ControlValueError;
@@ -886,6 +1055,20 @@ impl Control for ColourTemperature {
 #[derive(Debug, Clone)]
 pub struct Saturation(pub f32);
 
+impl Deref for Saturation {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Saturation {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for Saturation {
     type Error = ControlValueError;
 
@@ -911,6 +1094,20 @@ impl Control for Saturation {
 /// control can only be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct SensorBlackLevels(pub i32);
+
+impl Deref for SensorBlackLevels {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SensorBlackLevels {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i32> for SensorBlackLevels {
     type Error = ControlValueError;
@@ -942,6 +1139,20 @@ impl Control for SensorBlackLevels {
 #[derive(Debug, Clone)]
 pub struct Sharpness(pub f32);
 
+impl Deref for Sharpness {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Sharpness {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for Sharpness {
     type Error = ControlValueError;
 
@@ -971,6 +1182,20 @@ impl Control for Sharpness {
 #[derive(Debug, Clone)]
 pub struct FocusFoM(pub i32);
 
+impl Deref for FocusFoM {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FocusFoM {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<i32> for FocusFoM {
     type Error = ControlValueError;
 
@@ -997,6 +1222,20 @@ impl Control for FocusFoM {
 /// order in an array of 9 floating point values.
 #[derive(Debug, Clone)]
 pub struct ColourCorrectionMatrix(pub f32);
+
+impl Deref for ColourCorrectionMatrix {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ColourCorrectionMatrix {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<f32> for ColourCorrectionMatrix {
     type Error = ControlValueError;
@@ -1028,6 +1267,20 @@ impl Control for ColourCorrectionMatrix {
 /// property, and the two can be used to implement digital zoom.
 #[derive(Debug, Clone)]
 pub struct ScalerCrop(pub Rectangle);
+
+impl Deref for ScalerCrop {
+    type Target = Rectangle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ScalerCrop {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<Rectangle> for ScalerCrop {
     type Error = ControlValueError;
@@ -1064,6 +1317,20 @@ impl Control for ScalerCrop {
 #[derive(Debug, Clone)]
 pub struct DigitalGain(pub f32);
 
+impl Deref for DigitalGain {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for DigitalGain {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<f32> for DigitalGain {
     type Error = ControlValueError;
 
@@ -1088,6 +1355,20 @@ impl Control for DigitalGain {
 /// be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct FrameDuration(pub i64);
+
+impl Deref for FrameDuration {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FrameDuration {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i64> for FrameDuration {
     type Error = ControlValueError;
@@ -1142,6 +1423,20 @@ impl Control for FrameDuration {
 #[derive(Debug, Clone)]
 pub struct FrameDurationLimits(pub i64);
 
+impl Deref for FrameDurationLimits {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FrameDurationLimits {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<i64> for FrameDurationLimits {
     type Error = ControlValueError;
 
@@ -1169,6 +1464,20 @@ impl Control for FrameDurationLimits {
 /// themal sensor is present.
 #[derive(Debug, Clone)]
 pub struct SensorTemperature(pub f32);
+
+impl Deref for SensorTemperature {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SensorTemperature {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<f32> for SensorTemperature {
     type Error = ControlValueError;
@@ -1201,6 +1510,20 @@ impl Control for SensorTemperature {
 /// use case.
 #[derive(Debug, Clone)]
 pub struct SensorTimestamp(pub i64);
+
+impl Deref for SensorTimestamp {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SensorTimestamp {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i64> for SensorTimestamp {
     type Error = ControlValueError;
@@ -1425,6 +1748,20 @@ impl Control for AfMetering {
 #[derive(Debug, Clone)]
 pub struct AfWindows(pub Rectangle);
 
+impl Deref for AfWindows {
+    type Target = Rectangle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AfWindows {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<Rectangle> for AfWindows {
     type Error = ControlValueError;
 
@@ -1559,6 +1896,20 @@ impl Control for AfPause {
 /// this lens. The minimum value will often be zero (meaning infinity).
 #[derive(Debug, Clone)]
 pub struct LensPosition(pub f32);
+
+impl Deref for LensPosition {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for LensPosition {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<f32> for LensPosition {
     type Error = ControlValueError;
@@ -1909,6 +2260,20 @@ impl Control for AwbState {
 #[derive(Debug, Clone)]
 pub struct SensorRollingShutterSkew(pub i64);
 
+impl Deref for SensorRollingShutterSkew {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SensorRollingShutterSkew {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<i64> for SensorRollingShutterSkew {
     type Error = ControlValueError;
 
@@ -2010,6 +2375,20 @@ impl Control for SceneFlicker {
 #[derive(Debug, Clone)]
 pub struct PipelineDepth(pub i32);
 
+impl Deref for PipelineDepth {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PipelineDepth {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl TryFrom<i32> for PipelineDepth {
     type Error = ControlValueError;
 
@@ -2036,6 +2415,20 @@ impl Control for PipelineDepth {
 /// ANDROID_SYNC_MAX_LATENCY.
 #[derive(Debug, Clone)]
 pub struct MaxLatency(pub i32);
+
+impl Deref for MaxLatency {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for MaxLatency {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl TryFrom<i32> for MaxLatency {
     type Error = ControlValueError;
