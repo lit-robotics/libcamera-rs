@@ -4,7 +4,7 @@ use libcamera_sys::*;
 
 use crate::{
     geometry::{Size, SizeRange},
-    pixel_format::{PixelFormatRef, PixelFormats},
+    pixel_format::{PixelFormat, PixelFormats},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -57,8 +57,8 @@ impl<'d> StreamFormatsRef<'d> {
         unsafe { PixelFormats::from_ptr(libcamera_stream_formats_pixel_formats(self.ptr)) }
     }
 
-    pub fn sizes(&self, pixel_format: &PixelFormatRef) -> Vec<Size> {
-        let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr, pixel_format.ptr) };
+    pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
+        let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr, &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
         let data = unsafe { libcamera_sizes_data(sizes) };
 
@@ -69,8 +69,8 @@ impl<'d> StreamFormatsRef<'d> {
         out
     }
 
-    pub fn range(&self, pixel_format: &PixelFormatRef) -> SizeRange {
-        SizeRange::from(unsafe { libcamera_stream_formats_range(self.ptr, pixel_format.ptr) })
+    pub fn range(&self, pixel_format: PixelFormat) -> SizeRange {
+        SizeRange::from(unsafe { libcamera_stream_formats_range(self.ptr, &pixel_format.0) })
     }
 }
 

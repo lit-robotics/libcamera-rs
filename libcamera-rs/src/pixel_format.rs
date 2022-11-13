@@ -1,31 +1,22 @@
-use std::{ffi::CStr, marker::PhantomData};
+use std::ffi::CStr;
 
 use libcamera_sys::*;
 
-pub struct PixelFormatRef<'d> {
-    pub(crate) ptr: *const libcamera_pixel_format_t,
-    _phantom: PhantomData<&'d ()>,
-}
+#[derive(Clone, Copy)]
+pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
 
-impl<'d> PixelFormatRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_pixel_format_t) -> Self {
-        Self {
-            ptr,
-            _phantom: Default::default(),
-        }
-    }
-
+impl PixelFormat {
     pub fn fourcc(&self) -> u32 {
-        unsafe { libcamera_pixel_format_fourcc(self.ptr) }
+        self.0.fourcc
     }
 
     pub fn modifier(&self) -> u64 {
-        unsafe { libcamera_pixel_format_modifier(self.ptr) }
+        self.0.modifier
     }
 
     pub fn to_string(&self) -> String {
         let mut buf = [0u8; 64];
-        unsafe { libcamera_pixel_format_str(self.ptr, buf.as_mut_ptr() as _, buf.len() as u64 - 1) };
+        unsafe { libcamera_pixel_format_str(&self.0, buf.as_mut_ptr() as _, buf.len() as u64 - 1) };
         unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
             .to_str()
             .unwrap()
@@ -33,7 +24,7 @@ impl<'d> PixelFormatRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for PixelFormatRef<'d> {
+impl core::fmt::Debug for PixelFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.to_string())
     }
@@ -52,18 +43,21 @@ impl PixelFormats {
         unsafe { libcamera_pixel_formats_size(self.ptr) as _ }
     }
 
-    pub fn get(&self, index: usize) -> Option<PixelFormatRef> {
-        let ptr = unsafe { libcamera_pixel_formats_get(self.ptr, index as _) };
-        if ptr.is_null() {
+    pub fn get(&self, index: usize) -> Option<PixelFormat> {
+        if index >= self.len() {
             None
         } else {
-            Some(unsafe { PixelFormatRef::from_ptr(ptr) })
+            Some(unsafe { self.get_unchecked(index) })
         }
+    }
+
+    pub unsafe fn get_unchecked(&self, index: usize) -> PixelFormat {
+        PixelFormat(unsafe { libcamera_pixel_formats_get(self.ptr, index as _) })
     }
 }
 
 impl<'d> IntoIterator for &'d PixelFormats {
-    type Item = PixelFormatRef<'d>;
+    type Item = PixelFormat;
 
     type IntoIter = PixelFormatsIterator<'d>;
 
@@ -87,7 +81,7 @@ pub struct PixelFormatsIterator<'d> {
 }
 
 impl<'d> Iterator for PixelFormatsIterator<'d> {
-    type Item = PixelFormatRef<'d>;
+    type Item = PixelFormat;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.formats.get(self.index) {

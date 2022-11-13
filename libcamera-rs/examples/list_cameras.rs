@@ -28,10 +28,10 @@ fn main() {
         let formats = view_finder_cfg.formats();
         for pixel_format in &formats.pixel_formats() {
             println!("{:?}", pixel_format);
-            for size in formats.sizes(&pixel_format) {
+            for size in formats.sizes(pixel_format) {
                 println!("  {:?}", size);
             }
-            println!("  {:?}", formats.range(&pixel_format));
+            println!("  {:?}", formats.range(pixel_format));
         }
     }
 }
