@@ -24,4 +24,12 @@ fn main() {
     }
 
     cam.configure(&mut cfgs).expect("Unable to configure camera");
+
+    let req = cam.create_request(None).unwrap();
+
+    cam.start(None).unwrap();
+
+    cam.queue_request(&req).unwrap();
+
+    cam.stop().unwrap();
 }

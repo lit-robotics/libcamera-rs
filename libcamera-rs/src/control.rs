@@ -33,7 +33,7 @@ impl<'d> ControlInfoMapRef<'d> {
 }
 
 pub struct ControlListRef<'d> {
-    ptr: *mut libcamera_control_list_t,
+    pub(crate) ptr: *mut libcamera_control_list_t,
     _phantom: PhantomData<&'d ()>,
 }
 

@@ -4,6 +4,7 @@ pub mod control;
 pub mod control_value;
 pub mod geometry;
 pub mod pixel_format;
+pub mod request;
 pub mod stream;
 pub mod utils;
 

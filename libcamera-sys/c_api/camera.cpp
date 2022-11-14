@@ -59,6 +59,14 @@ int libcamera_camera_configure(libcamera_camera_t *cam, libcamera_camera_configu
     return cam->get()->configure(config);
 }
 
+libcamera_request_t *libcamera_camera_create_request(libcamera_camera_t *cam, uint64_t cookie) {
+    return cam->get()->createRequest(cookie).release();
+}
+
+int libcamera_camera_queue_request(libcamera_camera_t *cam, libcamera_request_t *request) {
+    return cam->get()->queueRequest(request);
+}
+
 int libcamera_camera_start(libcamera_camera_t *cam, const libcamera_control_list_t *controls) {
     return cam->get()->start(controls);
 }

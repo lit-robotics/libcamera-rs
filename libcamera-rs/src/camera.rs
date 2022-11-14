@@ -9,6 +9,7 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMapRef, ControlListRef},
+    request::Request,
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
@@ -167,6 +168,43 @@ impl<'d> ActiveCamera<'d> {
 
     pub fn configure(&mut self, config: &mut CameraConfiguration) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_configure(self.cam.ptr, config.ptr) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn create_request(&mut self, cookie: Option<u64>) -> Option<Request> {
+        let req = unsafe { libcamera_camera_create_request(self.ptr, cookie.unwrap_or(0)) };
+        if req.is_null() {
+            None
+        } else {
+            Some(unsafe { Request::from_ptr(req) })
+        }
+    }
+
+    pub fn queue_request(&mut self, req: &Request) -> io::Result<()> {
+        let ret = unsafe { libcamera_camera_queue_request(self.ptr, req.ptr) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn start(&mut self, controls: Option<ControlListRef>) -> io::Result<()> {
+        let ctrl_ptr = controls.map(|c| c.ptr).unwrap_or(core::ptr::null_mut());
+        let ret = unsafe { libcamera_camera_start(self.cam.ptr, ctrl_ptr) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn stop(&mut self) -> io::Result<()> {
+        let ret = unsafe { libcamera_camera_stop(self.cam.ptr) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
