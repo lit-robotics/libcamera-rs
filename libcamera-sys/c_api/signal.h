@@ -4,10 +4,10 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+struct libcamera_callback_handle {};
+
 extern "C" {
 #endif
-
-struct libcamera_callback_handle {};
 
 typedef struct libcamera_callback_handle libcamera_callback_handle_t;
 
