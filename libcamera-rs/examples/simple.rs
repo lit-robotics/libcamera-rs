@@ -34,7 +34,9 @@ fn main() {
 
     println!("Allocated {} buffers", alloc.buffers(&stream).len());
 
-    let req = cam.create_request(None).unwrap();
+    let mut req = cam.create_request(None).unwrap();
+    req.add_buffer(&stream, &alloc.buffers(&stream).get(0).unwrap())
+        .unwrap();
 
     cam.start(None).unwrap();
 

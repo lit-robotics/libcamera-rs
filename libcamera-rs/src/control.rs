@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use libcamera_sys::*;
 use thiserror::Error;
 
-use crate::control_value::{ControlValue, ControlValueError};
+use crate::{
+    control_value::{ControlValue, ControlValueError},
+    utils::Immutable,
+};
 
 #[derive(Debug, Error)]
 pub enum ControlError {
@@ -24,11 +27,11 @@ pub struct ControlInfoMapRef<'d> {
 }
 
 impl<'d> ControlInfoMapRef<'d> {
-    pub(crate) unsafe fn from_ptr(_ptr: *mut libcamera_control_info_map_t) -> Self {
-        Self {
-            _ptr,
+    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_control_info_map_t) -> Immutable<Self> {
+        Immutable(Self {
+            _ptr: ptr as _,
             _phantom: Default::default(),
-        }
+        })
     }
 }
 
@@ -38,7 +41,14 @@ pub struct ControlListRef<'d> {
 }
 
 impl<'d> ControlListRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_control_list_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_control_list_t) -> Immutable<Self> {
+        Immutable(Self {
+            ptr: ptr as _,
+            _phantom: Default::default(),
+        })
+    }
+
+    pub(crate) unsafe fn from_ptr_mut(ptr: *mut libcamera_control_list_t) -> Self {
         Self {
             ptr,
             _phantom: Default::default(),

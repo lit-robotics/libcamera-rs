@@ -131,11 +131,11 @@ impl<'d> Camera<'d> {
     }
 
     pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
-        unsafe { Immutable(ControlInfoMapRef::from_ptr(libcamera_camera_controls(self.ptr) as _)) }
+        unsafe { ControlInfoMapRef::from_ptr(libcamera_camera_controls(self.ptr) as _) }
     }
 
     pub fn properties(&self) -> Immutable<ControlListRef> {
-        unsafe { Immutable(ControlListRef::from_ptr(libcamera_camera_properties(self.ptr) as _)) }
+        unsafe { ControlListRef::from_ptr(libcamera_camera_properties(self.ptr) as _) }
     }
 
     pub fn generate_configuration(&self, roles: &[StreamRole]) -> Option<CameraConfiguration> {
