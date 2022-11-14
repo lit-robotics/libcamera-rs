@@ -141,10 +141,9 @@ impl ControlValue for String {
             return Err(ControlValueError::InvalidData);
         }
 
-        let val = unsafe { core::ffi::CStr::from_ptr(libcamera_control_value_get(val) as *const core::ffi::c_char) }
-            .to_str()
-            .map_err(|_| ControlValueError::InvalidData)?
-            .to_string();
+        let len = unsafe { Self::num_elements(val) };
+        let data = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const u8, len) };
+        let val = core::str::from_utf8(data).unwrap().to_string();
 
         Ok(val)
     }
