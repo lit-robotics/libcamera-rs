@@ -34,6 +34,20 @@ const char *libcamera_camera_id(const libcamera_camera_t *cam) {
     return cam->get()->id().c_str();
 }
 
+libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamera_camera_t *cam, libcamera_request_completed_cb_t *callback, void *data) {
+    libcamera_callback_handle_t *handle = new libcamera_callback_handle_t {};
+    
+    cam->get()->requestCompleted.connect(handle, [=](libcamera::Request *request) {
+        callback(data, request);
+    });
+
+    return handle;
+}
+
+void libcamera_camera_request_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle) {
+    cam->get()->requestCompleted.disconnect(handle);
+}
+
 int libcamera_camera_acquire(libcamera_camera_t *cam) {
     return cam->get()->acquire();
 }

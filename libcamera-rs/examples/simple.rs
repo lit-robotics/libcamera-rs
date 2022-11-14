@@ -16,7 +16,7 @@ fn main() {
 
     let mut cam = cam.acquire().expect("Unable to acquire camera");
 
-    let mut cfgs = cam.generate_configuration(&[StreamRole::StillCapture]).unwrap();
+    let mut cfgs = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
 
     println!("Generated config: {:#?}", cfgs);
 
@@ -32,15 +32,30 @@ fn main() {
     let stream = cfg.stream().unwrap();
     alloc.allocate(&stream).unwrap();
 
-    println!("Allocated {} buffers", alloc.buffers(&stream).len());
+    let buffers = alloc.buffers(&stream);
+    println!("Allocated {} buffers", buffers.len());
 
-    let mut req = cam.create_request(None).unwrap();
-    req.add_buffer(&stream, &alloc.buffers(&stream).get(0).unwrap())
-        .unwrap();
+    let mut reqs = Vec::new();
+
+    for i in 0..buffers.len() {
+        let mut req = cam.create_request(None).unwrap();
+        req.add_buffer(&stream, &alloc.buffers(&stream).get(i).unwrap())
+            .unwrap();
+        reqs.push(req);
+    }
+
+    cam.on_request_completed(|_req| {
+        println!("Req complete!");
+    });
 
     cam.start(None).unwrap();
 
-    cam.queue_request(&req).unwrap();
+    for req in reqs {
+        cam.queue_request(req).unwrap();
+        break;
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     cam.stop().unwrap();
 }

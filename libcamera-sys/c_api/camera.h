@@ -2,8 +2,9 @@
 #define __LIBCAMERA_C_CAMERA__
 
 #include "controls.h"
-#include "stream.h"
 #include "request.h"
+#include "signal.h"
+#include "stream.h"
 
 #include <stddef.h>
 
@@ -12,6 +13,8 @@ enum libcamera_camera_configuration_status {
     LIBCAMERA_CAMERA_CONFIGURATION_STATUS_ADJUSTED,
     LIBCAMERA_CAMERA_CONFIGURATION_STATUS_INVALID,
 };
+
+typedef void libcamera_request_completed_cb_t(void*, libcamera_request_t*);
 
 #ifdef __cplusplus
 #include <libcamera/camera.h>
@@ -35,6 +38,8 @@ libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(
 libcamera_camera_t *libcamera_camera_copy(libcamera_camera_t *cam);
 void libcamera_camera_destroy(libcamera_camera_t *cam);
 const char *libcamera_camera_id(const libcamera_camera_t *cam);
+libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamera_camera_t *cam, libcamera_request_completed_cb_t *callback, void *data);
+void libcamera_camera_request_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle);
 int libcamera_camera_acquire(libcamera_camera_t *cam);
 int libcamera_camera_release(libcamera_camera_t *cam);
 const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_camera_t *cam);

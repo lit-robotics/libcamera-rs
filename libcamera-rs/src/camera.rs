@@ -164,15 +164,45 @@ impl<'d> Drop for Camera<'d> {
     }
 }
 
+extern "C" fn request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
+    let cb: &mut Box<dyn FnMut(Request) + Send + Sync> = unsafe { core::mem::transmute(ptr) };
+    let req = unsafe { Request::from_ptr(req) };
+    cb(req);
+}
+
+pub type RequestCompletedCb = dyn Fn(Request) + Send + Sync;
+
 /// A [Camera] with exclusive access granted by [Camera::acquire()].
 pub struct ActiveCamera<'d> {
     cam: Camera<'d>,
+    request_completed_handle: Option<*mut libcamera_callback_handle_t>,
 }
 
 impl<'d> ActiveCamera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_camera_t) -> Self {
         Self {
             cam: Camera::from_ptr(ptr),
+            request_completed_handle: None,
+        }
+    }
+
+    pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + Sync + 'd) {
+        self.disconnect_request_completed();
+
+        let cb: Box<Box<dyn FnMut(Request) + Send + Sync>> = Box::new(Box::new(cb));
+
+        self.request_completed_handle = Some(unsafe {
+            libcamera_camera_request_completed_connect(
+                self.cam.ptr,
+                Some(request_completed_cb),
+                Box::into_raw(cb) as *mut _,
+            )
+        });
+    }
+
+    pub fn disconnect_request_completed(&mut self) {
+        if let Some(handle) = self.request_completed_handle {
+            unsafe { libcamera_camera_request_completed_disconnect(self.cam.ptr, handle) };
         }
     }
 
@@ -194,8 +224,12 @@ impl<'d> ActiveCamera<'d> {
         }
     }
 
-    pub fn queue_request(&mut self, req: &Request) -> io::Result<()> {
+    pub fn queue_request(&mut self, req: Request) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_queue_request(self.ptr, req.ptr) };
+
+        // Request will be recreated in callback from raw pointer
+        core::mem::forget(req);
+
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
@@ -239,6 +273,8 @@ impl<'d> DerefMut for ActiveCamera<'d> {
 
 impl<'d> Drop for ActiveCamera<'d> {
     fn drop(&mut self) {
+        self.disconnect_request_completed();
+
         unsafe {
             libcamera_camera_stop(self.cam.ptr);
             libcamera_camera_release(self.cam.ptr);
