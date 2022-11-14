@@ -10,15 +10,22 @@
 #ifdef __cplusplus
 #include <libcamera/controls.h>
 
+struct libcamera_control_list_iter {
+	libcamera::ControlList *list;
+	libcamera::ControlList::iterator it;
+};
+
 typedef libcamera::ControlValue libcamera_control_value_t;
 typedef libcamera::ControlList libcamera_control_list_t;
+typedef struct libcamera_control_list_iter libcamera_control_list_iter_t;
 typedef libcamera::ControlInfoMap libcamera_control_info_map_t;
 
 extern "C" {
 #else
-typedef struct libcamera_control_value_t libcamera_control_value_t;
-typedef struct libcamera_control_list_t libcamera_control_list_t;
-typedef struct libcamera_control_info_map_t libcamera_control_info_map_t;
+typedef struct libcamera_control_value libcamera_control_value_t;
+typedef struct libcamera_control_list libcamera_control_list_t;
+typedef struct libcamera_control_list_iter libcamera_control_list_iter_t;
+typedef struct libcamera_control_info_map libcamera_control_info_map_t;
 #endif
 
 enum libcamera_control_type {
@@ -43,6 +50,14 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
 
 // --- libcamera_control_list_t ---
 const libcamera_control_value_t *libcamera_control_list_get(const libcamera_control_list_t *list, enum libcamera_property_id id);
+libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list);
+
+// --- libcamera_control_list_iter_t ---
+void libcamera_control_list_iter_destroy(libcamera_control_list_iter_t *iter);
+bool libcamera_control_list_iter_end(const libcamera_control_list_iter_t *iter);
+void libcamera_control_list_iter_next(libcamera_control_list_iter_t *iter);
+unsigned int libcamera_control_list_iter_id(libcamera_control_list_iter_t *iter);
+const libcamera_control_value_t *libcamera_control_list_iter_value(libcamera_control_list_iter_t *iter);
 
 // --- libcamera_control_value_t ---
 enum libcamera_control_type libcamera_control_value_type(const libcamera_control_value_t *val);

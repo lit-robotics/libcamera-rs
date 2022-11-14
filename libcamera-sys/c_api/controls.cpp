@@ -45,6 +45,33 @@ const libcamera_control_value_t *libcamera_control_list_get(const libcamera_cont
     }
 }
 
+libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list) {
+    auto it = list->begin();
+    return new libcamera_control_list_iter_t { list, it };
+}
+
+void libcamera_control_list_iter_destroy(libcamera_control_list_iter_t *iter) {
+    delete iter;
+}
+
+bool libcamera_control_list_iter_end(const libcamera_control_list_iter_t *iter) {
+    return iter->it == iter->list->end();
+}
+
+void libcamera_control_list_iter_next(libcamera_control_list_iter_t *iter) {
+    if (iter->it != iter->list->end()) {
+        ++(iter->it);
+    }
+}
+
+unsigned int libcamera_control_list_iter_id(libcamera_control_list_iter_t *iter) {
+    return iter->it->first;
+}
+
+const libcamera_control_value_t *libcamera_control_list_iter_value(libcamera_control_list_iter_t *iter) {
+    return &iter->it->second;
+}
+
 enum libcamera_control_type libcamera_control_value_type(const libcamera_control_value_t *val) {
     return (enum libcamera_control_type)val->type();
 }
