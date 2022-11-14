@@ -37,10 +37,13 @@ static_assert(offsetof(struct libcamera_stream_configuration, buffer_count) == o
 #pragma GCC diagnostic pop
 #endif
 
+typedef libcamera::Stream libcamera_stream_t;
+
 extern "C" {
 #else
 typedef struct libcamera_stream_formats libcamera_stream_formats_t;
 typedef struct libcamera_stream_configuration libcamera_stream_configuration_t;
+typedef struct libcamera_stream libcamera_stream_t;
 #endif
 
 enum libcamera_stream_role {
@@ -55,6 +58,7 @@ libcamera_sizes_t *libcamera_stream_formats_sizes(const libcamera_stream_formats
 libcamera_size_range_t libcamera_stream_formats_range(const libcamera_stream_formats_t* formats, const libcamera_pixel_format_t *pixel_format);
 
 const libcamera_stream_formats_t *libcamera_stream_configuration_formats(const libcamera_stream_configuration_t *config);
+libcamera_stream_t *libcamera_stream_configuration_stream(const libcamera_stream_configuration_t *config);
 
 #ifdef __cplusplus
 }

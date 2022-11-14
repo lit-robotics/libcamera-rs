@@ -20,4 +20,8 @@ const libcamera_stream_formats_t *libcamera_stream_configuration_formats(const l
     return &config->formats();
 }
 
+libcamera_stream_t *libcamera_stream_configuration_stream(const libcamera_stream_configuration_t *config) {
+    return config->stream();
+}
+
 }

@@ -84,7 +84,7 @@ impl CameraConfiguration {
         }
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         return unsafe { libcamera_camera_configuration_size(self.ptr) } as _;
     }
 
@@ -95,6 +95,16 @@ impl CameraConfiguration {
     }
 }
 
+impl core::fmt::Debug for CameraConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = f.debug_list();
+        for i in 0..self.len() {
+            list.entry(&self.get(i).unwrap().0);
+        }
+        list.finish()
+    }
+}
+
 impl Drop for CameraConfiguration {
     fn drop(&mut self) {
         unsafe { libcamera_camera_configuration_destroy(self.ptr) }
@@ -102,7 +112,7 @@ impl Drop for CameraConfiguration {
 }
 
 pub struct Camera<'d> {
-    ptr: *mut libcamera_camera_t,
+    pub(crate) ptr: *mut libcamera_camera_t,
     _phantom: PhantomData<&'d ()>,
 }
 

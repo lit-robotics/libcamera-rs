@@ -1,4 +1,6 @@
-use libcamera_rs::{camera_manager::CameraManager, properties, stream::StreamRole};
+use libcamera_rs::{
+    camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator, properties, stream::StreamRole,
+};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();
@@ -15,15 +17,22 @@ fn main() {
     let mut cam = cam.acquire().expect("Unable to acquire camera");
 
     let mut cfgs = cam.generate_configuration(&[StreamRole::StillCapture]).unwrap();
-    let cfg = cfgs.get_mut(0).unwrap();
 
-    println!("Generated config: {:#?}", cfg);
+    println!("Generated config: {:#?}", cfgs);
 
     if cfgs.validate().is_invalid() {
         panic!("Error validating camera configuration");
     }
 
     cam.configure(&mut cfgs).expect("Unable to configure camera");
+
+    let mut alloc = FrameBufferAllocator::new(&cam);
+
+    let cfg = cfgs.get(0).unwrap();
+    let stream = cfg.stream().unwrap();
+    alloc.allocate(&stream).unwrap();
+
+    println!("Allocated {} buffers", alloc.buffers(&stream).len());
 
     let req = cam.create_request(None).unwrap();
 

@@ -117,7 +117,7 @@ impl<'d> StreamConfigurationRef<'d> {
         unsafe { *self.ptr }.stride
     }
 
-    pub fn set_stride(&self, stride: u32) {
+    pub fn set_stride(&mut self, stride: u32) {
         unsafe { *self.ptr }.stride = stride
     }
 
@@ -125,7 +125,7 @@ impl<'d> StreamConfigurationRef<'d> {
         unsafe { *self.ptr }.frame_size
     }
 
-    pub fn set_frame_size(&self, frame_size: u32) {
+    pub fn set_frame_size(&mut self, frame_size: u32) {
         unsafe { *self.ptr }.frame_size = frame_size
     }
 
@@ -133,8 +133,19 @@ impl<'d> StreamConfigurationRef<'d> {
         unsafe { *self.ptr }.buffer_count
     }
 
-    pub fn set_buffer_count(&self, buffer_count: u32) {
+    pub fn set_buffer_count(&mut self, buffer_count: u32) {
         unsafe { *self.ptr }.buffer_count = buffer_count;
+    }
+
+    pub fn stream(&self) -> Option<StreamRef> {
+        let stream = unsafe { libcamera_stream_configuration_stream(self.ptr) };
+        // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
+        // Unfortunatelly, it's hard to handle it with lifetimes so invalid StreamRef's are possible.
+        if stream.is_null() {
+            None
+        } else {
+            Some(unsafe { StreamRef::from_ptr(stream) })
+        }
     }
 
     pub fn formats(&self) -> StreamFormatsRef {
@@ -151,5 +162,19 @@ impl<'d> core::fmt::Debug for StreamConfigurationRef<'d> {
             .field("frame_size", &self.get_frame_size())
             .field("buffer_count", &self.get_buffer_count())
             .finish()
+    }
+}
+
+pub struct StreamRef<'d> {
+    pub(crate) ptr: *mut libcamera_stream_t,
+    _phantom: PhantomData<&'d ()>,
+}
+
+impl<'d> StreamRef<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_stream_t) -> Self {
+        Self {
+            ptr,
+            _phantom: Default::default(),
+        }
     }
 }
