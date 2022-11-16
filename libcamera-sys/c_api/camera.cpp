@@ -23,7 +23,8 @@ libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(
 }
 
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {
-    return new libcamera_camera_t(*cam);
+    const libcamera_camera_t& ptr = *cam;
+    return new libcamera_camera_t(ptr);
 }
 
 void libcamera_camera_destroy(libcamera_camera_t *cam) {
@@ -46,6 +47,7 @@ libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamer
 
 void libcamera_camera_request_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle) {
     cam->get()->requestCompleted.disconnect(handle);
+    delete handle;
 }
 
 int libcamera_camera_acquire(libcamera_camera_t *cam) {

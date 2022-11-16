@@ -207,3 +207,9 @@ impl<'d> Iterator for ControlListRefIterator<'d> {
         }
     }
 }
+
+impl<'d> Drop for ControlListRefIterator<'d> {
+    fn drop(&mut self) {
+        unsafe { libcamera_control_list_iter_destroy(self.it) }
+    }
+}

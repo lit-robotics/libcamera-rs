@@ -11,7 +11,7 @@ pub struct FrameBufferAllocator {
 impl FrameBufferAllocator {
     pub fn new(cam: &Camera) -> Self {
         Self {
-            ptr: unsafe { libcamera_framebuffer_allocator_create(libcamera_camera_copy(cam.ptr)) },
+            ptr: unsafe { libcamera_framebuffer_allocator_create(cam.ptr) },
         }
     }
 

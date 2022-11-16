@@ -175,7 +175,10 @@ pub type RequestCompletedCb = dyn Fn(Request) + Send + Sync;
 /// A [Camera] with exclusive access granted by [Camera::acquire()].
 pub struct ActiveCamera<'d> {
     cam: Camera<'d>,
-    request_completed_handle: Option<*mut libcamera_callback_handle_t>,
+    request_completed_handle: Option<(
+        *mut libcamera_callback_handle_t,
+        *mut Box<dyn FnMut(Request) + Send + 'd>,
+    )>,
 }
 
 impl<'d> ActiveCamera<'d> {
@@ -190,19 +193,20 @@ impl<'d> ActiveCamera<'d> {
         self.disconnect_request_completed();
 
         let cb: Box<Box<dyn FnMut(Request) + Send>> = Box::new(Box::new(cb));
+        let cb_ptr = Box::into_raw(cb);
 
-        self.request_completed_handle = Some(unsafe {
-            libcamera_camera_request_completed_connect(
-                self.cam.ptr,
-                Some(request_completed_cb),
-                Box::into_raw(cb) as *mut _,
-            )
-        });
+        self.request_completed_handle = Some((
+            unsafe {
+                libcamera_camera_request_completed_connect(self.cam.ptr, Some(request_completed_cb), cb_ptr as *mut _)
+            },
+            cb_ptr,
+        ));
     }
 
     pub fn disconnect_request_completed(&mut self) {
-        if let Some(handle) = self.request_completed_handle {
+        if let Some((handle, cb_ptr)) = self.request_completed_handle {
             unsafe { libcamera_camera_request_completed_disconnect(self.cam.ptr, handle) };
+            unsafe { drop(Box::from_raw(cb_ptr)) };
         }
     }
 
