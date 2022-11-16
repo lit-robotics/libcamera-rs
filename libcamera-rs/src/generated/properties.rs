@@ -681,7 +681,7 @@ impl TryFrom<ControlValue> for Location {
 
 impl From<Location> for ControlValue {
     fn from(val: Location) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1067,7 +1067,7 @@ impl TryFrom<ControlValue> for Rotation {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -1121,7 +1121,7 @@ impl TryFrom<ControlValue> for Model {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(String::try_from(value)?))
+        Ok(Self(<String>::try_from(value)?))
     }
 }
 
@@ -1165,7 +1165,7 @@ impl TryFrom<ControlValue> for UnitCellSize {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Size::try_from(value)?))
+        Ok(Self(<Size>::try_from(value)?))
     }
 }
 
@@ -1268,7 +1268,7 @@ impl TryFrom<ControlValue> for PixelArraySize {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Size::try_from(value)?))
+        Ok(Self(<Size>::try_from(value)?))
     }
 }
 
@@ -1373,10 +1373,10 @@ impl Control for PixelArraySize {
 /// \todo Rename this property to Size once we will have property
 ///       categories (i.e. Properties::PixelArray::OpticalBlackRectangles)
 #[derive(Debug, Clone)]
-pub struct PixelArrayOpticalBlackRectangles(pub Rectangle);
+pub struct PixelArrayOpticalBlackRectangles(pub Vec<Rectangle>);
 
 impl Deref for PixelArrayOpticalBlackRectangles {
-    type Target = Rectangle;
+    type Target = Vec<Rectangle>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1393,7 +1393,7 @@ impl TryFrom<ControlValue> for PixelArrayOpticalBlackRectangles {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Rectangle::try_from(value)?))
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
     }
 }
 
@@ -1476,10 +1476,10 @@ impl Control for PixelArrayOpticalBlackRectangles {
 /// \todo Rename this property to ActiveAreas once we will have property
 ///       categories (i.e. Properties::PixelArray::ActiveAreas)
 #[derive(Debug, Clone)]
-pub struct PixelArrayActiveAreas(pub Rectangle);
+pub struct PixelArrayActiveAreas(pub Vec<Rectangle>);
 
 impl Deref for PixelArrayActiveAreas {
-    type Target = Rectangle;
+    type Target = Vec<Rectangle>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1496,7 +1496,7 @@ impl TryFrom<ControlValue> for PixelArrayActiveAreas {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Rectangle::try_from(value)?))
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
     }
 }
 
@@ -1542,7 +1542,7 @@ impl TryFrom<ControlValue> for ScalerCropMaximum {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Rectangle::try_from(value)?))
+        Ok(Self(<Rectangle>::try_from(value)?))
     }
 }
 
@@ -1585,7 +1585,7 @@ impl TryFrom<ControlValue> for SensorSensitivity {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1630,7 +1630,7 @@ impl TryFrom<ControlValue> for ColorFilterArrangement {
 
 impl From<ColorFilterArrangement> for ControlValue {
     fn from(val: ColorFilterArrangement) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 

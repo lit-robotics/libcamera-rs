@@ -400,7 +400,7 @@ impl TryFrom<ControlValue> for AeEnable {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(bool::try_from(value)?))
+        Ok(Self(<bool>::try_from(value)?))
     }
 }
 
@@ -442,7 +442,7 @@ impl TryFrom<ControlValue> for AeLocked {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(bool::try_from(value)?))
+        Ok(Self(<bool>::try_from(value)?))
     }
 }
 
@@ -483,7 +483,7 @@ impl TryFrom<ControlValue> for AeMeteringMode {
 
 impl From<AeMeteringMode> for ControlValue {
     fn from(val: AeMeteringMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -518,7 +518,7 @@ impl TryFrom<ControlValue> for AeConstraintMode {
 
 impl From<AeConstraintMode> for ControlValue {
     fn from(val: AeConstraintMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -553,7 +553,7 @@ impl TryFrom<ControlValue> for AeExposureMode {
 
 impl From<AeExposureMode> for ControlValue {
     fn from(val: AeExposureMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -590,7 +590,7 @@ impl TryFrom<ControlValue> for ExposureValue {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -639,7 +639,7 @@ impl TryFrom<ControlValue> for ExposureTime {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -689,7 +689,7 @@ impl TryFrom<ControlValue> for AnalogueGain {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -727,7 +727,7 @@ impl TryFrom<ControlValue> for Brightness {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -764,7 +764,7 @@ impl TryFrom<ControlValue> for Contrast {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -801,7 +801,7 @@ impl TryFrom<ControlValue> for Lux {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -839,7 +839,7 @@ impl TryFrom<ControlValue> for AwbEnable {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(bool::try_from(value)?))
+        Ok(Self(<bool>::try_from(value)?))
     }
 }
 
@@ -886,7 +886,7 @@ impl TryFrom<ControlValue> for AwbMode {
 
 impl From<AwbMode> for ControlValue {
     fn from(val: AwbMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -922,7 +922,7 @@ impl TryFrom<ControlValue> for AwbLocked {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(bool::try_from(value)?))
+        Ok(Self(<bool>::try_from(value)?))
     }
 }
 
@@ -942,10 +942,10 @@ impl Control for AwbLocked {
 ///
 /// \sa AwbEnable
 #[derive(Debug, Clone)]
-pub struct ColourGains(pub f32);
+pub struct ColourGains(pub [f32; 2]);
 
 impl Deref for ColourGains {
-    type Target = f32;
+    type Target = [f32; 2];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -962,7 +962,7 @@ impl TryFrom<ControlValue> for ColourGains {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<[f32; 2]>::try_from(value)?))
     }
 }
 
@@ -998,7 +998,7 @@ impl TryFrom<ControlValue> for ColourTemperature {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -1036,7 +1036,7 @@ impl TryFrom<ControlValue> for Saturation {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1055,10 +1055,10 @@ impl Control for Saturation {
 /// pixel range (as if pixels ranged from 0 to 65535). The SensorBlackLevels
 /// control can only be returned in metadata.
 #[derive(Debug, Clone)]
-pub struct SensorBlackLevels(pub i32);
+pub struct SensorBlackLevels(pub [i32; 4]);
 
 impl Deref for SensorBlackLevels {
-    type Target = i32;
+    type Target = [i32; 4];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1075,7 +1075,7 @@ impl TryFrom<ControlValue> for SensorBlackLevels {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<[i32; 4]>::try_from(value)?))
     }
 }
 
@@ -1118,7 +1118,7 @@ impl TryFrom<ControlValue> for Sharpness {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1160,7 +1160,7 @@ impl TryFrom<ControlValue> for FocusFoM {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -1180,10 +1180,10 @@ impl Control for FocusFoM {
 /// transformation. The 3x3 matrix is stored in conventional reading
 /// order in an array of 9 floating point values.
 #[derive(Debug, Clone)]
-pub struct ColourCorrectionMatrix(pub f32);
+pub struct ColourCorrectionMatrix(pub [[f32; 3]; 3]);
 
 impl Deref for ColourCorrectionMatrix {
-    type Target = f32;
+    type Target = [[f32; 3]; 3];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1200,7 +1200,7 @@ impl TryFrom<ControlValue> for ColourCorrectionMatrix {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<[[f32; 3]; 3]>::try_from(value)?))
     }
 }
 
@@ -1244,7 +1244,7 @@ impl TryFrom<ControlValue> for ScalerCrop {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Rectangle::try_from(value)?))
+        Ok(Self(<Rectangle>::try_from(value)?))
     }
 }
 
@@ -1292,7 +1292,7 @@ impl TryFrom<ControlValue> for DigitalGain {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1330,7 +1330,7 @@ impl TryFrom<ControlValue> for FrameDuration {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i64::try_from(value)?))
+        Ok(Self(<i64>::try_from(value)?))
     }
 }
 
@@ -1376,10 +1376,10 @@ impl Control for FrameDuration {
 /// \todo Provide an explicit definition of default control values, for
 /// this and all other controls.
 #[derive(Debug, Clone)]
-pub struct FrameDurationLimits(pub i64);
+pub struct FrameDurationLimits(pub [i64; 2]);
 
 impl Deref for FrameDurationLimits {
-    type Target = i64;
+    type Target = [i64; 2];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1396,7 +1396,7 @@ impl TryFrom<ControlValue> for FrameDurationLimits {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i64::try_from(value)?))
+        Ok(Self(<[i64; 2]>::try_from(value)?))
     }
 }
 
@@ -1437,7 +1437,7 @@ impl TryFrom<ControlValue> for SensorTemperature {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1482,7 +1482,7 @@ impl TryFrom<ControlValue> for SensorTimestamp {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i64::try_from(value)?))
+        Ok(Self(<i64>::try_from(value)?))
     }
 }
 
@@ -1553,7 +1553,7 @@ impl TryFrom<ControlValue> for AfMode {
 
 impl From<AfMode> for ControlValue {
     fn from(val: AfMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1589,7 +1589,7 @@ impl TryFrom<ControlValue> for AfRange {
 
 impl From<AfRange> for ControlValue {
     fn from(val: AfRange) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1621,7 +1621,7 @@ impl TryFrom<ControlValue> for AfSpeed {
 
 impl From<AfSpeed> for ControlValue {
     fn from(val: AfSpeed) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1650,7 +1650,7 @@ impl TryFrom<ControlValue> for AfMetering {
 
 impl From<AfMetering> for ControlValue {
     fn from(val: AfMetering) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1680,10 +1680,10 @@ impl Control for AfMetering {
 /// the window where the focal distance for the objects shown in that part
 /// of the image are closest to the camera.
 #[derive(Debug, Clone)]
-pub struct AfWindows(pub Rectangle);
+pub struct AfWindows(pub Vec<Rectangle>);
 
 impl Deref for AfWindows {
-    type Target = Rectangle;
+    type Target = Vec<Rectangle>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1700,7 +1700,7 @@ impl TryFrom<ControlValue> for AfWindows {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(Rectangle::try_from(value)?))
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
     }
 }
 
@@ -1737,7 +1737,7 @@ impl TryFrom<ControlValue> for AfTrigger {
 
 impl From<AfTrigger> for ControlValue {
     fn from(val: AfTrigger) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1784,7 +1784,7 @@ impl TryFrom<ControlValue> for AfPause {
 
 impl From<AfPause> for ControlValue {
     fn from(val: AfPause) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1839,7 +1839,7 @@ impl TryFrom<ControlValue> for LensPosition {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(f32::try_from(value)?))
+        Ok(Self(<f32>::try_from(value)?))
     }
 }
 
@@ -1907,7 +1907,7 @@ impl TryFrom<ControlValue> for AfState {
 
 impl From<AfState> for ControlValue {
     fn from(val: AfState) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1946,7 +1946,7 @@ impl TryFrom<ControlValue> for AfPauseState {
 
 impl From<AfPauseState> for ControlValue {
     fn from(val: AfPauseState) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -1981,7 +1981,7 @@ impl TryFrom<ControlValue> for AePrecaptureTrigger {
 
 impl From<AePrecaptureTrigger> for ControlValue {
     fn from(val: AePrecaptureTrigger) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2018,7 +2018,7 @@ impl TryFrom<ControlValue> for NoiseReductionMode {
 
 impl From<NoiseReductionMode> for ControlValue {
     fn from(val: NoiseReductionMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2052,7 +2052,7 @@ impl TryFrom<ControlValue> for ColorCorrectionAberrationMode {
 
 impl From<ColorCorrectionAberrationMode> for ControlValue {
     fn from(val: ColorCorrectionAberrationMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2092,7 +2092,7 @@ impl TryFrom<ControlValue> for AeState {
 
 impl From<AeState> for ControlValue {
     fn from(val: AeState) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2127,7 +2127,7 @@ impl TryFrom<ControlValue> for AwbState {
 
 impl From<AwbState> for ControlValue {
     fn from(val: AwbState) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2159,7 +2159,7 @@ impl TryFrom<ControlValue> for SensorRollingShutterSkew {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i64::try_from(value)?))
+        Ok(Self(<i64>::try_from(value)?))
     }
 }
 
@@ -2194,7 +2194,7 @@ impl TryFrom<ControlValue> for LensShadingMapMode {
 
 impl From<LensShadingMapMode> for ControlValue {
     fn from(val: LensShadingMapMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2225,7 +2225,7 @@ impl TryFrom<ControlValue> for SceneFlicker {
 
 impl From<SceneFlicker> for ControlValue {
     fn from(val: SceneFlicker) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 
@@ -2264,7 +2264,7 @@ impl TryFrom<ControlValue> for PipelineDepth {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -2304,7 +2304,7 @@ impl TryFrom<ControlValue> for MaxLatency {
     type Error = ControlValueError;
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(i32::try_from(value)?))
+        Ok(Self(<i32>::try_from(value)?))
     }
 }
 
@@ -2373,7 +2373,7 @@ impl TryFrom<ControlValue> for TestPatternMode {
 
 impl From<TestPatternMode> for ControlValue {
     fn from(val: TestPatternMode) -> Self {
-        ControlValue::from(i32::from(val))
+        ControlValue::from(<i32>::from(val))
     }
 }
 

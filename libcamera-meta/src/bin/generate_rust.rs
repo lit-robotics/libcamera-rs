@@ -1,5 +1,5 @@
 use indoc::printdoc;
-use libcamera_meta::{control_ids, property_ids, Control, ControlType};
+use libcamera_meta::{control_ids, property_ids, Control, ControlSize, ControlType};
 
 fn format_docstring(desc: &str, indent: usize) -> String {
     desc.trim()
@@ -8,8 +8,8 @@ fn format_docstring(desc: &str, indent: usize) -> String {
         .collect::<String>()
 }
 
-fn to_rust_type(t: ControlType) -> &'static str {
-    match t {
+fn to_rust_type(t: ControlType, size: &Option<Vec<ControlSize>>) -> String {
+    let inner = match t {
         ControlType::Bool => "bool",
         ControlType::Byte => "u8",
         ControlType::Int32 => "i32",
@@ -18,6 +18,26 @@ fn to_rust_type(t: ControlType) -> &'static str {
         ControlType::String => "String",
         ControlType::Rectangle => "Rectangle",
         ControlType::Size => "Size",
+    };
+
+    match size {
+        Some(s) => {
+            if s.is_empty() {
+                panic!("Array-like datatype with zero dimensions");
+            } else if matches!(s[0], ControlSize::Dynamic) {
+                if s.len() > 1 {
+                    panic!("Dynamic length with more than 1 dimension is not supported");
+                } else {
+                    format!("Vec<{inner}>")
+                }
+            } else {
+                s.iter().fold(inner.to_string(), |ty, s| match s {
+                    ControlSize::Dynamic => panic!("Dynamic length with more than 1 dimension is not supported"),
+                    ControlSize::Fixed(len) => format!("[{ty}; {len}]"),
+                })
+            }
+        }
+        None => inner.to_string(),
     }
 }
 
@@ -37,7 +57,7 @@ fn generate_controls(controls: &Vec<Control>, name: &str) {
 
     for ctrl in controls.iter() {
         let ctrl_name = &ctrl.name;
-        let ctrl_type = to_rust_type(ctrl.typ);
+        let ctrl_type = to_rust_type(ctrl.typ, &ctrl.size);
 
         print!("{}", format_docstring(&ctrl.description, 0));
         if let Some(enumeration) = &ctrl.enumeration {
@@ -63,7 +83,7 @@ fn generate_controls(controls: &Vec<Control>, name: &str) {
                 
                 impl From<{ctrl_name}> for ControlValue {{
                     fn from(val: {ctrl_name}) -> Self {{
-                        ControlValue::from({ctrl_type}::from(val))
+                        ControlValue::from(<{ctrl_type}>::from(val))
                     }}
                 }}
 
@@ -94,7 +114,7 @@ fn generate_controls(controls: &Vec<Control>, name: &str) {
                     type Error = ControlValueError;
 
                     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {{
-                        Ok(Self({ctrl_type}::try_from(value)?))
+                        Ok(Self(<{ctrl_type}>::try_from(value)?))
                     }}
                 }}
 

@@ -33,7 +33,7 @@ impl TryFrom<&str> for ControlType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ControlSize {
     Dynamic,
     Fixed(usize),

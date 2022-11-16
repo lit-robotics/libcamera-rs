@@ -77,6 +77,113 @@ impl_control_value!(ControlValue::Float, f32);
 impl_control_value!(ControlValue::Rectangle, Rectangle);
 impl_control_value!(ControlValue::Size, Size);
 
+macro_rules! impl_control_value_vec {
+    ($p:path, $type:ty) => {
+        impl From<Vec<$type>> for ControlValue {
+            fn from(val: Vec<$type>) -> Self {
+                $p(SmallVec::from_vec(val))
+            }
+        }
+
+        impl TryFrom<ControlValue> for Vec<$type> {
+            type Error = ControlValueError;
+
+            fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+                match value {
+                    $p(val) => Ok(val.into_vec()),
+                    _ => Err(ControlValueError::InvalidType {
+                        // not really efficient, but eh, only on error
+                        expected: $p(Default::default()).ty(),
+                        found: value.ty(),
+                    }),
+                }
+            }
+        }
+    };
+}
+
+impl_control_value_vec!(ControlValue::Bool, bool);
+impl_control_value_vec!(ControlValue::Byte, u8);
+impl_control_value_vec!(ControlValue::Int32, i32);
+impl_control_value_vec!(ControlValue::Int64, i64);
+impl_control_value_vec!(ControlValue::Float, f32);
+impl_control_value_vec!(ControlValue::Rectangle, Rectangle);
+impl_control_value_vec!(ControlValue::Size, Size);
+
+macro_rules! impl_control_value_array {
+    ($p:path, $type:ty) => {
+        impl<const N: usize> From<[$type; N]> for ControlValue {
+            fn from(val: [$type; N]) -> Self {
+                $p(SmallVec::from_slice(&val))
+            }
+        }
+
+        impl<const N: usize> TryFrom<ControlValue> for [$type; N] {
+            type Error = ControlValueError;
+
+            fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+                match value {
+                    $p(val) => {
+                        Ok(val
+                            .into_vec()
+                            .try_into()
+                            .map_err(|e: Vec<$type>| ControlValueError::InvalidLength {
+                                expected: N,
+                                found: e.len(),
+                            })?)
+                    }
+                    _ => Err(ControlValueError::InvalidType {
+                        // not really efficient, but eh, only on error
+                        expected: $p(Default::default()).ty(),
+                        found: value.ty(),
+                    }),
+                }
+            }
+        }
+
+        impl<const N: usize, const M: usize> From<[[$type; M]; N]> for ControlValue {
+            fn from(val: [[$type; M]; N]) -> Self {
+                $p(SmallVec::from_slice(&unsafe {
+                    core::slice::from_raw_parts(val.as_ptr().cast(), N * M)
+                }))
+            }
+        }
+
+        impl<const N: usize, const M: usize> TryFrom<ControlValue> for [[$type; M]; N] {
+            type Error = ControlValueError;
+
+            fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+                match value {
+                    $p(val) => {
+                        if val.len() == N * M {
+                            let mut iter = val.into_iter();
+                            Ok([[(); M]; N].map(|a| a.map(|_| iter.next().unwrap())))
+                        } else {
+                            Err(ControlValueError::InvalidLength {
+                                expected: N * M,
+                                found: val.len(),
+                            })
+                        }
+                    }
+                    _ => Err(ControlValueError::InvalidType {
+                        // not really efficient, but eh, only on error
+                        expected: $p(Default::default()).ty(),
+                        found: value.ty(),
+                    }),
+                }
+            }
+        }
+    };
+}
+
+impl_control_value_array!(ControlValue::Bool, bool);
+impl_control_value_array!(ControlValue::Byte, u8);
+impl_control_value_array!(ControlValue::Int32, i32);
+impl_control_value_array!(ControlValue::Int64, i64);
+impl_control_value_array!(ControlValue::Float, f32);
+impl_control_value_array!(ControlValue::Rectangle, Rectangle);
+impl_control_value_array!(ControlValue::Size, Size);
+
 impl From<String> for ControlValue {
     fn from(val: String) -> Self {
         Self::String(val)
