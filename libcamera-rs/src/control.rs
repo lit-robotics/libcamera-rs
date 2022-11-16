@@ -84,12 +84,11 @@ impl<'d> ControlListRef<'d> {
         }
     }
 
-    pub fn set<C: Control>(&mut self, val: C) -> Result<(), ControlError> {
+    pub fn set<C: Control>(&mut self, val: C) {
         let val_ptr = unsafe { libcamera_control_list_get(self.ptr, C::ID as _) };
 
         let ctrl_val: ControlValue = val.into();
-        unsafe { ctrl_val.write(val_ptr)? };
-        Ok(())
+        unsafe { ctrl_val.write(val_ptr) };
     }
 
     pub fn debug_controls(&self) -> ControlListRefDebugControls {

@@ -250,7 +250,7 @@ impl ControlValue {
         }
     }
 
-    pub(crate) unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
+    pub(crate) unsafe fn write(&self, val: *mut libcamera_control_value_t) {
         let (data, len) = match self {
             ControlValue::None => (core::ptr::null(), 0),
             ControlValue::Bool(v) => (v.as_ptr() as _, v.len()),
@@ -271,8 +271,6 @@ impl ControlValue {
         };
 
         libcamera_control_value_set(val, self.ty(), data, is_array, len as _);
-
-        Ok(())
     }
 
     pub fn ty(&self) -> u32 {
