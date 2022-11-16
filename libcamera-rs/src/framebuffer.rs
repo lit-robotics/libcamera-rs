@@ -122,6 +122,93 @@ impl<'d> core::fmt::Debug for FrameMetadataRef<'d> {
     }
 }
 
+pub struct FrameBufferPlaneRef<'d> {
+    pub(crate) ptr: *mut libcamera_framebuffer_plane_t,
+    _phantom: PhantomData<&'d ()>,
+}
+
+impl<'d> FrameBufferPlaneRef<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_framebuffer_plane_t) -> Immutable<Self> {
+        Immutable(Self {
+            ptr: ptr as _,
+            _phantom: Default::default(),
+        })
+    }
+
+    /// File descriptor is valid for the [FrameBufferRef] lifetime.
+    pub fn fd(&self) -> i32 {
+        unsafe { libcamera_framebuffer_plane_fd(self.ptr) }
+    }
+
+    pub fn offset(&self) -> Option<usize> {
+        if unsafe { libcamera_framebuffer_plane_offset_valid(self.ptr) } {
+            Some(unsafe { libcamera_framebuffer_plane_offset(self.ptr) as _ })
+        } else {
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { libcamera_framebuffer_plane_length(self.ptr) as _ }
+    }
+}
+
+pub struct FrameBufferPlanesRef<'d> {
+    pub(crate) ptr: *mut libcamera_framebuffer_planes_t,
+    _phantom: PhantomData<&'d ()>,
+}
+
+impl<'d> FrameBufferPlanesRef<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_framebuffer_planes_t) -> Immutable<Self> {
+        Immutable(Self {
+            ptr: ptr as _,
+            _phantom: Default::default(),
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { libcamera_framebuffer_planes_size(self.ptr) as _ }
+    }
+
+    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef>> {
+        if index >= self.len() {
+            None
+        } else {
+            Some(unsafe {
+                FrameBufferPlaneRef::from_ptr(libcamera_framebuffer_planes_data(self.ptr).offset(index as _))
+            })
+        }
+    }
+}
+
+impl<'d> IntoIterator for &'d FrameBufferPlanesRef<'d> {
+    type Item = Immutable<FrameBufferPlaneRef<'d>>;
+
+    type IntoIter = FrameBufferPlanesRefIterator<'d>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FrameBufferPlanesRefIterator { planes: self, index: 0 }
+    }
+}
+
+pub struct FrameBufferPlanesRefIterator<'d> {
+    planes: &'d FrameBufferPlanesRef<'d>,
+    index: usize,
+}
+
+impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
+    type Item = Immutable<FrameBufferPlaneRef<'d>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(plane) = self.planes.get(self.index) {
+            self.index += 1;
+            Some(plane)
+        } else {
+            None
+        }
+    }
+}
+
 pub struct FrameBufferRef<'d> {
     pub(crate) ptr: *mut libcamera_framebuffer_t,
     _phantom: PhantomData<&'d ()>,
@@ -144,5 +231,9 @@ impl<'d> FrameBufferRef<'d> {
 
     pub fn metadata(&self) -> Immutable<FrameMetadataRef> {
         unsafe { FrameMetadataRef::from_ptr(libcamera_framebuffer_metadata(self.ptr)) }
+    }
+
+    pub fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
+        unsafe { FrameBufferPlanesRef::from_ptr(libcamera_framebuffer_planes(self.ptr)) }
     }
 }
