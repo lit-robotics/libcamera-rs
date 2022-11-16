@@ -18,18 +18,21 @@ pub enum ControlError {
     ValueError(#[from] ControlValueError),
 }
 
-pub trait Control:
+pub trait ControlEntry:
     Clone + Into<ControlValue> + TryFrom<ControlValue, Error = ControlValueError> + core::fmt::Debug
 {
     const ID: u32;
 }
 
-pub trait DynControl: core::fmt::Debug {
+pub trait Control: ControlEntry {}
+pub trait Property: ControlEntry {}
+
+pub trait DynControlEntry: core::fmt::Debug {
     fn id(&self) -> u32;
     fn value(&self) -> ControlValue;
 }
 
-impl<T: Control> DynControl for T {
+impl<T: ControlEntry> DynControlEntry for T {
     fn id(&self) -> u32 {
         Self::ID
     }
@@ -90,14 +93,6 @@ impl<'d> ControlListRef<'d> {
         let ctrl_val: ControlValue = val.into();
         unsafe { ctrl_val.write(val_ptr) };
     }
-
-    pub fn debug_controls(&self) -> ControlListRefDebugControls {
-        ControlListRefDebugControls { list: self }
-    }
-
-    pub fn debug_properties(&self) -> ControlListRefDebugProperties {
-        ControlListRefDebugProperties { list: self }
-    }
 }
 
 impl<'d> IntoIterator for &'d ControlListRef<'d> {
@@ -110,6 +105,83 @@ impl<'d> IntoIterator for &'d ControlListRef<'d> {
             it: unsafe { libcamera_control_list_iter(self.ptr) },
             _phantom: Default::default(),
         }
+    }
+}
+
+impl<'d> core::fmt::Debug for ControlListRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut map = f.debug_map();
+        for (id, val) in self.into_iter() {
+            match ControlId::try_from(id) {
+                Ok(id) => match controls::make_dyn(id, val.clone()) {
+                    Ok(val) => map.entry(&id, &val),
+                    Err(_) => map.entry(&id, &val),
+                },
+                Err(_) => map.entry(&id, &val),
+            };
+        }
+        map.finish()
+    }
+}
+
+pub struct PropertyListRef<'d> {
+    pub(crate) ptr: *mut libcamera_control_list_t,
+    _phantom: PhantomData<&'d ()>,
+}
+
+impl<'d> PropertyListRef<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_control_list_t) -> Immutable<Self> {
+        Immutable(Self {
+            ptr: ptr as _,
+            _phantom: Default::default(),
+        })
+    }
+
+    pub fn get<C: Property>(&self) -> Result<C, ControlError> {
+        let val_ptr = unsafe { libcamera_control_list_get(self.ptr, C::ID as _) };
+
+        if val_ptr.is_null() {
+            Err(ControlError::NotFound(C::ID))
+        } else {
+            let val = unsafe { ControlValue::read(val_ptr) }?;
+            Ok(C::try_from(val)?)
+        }
+    }
+
+    pub fn set<C: Property>(&mut self, val: C) {
+        let val_ptr = unsafe { libcamera_control_list_get(self.ptr, C::ID as _) };
+
+        let ctrl_val: ControlValue = val.into();
+        unsafe { ctrl_val.write(val_ptr) };
+    }
+}
+
+impl<'d> IntoIterator for &'d PropertyListRef<'d> {
+    type Item = (u32, ControlValue);
+
+    type IntoIter = ControlListRefIterator<'d>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ControlListRefIterator {
+            it: unsafe { libcamera_control_list_iter(self.ptr) },
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<'d> core::fmt::Debug for PropertyListRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut map = f.debug_map();
+        for (id, val) in self.into_iter() {
+            match PropertyId::try_from(id) {
+                Ok(id) => match properties::make_dyn(id, val.clone()) {
+                    Ok(val) => map.entry(&id, &val),
+                    Err(_) => map.entry(&id, &val),
+                },
+                Err(_) => map.entry(&id, &val),
+            };
+        }
+        map.finish()
     }
 }
 
@@ -133,45 +205,5 @@ impl<'d> Iterator for ControlListRefIterator<'d> {
 
             Some((id, val))
         }
-    }
-}
-
-pub struct ControlListRefDebugControls<'d> {
-    list: &'d ControlListRef<'d>,
-}
-
-impl<'d> core::fmt::Debug for ControlListRefDebugControls<'d> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut map = f.debug_map();
-        for (id, val) in self.list.into_iter() {
-            match ControlId::try_from(id) {
-                Ok(id) => match controls::make_dyn(id, val.clone()) {
-                    Ok(val) => map.entry(&id, &val),
-                    Err(_) => map.entry(&id, &val),
-                },
-                Err(_) => map.entry(&id, &val),
-            };
-        }
-        map.finish()
-    }
-}
-
-pub struct ControlListRefDebugProperties<'d> {
-    list: &'d ControlListRef<'d>,
-}
-
-impl<'d> core::fmt::Debug for ControlListRefDebugProperties<'d> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut map = f.debug_map();
-        for (id, val) in self.list.into_iter() {
-            match PropertyId::try_from(id) {
-                Ok(id) => match properties::make_dyn(id, val.clone()) {
-                    Ok(val) => map.entry(&id, &val),
-                    Err(_) => map.entry(&id, &val),
-                },
-                Err(_) => map.entry(&id, &val),
-            };
-        }
-        map.finish()
     }
 }

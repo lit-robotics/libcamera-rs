@@ -8,7 +8,7 @@ use std::{
 use libcamera_sys::*;
 
 use crate::{
-    control::{ControlInfoMapRef, ControlListRef},
+    control::{ControlInfoMapRef, ControlListRef, PropertyListRef},
     request::Request,
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
@@ -134,8 +134,8 @@ impl<'d> Camera<'d> {
         unsafe { ControlInfoMapRef::from_ptr(libcamera_camera_controls(self.ptr) as _) }
     }
 
-    pub fn properties(&self) -> Immutable<ControlListRef> {
-        unsafe { ControlListRef::from_ptr(libcamera_camera_properties(self.ptr) as _) }
+    pub fn properties(&self) -> Immutable<PropertyListRef> {
+        unsafe { PropertyListRef::from_ptr(libcamera_camera_properties(self.ptr) as _) }
     }
 
     pub fn generate_configuration(&self, roles: &[StreamRole]) -> Option<CameraConfiguration> {

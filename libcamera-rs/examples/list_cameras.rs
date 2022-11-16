@@ -10,7 +10,7 @@ fn main() {
         println!("Camera {}", i);
         println!("ID: {}", cam.id());
 
-        println!("Properties: {:#?}", cam.properties().debug_properties());
+        println!("Properties: {:#?}", cam.properties());
 
         let config = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
         let view_finder_cfg = config.get(0).unwrap();
