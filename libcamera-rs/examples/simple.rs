@@ -44,15 +44,14 @@ fn main() {
         reqs.push(req);
     }
 
-    cam.on_request_completed(|_req| {
-        println!("Req complete!");
+    cam.on_request_completed(|req| {
+        println!("Req: {:#?}", req.metadata());
     });
 
     cam.start(None).unwrap();
 
     for req in reqs {
         cam.queue_request(req).unwrap();
-        break;
     }
 
     std::thread::sleep(std::time::Duration::from_secs(5));
