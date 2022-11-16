@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 libcamera-sys = { path = "../libcamera-sys" }
 thiserror = "1.0"
+smallvec = "1.10"
+num_enum = "0.5"

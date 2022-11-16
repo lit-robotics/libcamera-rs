@@ -1,4 +1,5 @@
 use libcamera_sys::*;
+use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
 
 use crate::geometry::{Rectangle, Size};
@@ -8,214 +9,180 @@ pub enum ControlValueError {
     /// Control value type does not match the one being read/written
     #[error("Expected type {expected}, found {found}")]
     InvalidType { expected: u32, found: u32 },
+    /// Control value type is not recognized
+    #[error("Unknown control type {0}")]
+    UnknownType(u32),
     /// Control value type is correct, but conversion failed (i.e. invalid utf8 string)
     #[error("Control contains a valid type, but data conversion failed")]
     InvalidData,
     /// Control value dimensionality mismatch
     #[error("Expected {expected} elements, found {found}")]
     InvalidLength { expected: usize, found: usize },
+    #[error("Unknown enum variant {0:?}")]
+    UnknownVariant(ControlValue),
 }
 
-pub trait ControlValue: Sized {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type;
+#[derive(Debug, Clone)]
+pub enum ControlValue {
+    None,
+    Bool(SmallVec<[bool; 1]>),
+    Byte(SmallVec<[u8; 1]>),
+    Int32(SmallVec<[i32; 1]>),
+    Int64(SmallVec<[i64; 1]>),
+    Float(SmallVec<[f32; 1]>),
+    String(String),
+    Rectangle(SmallVec<[Rectangle; 1]>),
+    Size(SmallVec<[Size; 1]>),
+}
 
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError>;
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError>;
+macro_rules! impl_control_value {
+    ($p:path, $type:ty) => {
+        impl From<$type> for ControlValue {
+            fn from(val: $type) -> Self {
+                $p(smallvec![val])
+            }
+        }
 
-    unsafe fn check_type(val: *const libcamera_control_value_t) -> Result<(), ControlValueError> {
-        let found = unsafe { libcamera_control_value_type(val) };
-        if found != Self::LIBCAMERA_TYPE as _ {
-            Err(ControlValueError::InvalidType {
-                expected: Self::LIBCAMERA_TYPE as _,
-                found,
-            })
+        impl TryFrom<ControlValue> for $type {
+            type Error = ControlValueError;
+
+            fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+                match value {
+                    $p(mut val) => {
+                        if val.len() == 1 {
+                            Ok(val.pop().unwrap())
+                        } else {
+                            Err(ControlValueError::InvalidLength {
+                                expected: 1,
+                                found: val.len(),
+                            })
+                        }
+                    }
+                    _ => Err(ControlValueError::InvalidType {
+                        // not really efficient, but eh, only on error
+                        expected: $p(Default::default()).ty(),
+                        found: value.ty(),
+                    }),
+                }
+            }
+        }
+    };
+}
+
+impl_control_value!(ControlValue::Bool, bool);
+impl_control_value!(ControlValue::Byte, u8);
+impl_control_value!(ControlValue::Int32, i32);
+impl_control_value!(ControlValue::Int64, i64);
+impl_control_value!(ControlValue::Float, f32);
+impl_control_value!(ControlValue::Rectangle, Rectangle);
+impl_control_value!(ControlValue::Size, Size);
+
+impl From<String> for ControlValue {
+    fn from(val: String) -> Self {
+        Self::String(val)
+    }
+}
+
+impl TryFrom<ControlValue> for String {
+    type Error = ControlValueError;
+
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        match value {
+            ControlValue::String(v) => Ok(v),
+            _ => Err(ControlValueError::InvalidType {
+                expected: libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING,
+                found: value.ty(),
+            }),
+        }
+    }
+}
+
+impl ControlValue {
+    pub(crate) unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
+        let ty = unsafe { libcamera_control_value_type(val) };
+        let num_elements = unsafe { libcamera_control_value_num_elements(val) } as usize;
+        let data = unsafe { libcamera_control_value_get(val) };
+
+        use libcamera_control_type::*;
+        match ty {
+            LIBCAMERA_CONTROL_TYPE_NONE => Ok(Self::None),
+            LIBCAMERA_CONTROL_TYPE_BOOL => {
+                let slice = core::slice::from_raw_parts(data as *const bool, num_elements);
+                Ok(Self::Bool(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_BYTE => {
+                let slice = core::slice::from_raw_parts(data as *const u8, num_elements);
+                Ok(Self::Byte(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_INT32 => {
+                let slice = core::slice::from_raw_parts(data as *const i32, num_elements);
+                Ok(Self::Int32(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_INT64 => {
+                let slice = core::slice::from_raw_parts(data as *const i64, num_elements);
+                Ok(Self::Int64(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_FLOAT => {
+                let slice = core::slice::from_raw_parts(data as *const f32, num_elements);
+                Ok(Self::Float(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_STRING => {
+                let slice = core::slice::from_raw_parts(data as *const u8, num_elements);
+                Ok(Self::String(core::str::from_utf8(slice).unwrap().to_string()))
+            }
+            LIBCAMERA_CONTROL_TYPE_RECTANGLE => {
+                let slice = core::slice::from_raw_parts(data as *const libcamera_rectangle_t, num_elements);
+                Ok(Self::Rectangle(SmallVec::from_iter(
+                    slice.into_iter().map(|r| Rectangle::from(*r)),
+                )))
+            }
+            LIBCAMERA_CONTROL_TYPE_SIZE => {
+                let slice = core::slice::from_raw_parts(data as *const libcamera_size_t, num_elements);
+                Ok(Self::Size(SmallVec::from_iter(
+                    slice.into_iter().map(|r| Size::from(*r)),
+                )))
+            }
+            _ => Err(ControlValueError::UnknownType(ty)),
+        }
+    }
+
+    pub(crate) unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
+        let (data, len) = match self {
+            ControlValue::None => (core::ptr::null(), 0),
+            ControlValue::Bool(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Byte(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Int32(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Int64(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Float(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::String(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Rectangle(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Size(v) => (v.as_ptr() as _, v.len()),
+        };
+
+        let ty = self.ty();
+        let is_array = if ty == libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING {
+            true
         } else {
-            Ok(())
-        }
-    }
+            len != 1
+        };
 
-    unsafe fn is_array(val: *const libcamera_control_value_t) -> bool {
-        return unsafe { libcamera_control_value_is_array(val) };
-    }
-
-    unsafe fn num_elements(val: *const libcamera_control_value_t) -> usize {
-        return unsafe { libcamera_control_value_num_elements(val) }.try_into().unwrap();
-    }
-}
-
-impl ControlValue for bool {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_BOOL;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        Ok(unsafe { *(libcamera_control_value_get(val) as *const bool) })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self as *const bool as _, 1);
-        }
+        libcamera_control_value_set(val, self.ty(), data, is_array, len as _);
 
         Ok(())
     }
-}
 
-impl ControlValue for i32 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT32;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
+    pub fn ty(&self) -> u32 {
+        use libcamera_control_type::*;
+        match self {
+            ControlValue::None => LIBCAMERA_CONTROL_TYPE_NONE,
+            ControlValue::Bool(_) => LIBCAMERA_CONTROL_TYPE_BOOL,
+            ControlValue::Byte(_) => LIBCAMERA_CONTROL_TYPE_BYTE,
+            ControlValue::Int32(_) => LIBCAMERA_CONTROL_TYPE_INT32,
+            ControlValue::Int64(_) => LIBCAMERA_CONTROL_TYPE_INT64,
+            ControlValue::Float(_) => LIBCAMERA_CONTROL_TYPE_FLOAT,
+            ControlValue::String(_) => LIBCAMERA_CONTROL_TYPE_STRING,
+            ControlValue::Rectangle(_) => LIBCAMERA_CONTROL_TYPE_RECTANGLE,
+            ControlValue::Size(_) => LIBCAMERA_CONTROL_TYPE_SIZE,
         }
-
-        Ok(unsafe { *(libcamera_control_value_get(val) as *const i32) })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self as *const i32 as _, 1);
-        }
-
-        Ok(())
-    }
-}
-
-impl ControlValue for i64 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_INT64;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        Ok(unsafe { *(libcamera_control_value_get(val) as *const i64) })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self as *const i64 as _, 1);
-        }
-
-        Ok(())
-    }
-}
-
-impl ControlValue for f32 {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_FLOAT;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        Ok(unsafe { *(libcamera_control_value_get(val) as *const f32) })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self as *const f32 as _, 1);
-        }
-
-        Ok(())
-    }
-}
-
-impl ControlValue for String {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if !Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        let len = unsafe { Self::num_elements(val) };
-        let data = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const u8, len) };
-        let val = core::str::from_utf8(data).unwrap().to_string();
-
-        Ok(val)
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, self.as_ptr() as _, self.len() as _);
-        }
-
-        Ok(())
-    }
-}
-
-impl ControlValue for Rectangle {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_RECTANGLE;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        let vals = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const i32, 4) };
-
-        Ok(Self {
-            x: vals[0],
-            y: vals[1],
-            width: vals[2] as u32,
-            height: vals[3] as u32,
-        })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        let data = [self.x, self.y, self.width as i32, self.height as i32];
-
-        unsafe {
-            libcamera_control_value_set(val, Self::LIBCAMERA_TYPE, &data as *const i32 as _, 1);
-        }
-
-        Ok(())
-    }
-}
-
-impl ControlValue for Size {
-    const LIBCAMERA_TYPE: libcamera_control_type::Type = libcamera_control_type::LIBCAMERA_CONTROL_TYPE_SIZE;
-
-    unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        Self::check_type(val)?;
-
-        if Self::is_array(val) {
-            return Err(ControlValueError::InvalidData);
-        }
-
-        let vals = unsafe { core::slice::from_raw_parts(libcamera_control_value_get(val) as *const u32, 2) };
-
-        Ok(Self {
-            width: vals[0] as u32,
-            height: vals[1] as u32,
-        })
-    }
-
-    unsafe fn write(&self, val: *mut libcamera_control_value_t) -> Result<(), ControlValueError> {
-        unsafe {
-            libcamera_control_value_set(
-                val,
-                Self::LIBCAMERA_TYPE,
-                &[self.width, self.height] as *const u32 as _,
-                1,
-            );
-        }
-
-        Ok(())
     }
 }

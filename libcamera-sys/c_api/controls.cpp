@@ -37,9 +37,10 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
 
-const libcamera_control_value_t *libcamera_control_list_get(const libcamera_control_list_t *list, enum libcamera_property_id id) {
+libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id) {
     if (list->contains(id)) {
-        return &list->get(id);
+        // if control list contains a value, it will not return `static const ControlValue zero` and is safe to cast
+        return const_cast<libcamera_control_value_t *>(&list->get(id));
     } else {
         return nullptr;
     }
@@ -92,8 +93,8 @@ const void *libcamera_control_value_get(const libcamera_control_value_t *val) {
     return (const void*)val->data().data();
 }
 
-void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_control_type type, const void *data, size_t num_elements) {
-    val->reserve((libcamera::ControlType)type, num_elements != 1, num_elements);
+void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_control_type type, const void *data, bool is_array, size_t num_elements) {
+    val->reserve((libcamera::ControlType)type, is_array, num_elements);
     libcamera::Span<uint8_t> storage = val->data();
     memcpy(storage.data(), data, storage.size());
 }
