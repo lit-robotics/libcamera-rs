@@ -137,14 +137,14 @@ impl<'d> StreamConfigurationRef<'d> {
         unsafe { *self.ptr }.buffer_count = buffer_count;
     }
 
-    pub fn stream(&self) -> Option<StreamRef> {
+    pub fn stream(&self) -> Option<Stream> {
         let stream = unsafe { libcamera_stream_configuration_stream(self.ptr) };
         // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
         // Unfortunatelly, it's hard to handle it with lifetimes so invalid StreamRef's are possible.
         if stream.is_null() {
             None
         } else {
-            Some(unsafe { StreamRef::from_ptr(stream) })
+            Some(unsafe { Stream::from_ptr(stream) })
         }
     }
 
@@ -165,16 +165,20 @@ impl<'d> core::fmt::Debug for StreamConfigurationRef<'d> {
     }
 }
 
-pub struct StreamRef<'d> {
+#[derive(Clone, Copy)]
+pub struct Stream {
+    /// libcamera_stream_t is used as unique key across various libcamera structures
+    /// and adding a lifetime would be really inconvenient. Dangling pointer should not
+    /// cause any harm by itself as collection loopup will fail gracefully, however,
+    /// it is important to never dereference this pointer to obtain libcamera_stream_configuration_t.
     pub(crate) ptr: *mut libcamera_stream_t,
-    _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> StreamRef<'d> {
+impl Stream {
     pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_stream_t) -> Self {
-        Self {
-            ptr,
-            _phantom: Default::default(),
-        }
+        Self { ptr }
     }
 }
+
+unsafe impl Send for Stream {}
+unsafe impl Sync for Stream {}

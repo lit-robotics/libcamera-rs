@@ -2,7 +2,7 @@ use std::io;
 
 use libcamera_sys::*;
 
-use crate::{control::ControlListRef, framebuffer::FrameBufferRef, stream::StreamRef, utils::Immutable};
+use crate::{control::ControlListRef, framebuffer::FrameBufferRef, stream::Stream, utils::Immutable};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestStatus {
@@ -45,12 +45,21 @@ impl Request {
         unsafe { ControlListRef::from_ptr(libcamera_request_metadata(self.ptr)) }
     }
 
-    pub fn add_buffer(&mut self, stream: &StreamRef, buffer: &FrameBufferRef) -> io::Result<()> {
+    pub fn add_buffer(&mut self, stream: &Stream, buffer: &FrameBufferRef) -> io::Result<()> {
         let ret = unsafe { libcamera_request_add_buffer(self.ptr, stream.ptr, buffer.ptr) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
             Ok(())
+        }
+    }
+
+    pub fn find_buffer(&self, stream: &Stream) -> Option<FrameBufferRef> {
+        let ptr = unsafe { libcamera_request_find_buffer(self.ptr, stream.ptr) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { FrameBufferRef::from_ptr_mut(ptr) })
         }
     }
 

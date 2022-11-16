@@ -44,9 +44,12 @@ fn main() {
         reqs.push(req);
     }
 
-    cam.on_request_completed(|req| {
+    cam.on_request_completed(move |req| {
         println!("Req: {:?}", req);
         println!("  Meta: {:#?}", req.metadata());
+
+        let framebuffer = req.find_buffer(&stream).unwrap();
+        println!("Framebuffer: {:#?}", framebuffer.metadata());
     });
 
     cam.start(None).unwrap();

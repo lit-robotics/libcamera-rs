@@ -16,22 +16,45 @@ enum libcamera_request_status {
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 
+struct libcamera_request_buffer_map_iter {
+	libcamera::Request::BufferMap *buffer_map;
+	libcamera::Request::BufferMap::iterator it;
+};
+
 typedef libcamera::Request::Status libcamera_request_status_t;
 typedef libcamera::Request libcamera_request_t;
+typedef libcamera::Request::BufferMap libcamera_request_buffer_map_t;
+typedef struct libcamera_request_buffer_map_iter libcamera_request_buffer_map_iter_t;
 
 extern "C" {
 #else
 typedef enum libcamera_request_status libcamera_request_status_t;
 typedef struct libcamera_request libcamera_request_t;
+typedef struct libcamera_request_buffer_map libcamera_request_buffer_map_t;
+typedef struct libcamera_request_buffer_map_iter libcamera_request_buffer_map_iter_t;
 #endif
 
+// --- libcamera_request_t ---
 void libcamera_request_destroy(libcamera_request_t *request);
 libcamera_control_list_t *libcamera_request_controls(libcamera_request_t *request);
 libcamera_control_list_t *libcamera_request_metadata(libcamera_request_t *request);
+const libcamera_request_buffer_map_t *libcamera_request_buffers(const libcamera_request_t *request);
 int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer);
+libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t *request, const libcamera_stream_t *stream);
 uint32_t libcamera_request_sequence(const libcamera_request_t *request);
 uint64_t libcamera_request_cookie(const libcamera_request_t *request);
 libcamera_request_status_t libcamera_request_status(const libcamera_request_t *request);
+
+// --- libcamera_request_buffer_map_t ---
+libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream);
+libcamera_request_buffer_map_iter_t *libcamera_request_buffer_map_iter(libcamera_request_buffer_map_t* buffer_map);
+
+// --- libcamera_request_buffer_map_iter_t ---
+void libcamera_request_buffer_map_iter_destroy(libcamera_request_buffer_map_iter_t *iter);
+bool libcamera_request_buffer_map_iter_end(const libcamera_request_buffer_map_iter_t *iter);
+void libcamera_request_buffer_map_iter_next(libcamera_request_buffer_map_iter_t *iter);
+const libcamera_stream_t *libcamera_request_buffer_map_iter_stream(libcamera_request_buffer_map_iter_t *iter);
+libcamera_framebuffer_t *libcamera_request_buffer_map_iter_buffer(libcamera_request_buffer_map_iter_t *iter);
 
 #ifdef __cplusplus
 }
