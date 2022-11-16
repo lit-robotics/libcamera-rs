@@ -91,3 +91,5 @@ impl Drop for Request {
         unsafe { libcamera_request_destroy(self.ptr) }
     }
 }
+
+unsafe impl Send for Request {}

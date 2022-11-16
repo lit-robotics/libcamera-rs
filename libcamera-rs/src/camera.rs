@@ -186,10 +186,10 @@ impl<'d> ActiveCamera<'d> {
         }
     }
 
-    pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + Sync + 'd) {
+    pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + 'd) {
         self.disconnect_request_completed();
 
-        let cb: Box<Box<dyn FnMut(Request) + Send + Sync>> = Box::new(Box::new(cb));
+        let cb: Box<Box<dyn FnMut(Request) + Send>> = Box::new(Box::new(cb));
 
         self.request_completed_handle = Some(unsafe {
             libcamera_camera_request_completed_connect(

@@ -17,7 +17,7 @@ impl PixelFormat {
     pub fn to_string(&self) -> String {
         let mut buf = [0u8; 64];
         unsafe { libcamera_pixel_format_str(&self.0, buf.as_mut_ptr() as _, buf.len() as u64 - 1) };
-        unsafe { CStr::from_bytes_with_nul_unchecked(&buf) }
+        unsafe { CStr::from_ptr(buf.as_ptr() as _) }
             .to_str()
             .unwrap()
             .to_string()
