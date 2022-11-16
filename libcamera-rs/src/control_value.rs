@@ -12,9 +12,6 @@ pub enum ControlValueError {
     /// Control value type is not recognized
     #[error("Unknown control type {0}")]
     UnknownType(u32),
-    /// Control value type is correct, but conversion failed (i.e. invalid utf8 string)
-    #[error("Control contains a valid type, but data conversion failed")]
-    InvalidData,
     /// Control value dimensionality mismatch
     #[error("Expected {expected} elements, found {found}")]
     InvalidLength { expected: usize, found: usize },
