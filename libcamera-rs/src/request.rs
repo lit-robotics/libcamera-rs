@@ -4,6 +4,7 @@ use libcamera_sys::*;
 
 use crate::{control::ControlListRef, framebuffer::FrameBufferRef, stream::StreamRef, utils::Immutable};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestStatus {
     Pending,
     Complete,
@@ -53,8 +54,26 @@ impl Request {
         }
     }
 
+    pub fn sequence(&self) -> u32 {
+        unsafe { libcamera_request_sequence(self.ptr) }
+    }
+
+    pub fn cookie(&self) -> u64 {
+        unsafe { libcamera_request_cookie(self.ptr) }
+    }
+
     pub fn status(&self) -> RequestStatus {
         RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr) }).unwrap()
+    }
+}
+
+impl core::fmt::Debug for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Request")
+            .field("seq", &self.sequence())
+            .field("status", &self.status())
+            .field("cookie", &self.cookie())
+            .finish()
     }
 }
 

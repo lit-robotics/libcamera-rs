@@ -45,7 +45,8 @@ fn main() {
     }
 
     cam.on_request_completed(|req| {
-        println!("Req: {:#?}", req.metadata());
+        println!("Req: {:?}", req);
+        println!("  Meta: {:#?}", req.metadata());
     });
 
     cam.start(None).unwrap();

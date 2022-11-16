@@ -18,6 +18,14 @@ int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_s
     return request->addBuffer(stream, buffer);
 }
 
+uint32_t libcamera_request_sequence(const libcamera_request_t *request) {
+    return request->sequence();
+}
+
+uint64_t libcamera_request_cookie(const libcamera_request_t *request) {
+    return request->cookie();
+}
+
 libcamera_request_status_t libcamera_request_status(const libcamera_request_t *request) {
     return request->status();
 }

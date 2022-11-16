@@ -29,6 +29,8 @@ void libcamera_request_destroy(libcamera_request_t *request);
 libcamera_control_list_t *libcamera_request_controls(libcamera_request_t *request);
 libcamera_control_list_t *libcamera_request_metadata(libcamera_request_t *request);
 int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer);
+uint32_t libcamera_request_sequence(const libcamera_request_t *request);
+uint64_t libcamera_request_cookie(const libcamera_request_t *request);
 libcamera_request_status_t libcamera_request_status(const libcamera_request_t *request);
 
 #ifdef __cplusplus
