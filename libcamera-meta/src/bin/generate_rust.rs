@@ -2,10 +2,22 @@ use indoc::printdoc;
 use libcamera_meta::{control_ids, property_ids, Control, ControlSize, ControlType};
 
 fn format_docstring(desc: &str, indent: usize) -> String {
-    desc.trim()
-        .split("\n")
-        .map(|line| format!("{}/// {}\n", " ".repeat(indent), line))
-        .collect::<String>()
+    let mut out = String::new();
+    let mut in_text_block = false;
+
+    for line in desc.trim().split("\n") {
+        if !in_text_block && line.starts_with("  ") {
+            in_text_block = true;
+            out.push_str(&format!("{}/// ```text\n", " ".repeat(indent)))
+        } else if in_text_block && !line.starts_with("  ") {
+            in_text_block = false;
+            out.push_str(&format!("{}/// ```\n", " ".repeat(indent)))
+        }
+
+        out.push_str(&format!("{}/// {}\n", " ".repeat(indent), line))
+    }
+
+    out
 }
 
 fn to_rust_type(t: ControlType, size: &Option<Vec<ControlSize>>) -> String {

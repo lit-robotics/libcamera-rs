@@ -26,6 +26,7 @@ pub enum PropertyId {
     /// A typical example for a sensor with a 2592x1944 pixel array matrix
     /// observed from the front is
     ///
+    /// ```text
     ///             2591       X-axis          0
     ///               <------------------------+ 0
     ///               .......... ... ..........!
@@ -34,6 +35,7 @@ pub enum PropertyId {
     ///               .......... ... ..........!
     ///               .......... ... ..........! 1943
     ///                                        V
+    /// ```
     ///
     ///
     /// The external world scene reference system 'Rs' is a 2-dimensional
@@ -46,6 +48,7 @@ pub enum PropertyId {
     /// A typical example of a (very common) picture of a shark swimming from
     /// left to right, as seen from the camera, is
     ///
+    /// ```text
     ///              0               X-axis
     ///            0 +------------------------------------->
     ///              !
@@ -59,9 +62,11 @@ pub enum PropertyId {
     ///              !
     ///              V
     ///            Y-axis
+    /// ```
     ///
     /// With the reference system 'Rs' placed on the camera focal plane.
     ///
+    /// ```text
     ///                                 ¸.·˙!
     ///                             ¸.·˙    !
     ///                 _       ¸.·˙        !
@@ -71,6 +76,7 @@ pub enum PropertyId {
     ///                         ˙·.¸        !
     ///                             ˙·.¸    !
     ///                                 ˙·.¸!
+    /// ```
     ///
     /// When projected on the sensor's pixel array, the image and the associated
     /// reference system 'Rs' are typically (but not always) inverted, due to
@@ -80,6 +86,7 @@ pub enum PropertyId {
     /// inversion projects the scene and its reference system onto the sensor
     /// pixel array, seen from the front of the camera sensor, as follow
     ///
+    /// ```text
     ///           Y-axis
     ///              ^
     ///              !
@@ -93,6 +100,7 @@ pub enum PropertyId {
     ///              !
     ///            0 +------------------------------------->
     ///              0               X-axis
+    /// ```
     ///
     /// Note the shark being upside-down.
     ///
@@ -108,6 +116,7 @@ pub enum PropertyId {
     /// 0 degrees camera rotation
     ///
     ///
+    /// ```text
     ///                   Y-Rp
     ///                    ^
     ///             Y-Rc   !
@@ -123,8 +132,10 @@ pub enum PropertyId {
     ///              !     0               X-Rp
     ///            0 +------------------------------------->
     ///              0               X-Rc
+    /// ```
     ///
     ///
+    /// ```text
     ///                               X-Rc                0
     ///              <------------------------------------+ 0
     ///                          X-Rp                 0   !
@@ -140,9 +151,11 @@ pub enum PropertyId {
     ///                                               !  Y-Rc
     ///                                               V
     ///                                              Y-Rp
+    /// ```
     ///
     /// 90 degrees camera rotation
     ///
+    /// ```text
     ///              0        Y-Rc
     ///            0 +-------------------->
     ///              !   Y-Rp
@@ -164,9 +177,11 @@ pub enum PropertyId {
     ///              !
     ///              V
     ///             X-Rc
+    /// ```
     ///
     /// 180 degrees camera rotation
     ///
+    /// ```text
     ///                                           0
     ///      <------------------------------------+ 0
     ///                       X-Rc                !
@@ -182,9 +197,11 @@ pub enum PropertyId {
     ///              !                           Y-Rc
     ///            0 +------------------------------------->
     ///              0              X-Rp
+    /// ```
     ///
     /// 270 degrees camera rotation
     ///
+    /// ```text
     ///              0        Y-Rc
     ///            0 +-------------------->
     ///              !                                        0
@@ -206,6 +223,7 @@ pub enum PropertyId {
     ///              !
     ///              V
     ///             X-Rc
+    /// ```
     ///
     ///
     /// Example one - Webcam
@@ -217,6 +235,7 @@ pub enum PropertyId {
     /// The camera is typically mounted upside-down to compensate the lens
     /// optical inversion effect.
     ///
+    /// ```text
     ///                   Y-Rp
     ///             Y-Rc   ^
     ///              ^     !
@@ -231,11 +250,13 @@ pub enum PropertyId {
     ///              !     0           X-Rp
     ///            0 +------------------------------------->
     ///              0            X-Rc
+    /// ```
     ///
     /// The two reference systems are aligned, the resulting camera rotation is
     /// 0 degrees, no rotation correction needs to be applied to the resulting
     /// image once captured to memory buffers to correctly display it to users.
     ///
+    /// ```text
     ///              +--------------------------------------+
     ///              !                                      !
     ///              !                                      !
@@ -247,12 +268,14 @@ pub enum PropertyId {
     ///              !                                      !
     ///              !                                      !
     ///              +--------------------------------------+
+    /// ```
     ///
     /// If the camera sensor is not mounted upside-down to compensate for the
     /// lens optical inversion, the two reference systems will not be aligned,
     /// with 'Rp' being rotated 180 degrees relatively to 'Rc'.
     ///
     ///
+    /// ```text
     ///                       X-Rc                0
     ///      <------------------------------------+ 0
     ///                                           !
@@ -268,9 +291,11 @@ pub enum PropertyId {
     ///              !                           Y-Rc
     ///            0 +------------------------------------->
     ///              0            X-Rp
+    /// ```
     ///
     /// The image once captured to memory will then be rotated by 180 degrees
     ///
+    /// ```text
     ///              +--------------------------------------+
     ///              !                                      !
     ///              !                                      !
@@ -282,10 +307,12 @@ pub enum PropertyId {
     ///              !                                      !
     ///              !                                      !
     ///              +--------------------------------------+
+    /// ```
     ///
     /// A software rotation correction of 180 degrees should be applied to
     /// correctly display the image.
     ///
+    /// ```text
     ///              +--------------------------------------+
     ///              !                                      !
     ///              !                                      !
@@ -297,6 +324,7 @@ pub enum PropertyId {
     ///              !                                      !
     ///              !                                      !
     ///              +--------------------------------------+
+    /// ```
     ///
     /// Example two - Phone camera
     ///
@@ -309,6 +337,7 @@ pub enum PropertyId {
     /// aligned to the device longer side, upside-down mounted to compensate for
     /// the lens optical inversion effect.
     ///
+    /// ```text
     ///              0        Y-Rc
     ///            0 +-------------------->
     ///              !   Y-Rp
@@ -330,6 +359,7 @@ pub enum PropertyId {
     ///              !
     ///              V
     ///             X-Rc
+    /// ```
     ///
     /// The two reference systems are not aligned and the 'Rp' reference
     /// system is rotated by 90 degrees in the counter-clockwise direction
@@ -337,6 +367,7 @@ pub enum PropertyId {
     ///
     /// The image once captured to memory will be rotated.
     ///
+    /// ```text
     ///              +-------------------------------------+
     ///              |                 _ _                 |
     ///              |                \   /                |
@@ -348,11 +379,13 @@ pub enum PropertyId {
     ///              |                   .                 |
     ///              |                  V                  |
     ///              +-------------------------------------+
+    /// ```
     ///
     /// A correction of 90 degrees in counter-clockwise direction has to be
     /// applied to correctly display the image in portrait mode on the device
     /// screen.
     ///
+    /// ```text
     ///                       +--------------------+
     ///                       |                    |
     ///                       |                    |
@@ -415,6 +448,7 @@ pub enum PropertyId {
     ///
     /// For example, let's consider a pixel array matrix assembled as follows
     ///
+    /// ```text
     ///      +--------------------------------------------------+
     ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
     ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
@@ -425,13 +459,16 @@ pub enum PropertyId {
     ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
     ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
     ///      ...          ...           ...      ...          ...
+    /// ```
     ///
+    /// ```text
     ///      ...          ...           ...      ...          ...
     ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
     ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
     ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
     ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
     ///      +--------------------------------------------------+
+    /// ```
     ///
     /// starting with two lines of non-readable pixels (x), followed by N lines
     /// of readable data (D) surrounded by two columns of non-readable pixels on
@@ -440,6 +477,7 @@ pub enum PropertyId {
     /// sizes of the largest possible buffer of raw data that can be presented
     /// to applications.
     ///
+    /// ```text
     ///                      PixelArraySize.width
     ///        /----------------------------------------------/
     ///        +----------------------------------------------+ /
@@ -454,6 +492,7 @@ pub enum PropertyId {
     ///        |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
     ///        |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
     ///        +----------------------------------------------+ /
+    /// ```
     ///
     /// This defines a rectangle whose top-left corner is placed in position (0,
     /// 0) and whose vertical and horizontal sizes are defined by this property.
@@ -467,6 +506,7 @@ pub enum PropertyId {
     /// applications shall take any configured transformation into account.
     ///
     /// \todo Rename this property to Size once we will have property
+    /// ```text
     ///       categories (i.e. Properties::PixelArray::Size)
     PixelArraySize = 5,
     /// The pixel array region(s) which contain optical black pixels
@@ -488,6 +528,7 @@ pub enum PropertyId {
     /// they could be positioned too close to the chip margins or to the optical
     /// black shielding placed on top of optical black pixels.
     ///
+    /// ```text
     ///                      PixelArraySize.width
     ///        /----------------------------------------------/
     ///           x1                                       x2
@@ -509,6 +550,7 @@ pub enum PropertyId {
     ///        |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
     ///        |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
     ///        +----------------------------------------------+ /
+    /// ```
     ///
     /// The readable pixel array matrix is composed by
     /// 2 invalid lines (I)
@@ -519,16 +561,19 @@ pub enum PropertyId {
     ///
     /// And the position of the optical black pixel rectangles is defined by
     ///
+    /// ```text
     ///     PixelArrayOpticalBlackRectangles = {
     ///        { x1, y1, x2 - x1 + 1, y2 - y1 + 1 },
     ///        { x1, y3, 2, y4 - y3 + 1 },
     ///        { x2, y3, 2, y4 - y3 + 1 },
     ///     };
+    /// ```
     ///
     /// If the camera, when capturing the full pixel array matrix, automatically
     /// skips the invalid lines and columns, producing the following data
     /// buffer, when captured to memory
     ///
+    /// ```text
     ///                      PixelArraySize.width
     ///        /----------------------------------------------/
     ///                                                    x1
@@ -545,19 +590,23 @@ pub enum PropertyId {
     ///        |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
     ///        |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
     ///        +----------------------------------------------+ /
+    /// ```
     ///
     /// then the invalid lines and columns should not be reported as part of the
     /// PixelArraySize property in first place.
     ///
     /// In this case, the position of the black pixel rectangles will be
     ///
+    /// ```text
     ///     PixelArrayOpticalBlackRectangles = {
     ///        { 0, 0, y1 + 1, PixelArraySize[0] },
     ///        { 0, y1, 2, PixelArraySize[1] - y1 + 1 },
     ///        { x1, y1, 2, PixelArraySize[1] - y1 + 1 },
     ///     };
+    /// ```
     ///
     /// \todo Rename this property to Size once we will have property
+    /// ```text
     ///       categories (i.e. Properties::PixelArray::OpticalBlackRectangles)
     PixelArrayOpticalBlackRectangles = 6,
     /// The PixelArrayActiveAreas property defines the (possibly multiple and
@@ -579,6 +628,7 @@ pub enum PropertyId {
     /// and/or applying pixel sub-sampling techniques such as pixel skipping or
     /// binning.
     ///
+    /// ```text
     ///            PixelArraySize.width
     ///             /----------------/
     ///               x1          x2
@@ -589,16 +639,20 @@ pub enum PropertyId {
     ///             | |////////////| |  |
     ///          y2 o +------------+ |  |
     ///             +----------------+  /
+    /// ```
     ///
     /// The property reports a single rectangle
     ///
+    /// ```text
     ///          PixelArrayActiveAreas = (x1, y1, x2 - x1 + 1, y2 - y1 + 1)
+    /// ```
     ///
     /// Example 2
     /// A camera sensor which can produce images in different native
     /// resolutions will report several overlapping rectangles, one for each
     /// natively supported resolution.
     ///
+    /// ```text
     ///              PixelArraySize.width
     ///             /------------------/
     ///               x1  x2    x3  x4
@@ -611,11 +665,14 @@ pub enum PropertyId {
     ///             |    |//////|    |  |
     ///          y4 o    +------+    |  |
     ///             +----+------+----+  /
+    /// ```
     ///
     /// The property reports two rectangles
     ///
+    /// ```text
     ///         PixelArrayActiveAreas = ((x2, y1, x3 - x2 + 1, y4 - y1 + 1),
     ///                                  (x1, y2, x4 - x1 + 1, y3 - y2 + 1))
+    /// ```
     ///
     /// The first rectangle describes the maximum field-of-view of all image
     /// formats in the 4:3 resolutions, while the second one describes the
@@ -627,6 +684,7 @@ pub enum PropertyId {
     /// contains the single rectangle (x1,y1) - (x4,y4).
     ///
     /// \todo Rename this property to ActiveAreas once we will have property
+    /// ```text
     ///       categories (i.e. Properties::PixelArray::ActiveAreas)
     PixelArrayActiveAreas = 7,
     /// The maximum valid rectangle for the controls::ScalerCrop control. This
@@ -704,6 +762,7 @@ impl Property for Location {}
 /// A typical example for a sensor with a 2592x1944 pixel array matrix
 /// observed from the front is
 ///
+/// ```text
 ///             2591       X-axis          0
 ///               <------------------------+ 0
 ///               .......... ... ..........!
@@ -712,6 +771,7 @@ impl Property for Location {}
 ///               .......... ... ..........!
 ///               .......... ... ..........! 1943
 ///                                        V
+/// ```
 ///
 ///
 /// The external world scene reference system 'Rs' is a 2-dimensional
@@ -724,6 +784,7 @@ impl Property for Location {}
 /// A typical example of a (very common) picture of a shark swimming from
 /// left to right, as seen from the camera, is
 ///
+/// ```text
 ///              0               X-axis
 ///            0 +------------------------------------->
 ///              !
@@ -737,9 +798,11 @@ impl Property for Location {}
 ///              !
 ///              V
 ///            Y-axis
+/// ```
 ///
 /// With the reference system 'Rs' placed on the camera focal plane.
 ///
+/// ```text
 ///                                 ¸.·˙!
 ///                             ¸.·˙    !
 ///                 _       ¸.·˙        !
@@ -749,6 +812,7 @@ impl Property for Location {}
 ///                         ˙·.¸        !
 ///                             ˙·.¸    !
 ///                                 ˙·.¸!
+/// ```
 ///
 /// When projected on the sensor's pixel array, the image and the associated
 /// reference system 'Rs' are typically (but not always) inverted, due to
@@ -758,6 +822,7 @@ impl Property for Location {}
 /// inversion projects the scene and its reference system onto the sensor
 /// pixel array, seen from the front of the camera sensor, as follow
 ///
+/// ```text
 ///           Y-axis
 ///              ^
 ///              !
@@ -771,6 +836,7 @@ impl Property for Location {}
 ///              !
 ///            0 +------------------------------------->
 ///              0               X-axis
+/// ```
 ///
 /// Note the shark being upside-down.
 ///
@@ -786,6 +852,7 @@ impl Property for Location {}
 /// 0 degrees camera rotation
 ///
 ///
+/// ```text
 ///                   Y-Rp
 ///                    ^
 ///             Y-Rc   !
@@ -801,8 +868,10 @@ impl Property for Location {}
 ///              !     0               X-Rp
 ///            0 +------------------------------------->
 ///              0               X-Rc
+/// ```
 ///
 ///
+/// ```text
 ///                               X-Rc                0
 ///              <------------------------------------+ 0
 ///                          X-Rp                 0   !
@@ -818,9 +887,11 @@ impl Property for Location {}
 ///                                               !  Y-Rc
 ///                                               V
 ///                                              Y-Rp
+/// ```
 ///
 /// 90 degrees camera rotation
 ///
+/// ```text
 ///              0        Y-Rc
 ///            0 +-------------------->
 ///              !   Y-Rp
@@ -842,9 +913,11 @@ impl Property for Location {}
 ///              !
 ///              V
 ///             X-Rc
+/// ```
 ///
 /// 180 degrees camera rotation
 ///
+/// ```text
 ///                                           0
 ///      <------------------------------------+ 0
 ///                       X-Rc                !
@@ -860,9 +933,11 @@ impl Property for Location {}
 ///              !                           Y-Rc
 ///            0 +------------------------------------->
 ///              0              X-Rp
+/// ```
 ///
 /// 270 degrees camera rotation
 ///
+/// ```text
 ///              0        Y-Rc
 ///            0 +-------------------->
 ///              !                                        0
@@ -884,6 +959,7 @@ impl Property for Location {}
 ///              !
 ///              V
 ///             X-Rc
+/// ```
 ///
 ///
 /// Example one - Webcam
@@ -895,6 +971,7 @@ impl Property for Location {}
 /// The camera is typically mounted upside-down to compensate the lens
 /// optical inversion effect.
 ///
+/// ```text
 ///                   Y-Rp
 ///             Y-Rc   ^
 ///              ^     !
@@ -909,11 +986,13 @@ impl Property for Location {}
 ///              !     0           X-Rp
 ///            0 +------------------------------------->
 ///              0            X-Rc
+/// ```
 ///
 /// The two reference systems are aligned, the resulting camera rotation is
 /// 0 degrees, no rotation correction needs to be applied to the resulting
 /// image once captured to memory buffers to correctly display it to users.
 ///
+/// ```text
 ///              +--------------------------------------+
 ///              !                                      !
 ///              !                                      !
@@ -925,12 +1004,14 @@ impl Property for Location {}
 ///              !                                      !
 ///              !                                      !
 ///              +--------------------------------------+
+/// ```
 ///
 /// If the camera sensor is not mounted upside-down to compensate for the
 /// lens optical inversion, the two reference systems will not be aligned,
 /// with 'Rp' being rotated 180 degrees relatively to 'Rc'.
 ///
 ///
+/// ```text
 ///                       X-Rc                0
 ///      <------------------------------------+ 0
 ///                                           !
@@ -946,9 +1027,11 @@ impl Property for Location {}
 ///              !                           Y-Rc
 ///            0 +------------------------------------->
 ///              0            X-Rp
+/// ```
 ///
 /// The image once captured to memory will then be rotated by 180 degrees
 ///
+/// ```text
 ///              +--------------------------------------+
 ///              !                                      !
 ///              !                                      !
@@ -960,10 +1043,12 @@ impl Property for Location {}
 ///              !                                      !
 ///              !                                      !
 ///              +--------------------------------------+
+/// ```
 ///
 /// A software rotation correction of 180 degrees should be applied to
 /// correctly display the image.
 ///
+/// ```text
 ///              +--------------------------------------+
 ///              !                                      !
 ///              !                                      !
@@ -975,6 +1060,7 @@ impl Property for Location {}
 ///              !                                      !
 ///              !                                      !
 ///              +--------------------------------------+
+/// ```
 ///
 /// Example two - Phone camera
 ///
@@ -987,6 +1073,7 @@ impl Property for Location {}
 /// aligned to the device longer side, upside-down mounted to compensate for
 /// the lens optical inversion effect.
 ///
+/// ```text
 ///              0        Y-Rc
 ///            0 +-------------------->
 ///              !   Y-Rp
@@ -1008,6 +1095,7 @@ impl Property for Location {}
 ///              !
 ///              V
 ///             X-Rc
+/// ```
 ///
 /// The two reference systems are not aligned and the 'Rp' reference
 /// system is rotated by 90 degrees in the counter-clockwise direction
@@ -1015,6 +1103,7 @@ impl Property for Location {}
 ///
 /// The image once captured to memory will be rotated.
 ///
+/// ```text
 ///              +-------------------------------------+
 ///              |                 _ _                 |
 ///              |                \   /                |
@@ -1026,11 +1115,13 @@ impl Property for Location {}
 ///              |                   .                 |
 ///              |                  V                  |
 ///              +-------------------------------------+
+/// ```
 ///
 /// A correction of 90 degrees in counter-clockwise direction has to be
 /// applied to correctly display the image in portrait mode on the device
 /// screen.
 ///
+/// ```text
 ///                       +--------------------+
 ///                       |                    |
 ///                       |                    |
@@ -1201,6 +1292,7 @@ impl Property for UnitCellSize {}
 ///
 /// For example, let's consider a pixel array matrix assembled as follows
 ///
+/// ```text
 ///      +--------------------------------------------------+
 ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
 ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
@@ -1211,13 +1303,16 @@ impl Property for UnitCellSize {}
 ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
 ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
 ///      ...          ...           ...      ...          ...
+/// ```
 ///
+/// ```text
 ///      ...          ...           ...      ...          ...
 ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
 ///      |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
 ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
 ///      |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
 ///      +--------------------------------------------------+
+/// ```
 ///
 /// starting with two lines of non-readable pixels (x), followed by N lines
 /// of readable data (D) surrounded by two columns of non-readable pixels on
@@ -1226,6 +1321,7 @@ impl Property for UnitCellSize {}
 /// sizes of the largest possible buffer of raw data that can be presented
 /// to applications.
 ///
+/// ```text
 ///                      PixelArraySize.width
 ///        /----------------------------------------------/
 ///        +----------------------------------------------+ /
@@ -1240,6 +1336,7 @@ impl Property for UnitCellSize {}
 ///        |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
 ///        |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
 ///        +----------------------------------------------+ /
+/// ```
 ///
 /// This defines a rectangle whose top-left corner is placed in position (0,
 /// 0) and whose vertical and horizontal sizes are defined by this property.
@@ -1253,6 +1350,7 @@ impl Property for UnitCellSize {}
 /// applications shall take any configured transformation into account.
 ///
 /// \todo Rename this property to Size once we will have property
+/// ```text
 ///       categories (i.e. Properties::PixelArray::Size)
 #[derive(Debug, Clone)]
 pub struct PixelArraySize(pub Size);
@@ -1310,6 +1408,7 @@ impl Property for PixelArraySize {}
 /// they could be positioned too close to the chip margins or to the optical
 /// black shielding placed on top of optical black pixels.
 ///
+/// ```text
 ///                      PixelArraySize.width
 ///        /----------------------------------------------/
 ///           x1                                       x2
@@ -1331,6 +1430,7 @@ impl Property for PixelArraySize {}
 ///        |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
 ///        |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
 ///        +----------------------------------------------+ /
+/// ```
 ///
 /// The readable pixel array matrix is composed by
 /// 2 invalid lines (I)
@@ -1341,16 +1441,19 @@ impl Property for PixelArraySize {}
 ///
 /// And the position of the optical black pixel rectangles is defined by
 ///
+/// ```text
 ///     PixelArrayOpticalBlackRectangles = {
 ///        { x1, y1, x2 - x1 + 1, y2 - y1 + 1 },
 ///        { x1, y3, 2, y4 - y3 + 1 },
 ///        { x2, y3, 2, y4 - y3 + 1 },
 ///     };
+/// ```
 ///
 /// If the camera, when capturing the full pixel array matrix, automatically
 /// skips the invalid lines and columns, producing the following data
 /// buffer, when captured to memory
 ///
+/// ```text
 ///                      PixelArraySize.width
 ///        /----------------------------------------------/
 ///                                                    x1
@@ -1367,19 +1470,23 @@ impl Property for PixelArraySize {}
 ///        |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
 ///        |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
 ///        +----------------------------------------------+ /
+/// ```
 ///
 /// then the invalid lines and columns should not be reported as part of the
 /// PixelArraySize property in first place.
 ///
 /// In this case, the position of the black pixel rectangles will be
 ///
+/// ```text
 ///     PixelArrayOpticalBlackRectangles = {
 ///        { 0, 0, y1 + 1, PixelArraySize[0] },
 ///        { 0, y1, 2, PixelArraySize[1] - y1 + 1 },
 ///        { x1, y1, 2, PixelArraySize[1] - y1 + 1 },
 ///     };
+/// ```
 ///
 /// \todo Rename this property to Size once we will have property
+/// ```text
 ///       categories (i.e. Properties::PixelArray::OpticalBlackRectangles)
 #[derive(Debug, Clone)]
 pub struct PixelArrayOpticalBlackRectangles(pub Vec<Rectangle>);
@@ -1437,6 +1544,7 @@ impl Property for PixelArrayOpticalBlackRectangles {}
 /// and/or applying pixel sub-sampling techniques such as pixel skipping or
 /// binning.
 ///
+/// ```text
 ///            PixelArraySize.width
 ///             /----------------/
 ///               x1          x2
@@ -1447,16 +1555,20 @@ impl Property for PixelArrayOpticalBlackRectangles {}
 ///             | |////////////| |  |
 ///          y2 o +------------+ |  |
 ///             +----------------+  /
+/// ```
 ///
 /// The property reports a single rectangle
 ///
+/// ```text
 ///          PixelArrayActiveAreas = (x1, y1, x2 - x1 + 1, y2 - y1 + 1)
+/// ```
 ///
 /// Example 2
 /// A camera sensor which can produce images in different native
 /// resolutions will report several overlapping rectangles, one for each
 /// natively supported resolution.
 ///
+/// ```text
 ///              PixelArraySize.width
 ///             /------------------/
 ///               x1  x2    x3  x4
@@ -1469,11 +1581,14 @@ impl Property for PixelArrayOpticalBlackRectangles {}
 ///             |    |//////|    |  |
 ///          y4 o    +------+    |  |
 ///             +----+------+----+  /
+/// ```
 ///
 /// The property reports two rectangles
 ///
+/// ```text
 ///         PixelArrayActiveAreas = ((x2, y1, x3 - x2 + 1, y4 - y1 + 1),
 ///                                  (x1, y2, x4 - x1 + 1, y3 - y2 + 1))
+/// ```
 ///
 /// The first rectangle describes the maximum field-of-view of all image
 /// formats in the 4:3 resolutions, while the second one describes the
@@ -1485,6 +1600,7 @@ impl Property for PixelArrayOpticalBlackRectangles {}
 /// contains the single rectangle (x1,y1) - (x4,y4).
 ///
 /// \todo Rename this property to ActiveAreas once we will have property
+/// ```text
 ///       categories (i.e. Properties::PixelArray::ActiveAreas)
 #[derive(Debug, Clone)]
 pub struct PixelArrayActiveAreas(pub Vec<Rectangle>);
