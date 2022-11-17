@@ -41,7 +41,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --no-deps
+          args: --no-deps --lib
       - name: Upload docs artifact
         uses: actions/upload-artifact@v3
         with:
