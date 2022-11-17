@@ -6,13 +6,13 @@
 
 enum libcamera_control_id {
     /**
-     * \brief Enable or disable the AE.
+     * Enable or disable the AE.
      * 
      * \sa ExposureTime AnalogueGain
      */
     LIBCAMERA_CONTROL_ID_AE_ENABLE = 1,
     /**
-     * \brief Report the lock status of a running AE algorithm.
+     * Report the lock status of a running AE algorithm.
      * 
      * If the AE algorithm is locked the value shall be set to true, if it's
      * converging it shall be set to false. If the AE algorithm is not
@@ -22,28 +22,28 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AE_LOCKED = 2,
     /**
-     * \brief Specify a metering mode for the AE algorithm to use. The metering
+     * Specify a metering mode for the AE algorithm to use. The metering
      * modes determine which parts of the image are used to determine the
      * scene brightness. Metering modes may be platform specific and not
      * all metering modes may be supported.
      */
     LIBCAMERA_CONTROL_ID_AE_METERING_MODE = 3,
     /**
-     * \brief Specify a constraint mode for the AE algorithm to use. These determine
+     * Specify a constraint mode for the AE algorithm to use. These determine
      * how the measured scene brightness is adjusted to reach the desired
      * target exposure. Constraint modes may be platform specific, and not
      * all constraint modes may be supported.
      */
     LIBCAMERA_CONTROL_ID_AE_CONSTRAINT_MODE = 4,
     /**
-     * \brief Specify an exposure mode for the AE algorithm to use. These specify
+     * Specify an exposure mode for the AE algorithm to use. These specify
      * how the desired total exposure is divided between the shutter time
      * and the sensor's analogue gain. The exposure modes are platform
      * specific, and not all exposure modes may be supported.
      */
     LIBCAMERA_CONTROL_ID_AE_EXPOSURE_MODE = 5,
     /**
-     * \brief Specify an Exposure Value (EV) parameter. The EV parameter will only be
+     * Specify an Exposure Value (EV) parameter. The EV parameter will only be
      * applied if the AE algorithm is currently enabled.
      * 
      * By convention EV adjusts the exposure as log2. For example
@@ -54,7 +54,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_EXPOSURE_VALUE = 6,
     /**
-     * \brief Exposure time (shutter speed) for the frame applied in the sensor
+     * Exposure time (shutter speed) for the frame applied in the sensor
      * device. This value is specified in micro-seconds.
      * 
      * Setting this value means that it is now fixed and the AE algorithm may
@@ -71,7 +71,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_EXPOSURE_TIME = 7,
     /**
-     * \brief Analogue gain value applied in the sensor device.
+     * Analogue gain value applied in the sensor device.
      * The value of the control specifies the gain multiplier applied to all
      * colour channels. This value cannot be lower than 1.0.
      * 
@@ -89,34 +89,34 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_ANALOGUE_GAIN = 8,
     /**
-     * \brief Specify a fixed brightness parameter. Positive values (up to 1.0)
+     * Specify a fixed brightness parameter. Positive values (up to 1.0)
      * produce brighter images; negative values (up to -1.0) produce darker
      * images and 0.0 leaves pixels unchanged.
      */
     LIBCAMERA_CONTROL_ID_BRIGHTNESS = 9,
     /**
-     * \brief Specify a fixed contrast parameter. Normal contrast is given by the
+     * Specify a fixed contrast parameter. Normal contrast is given by the
      * value 1.0; larger values produce images with more contrast.
      */
     LIBCAMERA_CONTROL_ID_CONTRAST = 10,
     /**
-     * \brief Report an estimate of the current illuminance level in lux. The Lux
+     * Report an estimate of the current illuminance level in lux. The Lux
      * control can only be returned in metadata.
      */
     LIBCAMERA_CONTROL_ID_LUX = 11,
     /**
-     * \brief Enable or disable the AWB.
+     * Enable or disable the AWB.
      * 
      * \sa ColourGains
      */
     LIBCAMERA_CONTROL_ID_AWB_ENABLE = 12,
     /**
-     * \brief Specify the range of illuminants to use for the AWB algorithm. The modes
+     * Specify the range of illuminants to use for the AWB algorithm. The modes
      * supported are platform specific, and not all modes may be supported.
      */
     LIBCAMERA_CONTROL_ID_AWB_MODE = 13,
     /**
-     * \brief Report the lock status of a running AWB algorithm.
+     * Report the lock status of a running AWB algorithm.
      * 
      * If the AWB algorithm is locked the value shall be set to true, if it's
      * converging it shall be set to false. If the AWB algorithm is not
@@ -126,7 +126,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AWB_LOCKED = 14,
     /**
-     * \brief Pair of gain values for the Red and Blue colour channels, in that
+     * Pair of gain values for the Red and Blue colour channels, in that
      * order. ColourGains can only be applied in a Request when the AWB is
      * disabled.
      * 
@@ -134,24 +134,24 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_COLOUR_GAINS = 15,
     /**
-     * \brief Report the current estimate of the colour temperature, in kelvin, for this frame. The ColourTemperature control can only be returned in metadata.
+     * Report the current estimate of the colour temperature, in kelvin, for this frame. The ColourTemperature control can only be returned in metadata.
      */
     LIBCAMERA_CONTROL_ID_COLOUR_TEMPERATURE = 16,
     /**
-     * \brief Specify a fixed saturation parameter. Normal saturation is given by
+     * Specify a fixed saturation parameter. Normal saturation is given by
      * the value 1.0; larger values produce more saturated colours; 0.0
      * produces a greyscale image.
      */
     LIBCAMERA_CONTROL_ID_SATURATION = 17,
     /**
-     * \brief Reports the sensor black levels used for processing a frame, in the
+     * Reports the sensor black levels used for processing a frame, in the
      * order R, Gr, Gb, B. These values are returned as numbers out of a 16-bit
      * pixel range (as if pixels ranged from 0 to 65535). The SensorBlackLevels
      * control can only be returned in metadata.
      */
     LIBCAMERA_CONTROL_ID_SENSOR_BLACK_LEVELS = 18,
     /**
-     * \brief A value of 0.0 means no sharpening. The minimum value means
+     * A value of 0.0 means no sharpening. The minimum value means
      * minimal sharpening, and shall be 0.0 unless the camera can't
      * disable sharpening completely. The default value shall give a
      * "reasonable" level of sharpening, suitable for most use cases.
@@ -162,7 +162,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_SHARPNESS = 19,
     /**
-     * \brief Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
+     * Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
      * A larger FocusFoM value indicates a more in-focus frame. This control
      * depends on the IPA to gather ISP statistics from the defined focus
      * region, and combine them in a suitable way to generate a FocusFoM value.
@@ -172,7 +172,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_FOCUS_FO_M = 20,
     /**
-     * \brief The 3x3 matrix that converts camera RGB to sRGB within the
+     * The 3x3 matrix that converts camera RGB to sRGB within the
      * imaging pipeline. This should describe the matrix that is used
      * after pixels have been white-balanced, but before any gamma
      * transformation. The 3x3 matrix is stored in conventional reading
@@ -180,7 +180,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_COLOUR_CORRECTION_MATRIX = 21,
     /**
-     * \brief Sets the image portion that will be scaled to form the whole of
+     * Sets the image portion that will be scaled to form the whole of
      * the final output image. The (x,y) location of this rectangle is
      * relative to the PixelArrayActiveAreas that is being used. The units
      * remain native sensor pixels, even if the sensor is being used in
@@ -192,7 +192,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_SCALER_CROP = 22,
     /**
-     * \brief Digital gain value applied during the processing steps applied
+     * Digital gain value applied during the processing steps applied
      * to the image as captured from the sensor.
      * 
      * The global digital gain factor is applied to all the colour channels
@@ -208,13 +208,13 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_DIGITAL_GAIN = 23,
     /**
-     * \brief The instantaneous frame duration from start of frame exposure to start
+     * The instantaneous frame duration from start of frame exposure to start
      * of next exposure, expressed in microseconds. This control is meant to
      * be returned in metadata.
      */
     LIBCAMERA_CONTROL_ID_FRAME_DURATION = 24,
     /**
-     * \brief The minimum and maximum (in that order) frame duration,
+     * The minimum and maximum (in that order) frame duration,
      * expressed in microseconds.
      * 
      * When provided by applications, the control specifies the sensor frame
@@ -248,7 +248,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_FRAME_DURATION_LIMITS = 25,
     /**
-     * \brief Temperature measure from the camera sensor in Celsius. This is typically
+     * Temperature measure from the camera sensor in Celsius. This is typically
      * obtained by a thermal sensor present on-die or in the camera module. The
      * range of reported temperatures is device dependent.
      * 
@@ -257,7 +257,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_SENSOR_TEMPERATURE = 26,
     /**
-     * \brief The time when the first row of the image sensor active array is exposed.
+     * The time when the first row of the image sensor active array is exposed.
      * 
      * The timestamp, expressed in nanoseconds, represents a monotonically
      * increasing counter since the system boot time, as defined by the
@@ -270,18 +270,18 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_SENSOR_TIMESTAMP = 27,
     /**
-     * \brief Control to set the mode of the AF (autofocus) algorithm.
+     * Control to set the mode of the AF (autofocus) algorithm.
      * 
      * An implementation may choose not to implement all the modes.
      */
     LIBCAMERA_CONTROL_ID_AF_MODE = 28,
     /**
-     * \brief Control to set the range of focus distances that is scanned. An
+     * Control to set the range of focus distances that is scanned. An
      * implementation may choose not to implement all the options here.
      */
     LIBCAMERA_CONTROL_ID_AF_RANGE = 29,
     /**
-     * \brief Control that determines whether the AF algorithm is to move the lens
+     * Control that determines whether the AF algorithm is to move the lens
      * as quickly as possible or more steadily. For example, during video
      * recording it may be desirable not to move the lens too abruptly, but
      * when in a preview mode (waiting for a still capture) it may be
@@ -289,12 +289,12 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AF_SPEED = 30,
     /**
-     * \brief Instruct the AF algorithm how it should decide which parts of the image
+     * Instruct the AF algorithm how it should decide which parts of the image
      * should be used to measure focus.
      */
     LIBCAMERA_CONTROL_ID_AF_METERING = 31,
     /**
-     * \brief Sets the focus windows used by the AF algorithm when AfMetering is set
+     * Sets the focus windows used by the AF algorithm when AfMetering is set
      * to AfMeteringWindows. The units used are pixels within the rectangle
      * returned by the ScalerCropMaximum property.
      * 
@@ -318,21 +318,21 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AF_WINDOWS = 32,
     /**
-     * \brief This control starts an autofocus scan when AfMode is set to AfModeAuto,
+     * This control starts an autofocus scan when AfMode is set to AfModeAuto,
      * and can also be used to terminate a scan early.
      * 
      * It is ignored if AfMode is set to AfModeManual or AfModeContinuous.
      */
     LIBCAMERA_CONTROL_ID_AF_TRIGGER = 33,
     /**
-     * \brief This control has no effect except when in continuous autofocus mode
+     * This control has no effect except when in continuous autofocus mode
      * (AfModeContinuous). It can be used to pause any lens movements while
      * (for example) images are captured. The algorithm remains inactive
      * until it is instructed to resume.
      */
     LIBCAMERA_CONTROL_ID_AF_PAUSE = 34,
     /**
-     * \brief Acts as a control to instruct the lens to move to a particular position
+     * Acts as a control to instruct the lens to move to a particular position
      * and also reports back the position of the lens for each frame.
      * 
      * The LensPosition control is ignored unless the AfMode is set to
@@ -361,7 +361,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_LENS_POSITION = 35,
     /**
-     * \brief Reports the current state of the AF algorithm in conjunction with the
+     * Reports the current state of the AF algorithm in conjunction with the
      * reported AfMode value and (in continuous AF mode) the AfPauseState
      * value. The possible state changes are described below, though we note
      * the following state transitions that occur when the AfMode is changed.
@@ -380,7 +380,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AF_STATE = 36,
     /**
-     * \brief Only applicable in continuous (AfModeContinuous) mode, this reports
+     * Only applicable in continuous (AfModeContinuous) mode, this reports
      * whether the algorithm is currently running, paused or pausing (that is,
      * will pause as soon as any in-progress scan completes).
      * 
@@ -388,7 +388,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AF_PAUSE_STATE = 37,
     /**
-     * \brief Control for AE metering trigger. Currently identical to
+     * Control for AE metering trigger. Currently identical to
      * ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
      * 
      * Whether the camera device will trigger a precapture metering sequence
@@ -396,51 +396,51 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_AE_PRECAPTURE_TRIGGER = 38,
     /**
-     * \brief Control to select the noise reduction algorithm mode. Currently
+     * Control to select the noise reduction algorithm mode. Currently
      * identical to ANDROID_NOISE_REDUCTION_MODE.
      * 
      *  Mode of operation for the noise reduction algorithm.
      */
     LIBCAMERA_CONTROL_ID_NOISE_REDUCTION_MODE = 39,
     /**
-     * \brief Control to select the color correction aberration mode. Currently
+     * Control to select the color correction aberration mode. Currently
      * identical to ANDROID_COLOR_CORRECTION_ABERRATION_MODE.
      * 
      *  Mode of operation for the chromatic aberration correction algorithm.
      */
     LIBCAMERA_CONTROL_ID_COLOR_CORRECTION_ABERRATION_MODE = 40,
     /**
-     * \brief Control to report the current AE algorithm state. Currently identical to
+     * Control to report the current AE algorithm state. Currently identical to
      * ANDROID_CONTROL_AE_STATE.
      * 
      *  Current state of the AE algorithm.
      */
     LIBCAMERA_CONTROL_ID_AE_STATE = 41,
     /**
-     * \brief Control to report the current AWB algorithm state. Currently identical
+     * Control to report the current AWB algorithm state. Currently identical
      * to ANDROID_CONTROL_AWB_STATE.
      * 
      *  Current state of the AWB algorithm.
      */
     LIBCAMERA_CONTROL_ID_AWB_STATE = 42,
     /**
-     * \brief Control to report the time between the start of exposure of the first
+     * Control to report the time between the start of exposure of the first
      * row and the start of exposure of the last row. Currently identical to
      * ANDROID_SENSOR_ROLLING_SHUTTER_SKEW
      */
     LIBCAMERA_CONTROL_ID_SENSOR_ROLLING_SHUTTER_SKEW = 43,
     /**
-     * \brief Control to report if the lens shading map is available. Currently
+     * Control to report if the lens shading map is available. Currently
      * identical to ANDROID_STATISTICS_LENS_SHADING_MAP_MODE.
      */
     LIBCAMERA_CONTROL_ID_LENS_SHADING_MAP_MODE = 44,
     /**
-     * \brief Control to report the detected scene light frequency. Currently
+     * Control to report the detected scene light frequency. Currently
      * identical to ANDROID_STATISTICS_SCENE_FLICKER.
      */
     LIBCAMERA_CONTROL_ID_SCENE_FLICKER = 45,
     /**
-     * \brief Specifies the number of pipeline stages the frame went through from when
+     * Specifies the number of pipeline stages the frame went through from when
      * it was exposed to when the final completed result was available to the
      * framework. Always less than or equal to PipelineMaxDepth. Currently
      * identical to ANDROID_REQUEST_PIPELINE_DEPTH.
@@ -453,7 +453,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_PIPELINE_DEPTH = 46,
     /**
-     * \brief The maximum number of frames that can occur after a request (different
+     * The maximum number of frames that can occur after a request (different
      * than the previous) has been submitted, and before the result's state
      * becomes synchronized. A value of -1 indicates unknown latency, and 0
      * indicates per-frame control. Currently identical to
@@ -461,7 +461,7 @@ enum libcamera_control_id {
      */
     LIBCAMERA_CONTROL_ID_MAX_LATENCY = 47,
     /**
-     * \brief Control to select the test pattern mode. Currently identical to
+     * Control to select the test pattern mode. Currently identical to
      * ANDROID_SENSOR_TEST_PATTERN_MODE.
      */
     LIBCAMERA_CONTROL_ID_TEST_PATTERN_MODE = 48,
@@ -472,19 +472,19 @@ enum libcamera_control_id {
  */
 enum libcamera_ae_metering_mode {
     /**
-     * \brief Centre-weighted metering mode.
+     * Centre-weighted metering mode.
      */
     LIBCAMERA_METERING_CENTRE_WEIGHTED = 0,
     /**
-     * \brief Spot metering mode.
+     * Spot metering mode.
      */
     LIBCAMERA_METERING_SPOT = 1,
     /**
-     * \brief Matrix metering mode.
+     * Matrix metering mode.
      */
     LIBCAMERA_METERING_MATRIX = 2,
     /**
-     * \brief Custom metering mode.
+     * Custom metering mode.
      */
     LIBCAMERA_METERING_CUSTOM = 3,
 };
@@ -494,19 +494,19 @@ enum libcamera_ae_metering_mode {
  */
 enum libcamera_ae_constraint_mode {
     /**
-     * \brief Default constraint mode. This mode aims to balance the exposure of different parts of the image so as to reach a reasonable average level. However, highlights in the image may appear over-exposed and lowlights may appear under-exposed.
+     * Default constraint mode. This mode aims to balance the exposure of different parts of the image so as to reach a reasonable average level. However, highlights in the image may appear over-exposed and lowlights may appear under-exposed.
      */
     LIBCAMERA_CONSTRAINT_NORMAL = 0,
     /**
-     * \brief Highlight constraint mode. This mode adjusts the exposure levels in order to try and avoid over-exposing the brightest parts (highlights) of an image. Other non-highlight parts of the image may appear under-exposed.
+     * Highlight constraint mode. This mode adjusts the exposure levels in order to try and avoid over-exposing the brightest parts (highlights) of an image. Other non-highlight parts of the image may appear under-exposed.
      */
     LIBCAMERA_CONSTRAINT_HIGHLIGHT = 1,
     /**
-     * \brief Shadows constraint mode. This mode adjusts the exposure levels in order to try and avoid under-exposing the dark parts (shadows) of an image. Other normally exposed parts of the image may appear over-exposed.
+     * Shadows constraint mode. This mode adjusts the exposure levels in order to try and avoid under-exposing the dark parts (shadows) of an image. Other normally exposed parts of the image may appear over-exposed.
      */
     LIBCAMERA_CONSTRAINT_SHADOWS = 2,
     /**
-     * \brief Custom constraint mode.
+     * Custom constraint mode.
      */
     LIBCAMERA_CONSTRAINT_CUSTOM = 3,
 };
@@ -516,19 +516,19 @@ enum libcamera_ae_constraint_mode {
  */
 enum libcamera_ae_exposure_mode {
     /**
-     * \brief Default exposure mode.
+     * Default exposure mode.
      */
     LIBCAMERA_EXPOSURE_NORMAL = 0,
     /**
-     * \brief Exposure mode allowing only short exposure times.
+     * Exposure mode allowing only short exposure times.
      */
     LIBCAMERA_EXPOSURE_SHORT = 1,
     /**
-     * \brief Exposure mode allowing long exposure times.
+     * Exposure mode allowing long exposure times.
      */
     LIBCAMERA_EXPOSURE_LONG = 2,
     /**
-     * \brief Custom exposure mode.
+     * Custom exposure mode.
      */
     LIBCAMERA_EXPOSURE_CUSTOM = 3,
 };
@@ -538,35 +538,35 @@ enum libcamera_ae_exposure_mode {
  */
 enum libcamera_awb_mode {
     /**
-     * \brief Search over the whole colour temperature range.
+     * Search over the whole colour temperature range.
      */
     LIBCAMERA_AWB_AUTO = 0,
     /**
-     * \brief Incandescent AWB lamp mode.
+     * Incandescent AWB lamp mode.
      */
     LIBCAMERA_AWB_INCANDESCENT = 1,
     /**
-     * \brief Tungsten AWB lamp mode.
+     * Tungsten AWB lamp mode.
      */
     LIBCAMERA_AWB_TUNGSTEN = 2,
     /**
-     * \brief Fluorescent AWB lamp mode.
+     * Fluorescent AWB lamp mode.
      */
     LIBCAMERA_AWB_FLUORESCENT = 3,
     /**
-     * \brief Indoor AWB lighting mode.
+     * Indoor AWB lighting mode.
      */
     LIBCAMERA_AWB_INDOOR = 4,
     /**
-     * \brief Daylight AWB lighting mode.
+     * Daylight AWB lighting mode.
      */
     LIBCAMERA_AWB_DAYLIGHT = 5,
     /**
-     * \brief Cloudy AWB lighting mode.
+     * Cloudy AWB lighting mode.
      */
     LIBCAMERA_AWB_CLOUDY = 6,
     /**
-     * \brief Custom AWB mode.
+     * Custom AWB mode.
      */
     LIBCAMERA_AWB_CUSTOM = 7,
 };
@@ -576,7 +576,7 @@ enum libcamera_awb_mode {
  */
 enum libcamera_af_mode {
     /**
-     * \brief The AF algorithm is in manual mode. In this mode it will never
+     * The AF algorithm is in manual mode. In this mode it will never
      * perform any action nor move the lens of its own accord, but an
      * application can specify the desired lens position using the
      * LensPosition control.
@@ -585,7 +585,7 @@ enum libcamera_af_mode {
      */
     LIBCAMERA_AF_MODE_MANUAL = 0,
     /**
-     * \brief The AF algorithm is in auto mode. This means that the algorithm
+     * The AF algorithm is in auto mode. This means that the algorithm
      * will never move the lens or change state unless the AfTrigger
      * control is used. The AfTrigger control can be used to initiate a
      * focus scan, the results of which will be reported by AfState.
@@ -605,7 +605,7 @@ enum libcamera_af_mode {
      */
     LIBCAMERA_AF_MODE_AUTO = 1,
     /**
-     * \brief The AF algorithm is in continuous mode. This means that the lens can
+     * The AF algorithm is in continuous mode. This means that the lens can
      * re-start a scan spontaneously at any moment, without any user
      * intervention. The AfState still reports whether the algorithm is
      * currently scanning or not, though the application has no ability to
@@ -627,18 +627,18 @@ enum libcamera_af_mode {
  */
 enum libcamera_af_range {
     /**
-     * \brief A wide range of focus distances is scanned, all the way from
+     * A wide range of focus distances is scanned, all the way from
      * infinity down to close distances, though depending on the
      * implementation, possibly not including the very closest macro
      * positions.
      */
     LIBCAMERA_AF_RANGE_NORMAL = 0,
     /**
-     * \brief Only close distances are scanned.
+     * Only close distances are scanned.
      */
     LIBCAMERA_AF_RANGE_MACRO = 1,
     /**
-     * \brief The full range of focus distances is scanned just as with
+     * The full range of focus distances is scanned just as with
      * AfRangeNormal but this time including the very closest macro
      * positions.
      */
@@ -650,11 +650,11 @@ enum libcamera_af_range {
  */
 enum libcamera_af_speed {
     /**
-     * \brief Move the lens at its usual speed.
+     * Move the lens at its usual speed.
      */
     LIBCAMERA_AF_SPEED_NORMAL = 0,
     /**
-     * \brief Move the lens more quickly.
+     * Move the lens more quickly.
      */
     LIBCAMERA_AF_SPEED_FAST = 1,
 };
@@ -664,11 +664,11 @@ enum libcamera_af_speed {
  */
 enum libcamera_af_metering {
     /**
-     * \brief The AF algorithm should decide for itself where it will measure focus.
+     * The AF algorithm should decide for itself where it will measure focus.
      */
     LIBCAMERA_AF_METERING_AUTO = 0,
     /**
-     * \brief The AF algorithm should use the rectangles defined by the AfWindows control to measure focus. If no windows are specified the behaviour is platform dependent.
+     * The AF algorithm should use the rectangles defined by the AfWindows control to measure focus. If no windows are specified the behaviour is platform dependent.
      */
     LIBCAMERA_AF_METERING_WINDOWS = 1,
 };
@@ -678,11 +678,11 @@ enum libcamera_af_metering {
  */
 enum libcamera_af_trigger {
     /**
-     * \brief Start an AF scan. Ignored if a scan is in progress.
+     * Start an AF scan. Ignored if a scan is in progress.
      */
     LIBCAMERA_AF_TRIGGER_START = 0,
     /**
-     * \brief Cancel an AF scan. This does not cause the lens to move anywhere else. Ignored if no scan is in progress.
+     * Cancel an AF scan. This does not cause the lens to move anywhere else. Ignored if no scan is in progress.
      */
     LIBCAMERA_AF_TRIGGER_CANCEL = 1,
 };
@@ -692,7 +692,7 @@ enum libcamera_af_trigger {
  */
 enum libcamera_af_pause {
     /**
-     * \brief Pause the continuous autofocus algorithm immediately, whether or not
+     * Pause the continuous autofocus algorithm immediately, whether or not
      * any kind of scan is underway. AfPauseState will subsequently report
      * AfPauseStatePaused. AfState may report any of AfStateScanning,
      * AfStateFocused or AfStateFailed, depending on the algorithm's state
@@ -700,7 +700,7 @@ enum libcamera_af_pause {
      */
     LIBCAMERA_AF_PAUSE_IMMEDIATE = 0,
     /**
-     * \brief This is similar to AfPauseImmediate, and if the AfState is currently
+     * This is similar to AfPauseImmediate, and if the AfState is currently
      * reporting AfStateFocused or AfStateFailed it will remain in that
      * state and AfPauseState will report AfPauseStatePaused.
      * 
@@ -712,7 +712,7 @@ enum libcamera_af_pause {
      */
     LIBCAMERA_AF_PAUSE_DEFERRED = 1,
     /**
-     * \brief Resume continuous autofocus operation. The algorithm starts again
+     * Resume continuous autofocus operation. The algorithm starts again
      * from exactly where it left off, and AfPauseState will report
      * AfPauseStateRunning.
      */
@@ -724,13 +724,13 @@ enum libcamera_af_pause {
  */
 enum libcamera_af_state {
     /**
-     * \brief The AF algorithm is in manual mode (AfModeManual) or in auto mode
+     * The AF algorithm is in manual mode (AfModeManual) or in auto mode
      * (AfModeAuto) and a scan has not yet been triggered, or an
      * in-progress scan was cancelled.
      */
     LIBCAMERA_AF_STATE_IDLE = 0,
     /**
-     * \brief The AF algorithm is in auto mode (AfModeAuto), and a scan has been
+     * The AF algorithm is in auto mode (AfModeAuto), and a scan has been
      * started using the AfTrigger control. The scan can be cancelled by
      * sending AfTriggerCancel at which point the algorithm will either
      * move back to AfStateIdle or, if the scan actually completes before
@@ -743,13 +743,13 @@ enum libcamera_af_state {
      */
     LIBCAMERA_AF_STATE_SCANNING = 1,
     /**
-     * \brief The AF algorithm is in auto (AfModeAuto) or continuous
+     * The AF algorithm is in auto (AfModeAuto) or continuous
      * (AfModeContinuous) mode and a scan has completed with the result
      * that the algorithm believes the image is now in focus.
      */
     LIBCAMERA_AF_STATE_FOCUSED = 2,
     /**
-     * \brief The AF algorithm is in auto (AfModeAuto) or continuous
+     * The AF algorithm is in auto (AfModeAuto) or continuous
      * (AfModeContinuous) mode and a scan has completed with the result
      * that the algorithm did not find a good focus position.
      */
@@ -761,19 +761,19 @@ enum libcamera_af_state {
  */
 enum libcamera_af_pause_state {
     /**
-     * \brief Continuous AF is running and the algorithm may restart a scan
+     * Continuous AF is running and the algorithm may restart a scan
      * spontaneously.
      */
     LIBCAMERA_AF_PAUSE_STATE_RUNNING = 0,
     /**
-     * \brief Continuous AF has been sent an AfPauseDeferred control, and will
+     * Continuous AF has been sent an AfPauseDeferred control, and will
      * pause as soon as any in-progress scan completes (and then report
      * AfPauseStatePaused). No new scans will be start spontaneously until
      * the AfPauseResume control is sent.
      */
     LIBCAMERA_AF_PAUSE_STATE_PAUSING = 1,
     /**
-     * \brief Continuous AF is paused. No further state changes or lens movements
+     * Continuous AF is paused. No further state changes or lens movements
      * will occur until the AfPauseResume control is sent.
      */
     LIBCAMERA_AF_PAUSE_STATE_PAUSED = 2,
@@ -784,15 +784,15 @@ enum libcamera_af_pause_state {
  */
 enum libcamera_ae_precapture_trigger {
     /**
-     * \brief The trigger is idle.
+     * The trigger is idle.
      */
     LIBCAMERA_AE_PRECAPTURE_TRIGGER_IDLE = 0,
     /**
-     * \brief The pre-capture AE metering is started by the camera.
+     * The pre-capture AE metering is started by the camera.
      */
     LIBCAMERA_AE_PRECAPTURE_TRIGGER_START = 1,
     /**
-     * \brief The camera will cancel any active or completed metering sequence.
+     * The camera will cancel any active or completed metering sequence.
      * The AE algorithm is reset to its initial state.
      */
     LIBCAMERA_AE_PRECAPTURE_TRIGGER_CANCEL = 2,
@@ -803,23 +803,23 @@ enum libcamera_ae_precapture_trigger {
  */
 enum libcamera_noise_reduction_mode {
     /**
-     * \brief No noise reduction is applied
+     * No noise reduction is applied
      */
     LIBCAMERA_NOISE_REDUCTION_MODE_OFF = 0,
     /**
-     * \brief Noise reduction is applied without reducing the frame rate.
+     * Noise reduction is applied without reducing the frame rate.
      */
     LIBCAMERA_NOISE_REDUCTION_MODE_FAST = 1,
     /**
-     * \brief High quality noise reduction at the expense of frame rate.
+     * High quality noise reduction at the expense of frame rate.
      */
     LIBCAMERA_NOISE_REDUCTION_MODE_HIGH_QUALITY = 2,
     /**
-     * \brief Minimal noise reduction is applied without reducing the frame rate.
+     * Minimal noise reduction is applied without reducing the frame rate.
      */
     LIBCAMERA_NOISE_REDUCTION_MODE_MINIMAL = 3,
     /**
-     * \brief Noise reduction is applied at different levels to different streams.
+     * Noise reduction is applied at different levels to different streams.
      */
     LIBCAMERA_NOISE_REDUCTION_MODE_ZSL = 4,
 };
@@ -829,15 +829,15 @@ enum libcamera_noise_reduction_mode {
  */
 enum libcamera_color_correction_aberration_mode {
     /**
-     * \brief No aberration correction is applied.
+     * No aberration correction is applied.
      */
     LIBCAMERA_COLOR_CORRECTION_ABERRATION_OFF = 0,
     /**
-     * \brief Aberration correction will not slow down the frame rate.
+     * Aberration correction will not slow down the frame rate.
      */
     LIBCAMERA_COLOR_CORRECTION_ABERRATION_FAST = 1,
     /**
-     * \brief High quality aberration correction which might reduce the frame
+     * High quality aberration correction which might reduce the frame
      * rate.
      */
     LIBCAMERA_COLOR_CORRECTION_ABERRATION_HIGH_QUALITY = 2,
@@ -848,27 +848,27 @@ enum libcamera_color_correction_aberration_mode {
  */
 enum libcamera_ae_state {
     /**
-     * \brief The AE algorithm is inactive.
+     * The AE algorithm is inactive.
      */
     LIBCAMERA_AE_STATE_INACTIVE = 0,
     /**
-     * \brief The AE algorithm has not converged yet.
+     * The AE algorithm has not converged yet.
      */
     LIBCAMERA_AE_STATE_SEARCHING = 1,
     /**
-     * \brief The AE algorithm has converged.
+     * The AE algorithm has converged.
      */
     LIBCAMERA_AE_STATE_CONVERGED = 2,
     /**
-     * \brief The AE algorithm is locked.
+     * The AE algorithm is locked.
      */
     LIBCAMERA_AE_STATE_LOCKED = 3,
     /**
-     * \brief The AE algorithm would need a flash for good results
+     * The AE algorithm would need a flash for good results
      */
     LIBCAMERA_AE_STATE_FLASH_REQUIRED = 4,
     /**
-     * \brief The AE algorithm has started a pre-capture metering session.
+     * The AE algorithm has started a pre-capture metering session.
      * \sa AePrecaptureTrigger
      */
     LIBCAMERA_AE_STATE_PRECAPTURE = 5,
@@ -879,19 +879,19 @@ enum libcamera_ae_state {
  */
 enum libcamera_awb_state {
     /**
-     * \brief The AWB algorithm is inactive.
+     * The AWB algorithm is inactive.
      */
     LIBCAMERA_AWB_STATE_INACTIVE = 0,
     /**
-     * \brief The AWB algorithm has not converged yet.
+     * The AWB algorithm has not converged yet.
      */
     LIBCAMERA_AWB_STATE_SEARCHING = 1,
     /**
-     * \brief The AWB algorithm has converged.
+     * The AWB algorithm has converged.
      */
     LIBCAMERA_AWB_CONVERGED = 2,
     /**
-     * \brief The AWB algorithm is locked.
+     * The AWB algorithm is locked.
      */
     LIBCAMERA_AWB_LOCKED = 3,
 };
@@ -901,11 +901,11 @@ enum libcamera_awb_state {
  */
 enum libcamera_lens_shading_map_mode {
     /**
-     * \brief No lens shading map mode is available.
+     * No lens shading map mode is available.
      */
     LIBCAMERA_LENS_SHADING_MAP_MODE_OFF = 0,
     /**
-     * \brief The lens shading map mode is available.
+     * The lens shading map mode is available.
      */
     LIBCAMERA_LENS_SHADING_MAP_MODE_ON = 1,
 };
@@ -915,15 +915,15 @@ enum libcamera_lens_shading_map_mode {
  */
 enum libcamera_scene_flicker {
     /**
-     * \brief No flickering detected.
+     * No flickering detected.
      */
     LIBCAMERA_SCENE_FICKER_OFF = 0,
     /**
-     * \brief 50Hz flickering detected.
+     * 50Hz flickering detected.
      */
     LIBCAMERA_SCENE_FICKER_50HZ = 1,
     /**
-     * \brief 60Hz flickering detected.
+     * 60Hz flickering detected.
      */
     LIBCAMERA_SCENE_FICKER_60HZ = 2,
 };
@@ -933,18 +933,18 @@ enum libcamera_scene_flicker {
  */
 enum libcamera_test_pattern_mode {
     /**
-     * \brief No test pattern mode is used. The camera device returns frames from
+     * No test pattern mode is used. The camera device returns frames from
      * the image sensor.
      */
     LIBCAMERA_TEST_PATTERN_MODE_OFF = 0,
     /**
-     * \brief Each pixel in [R, G_even, G_odd, B] is replaced by its respective
+     * Each pixel in [R, G_even, G_odd, B] is replaced by its respective
      * color channel provided in test pattern data.
      * \todo Add control for test pattern data.
      */
     LIBCAMERA_TEST_PATTERN_MODE_SOLID_COLOR = 1,
     /**
-     * \brief All pixel data is replaced with an 8-bar color pattern. The vertical
+     * All pixel data is replaced with an 8-bar color pattern. The vertical
      * bars (left-to-right) are as follows; white, yellow, cyan, green,
      * magenta, red, blue and black. Each bar should take up 1/8 of the
      * sensor pixel array width. When this is not possible, the bar size
@@ -954,7 +954,7 @@ enum libcamera_test_pattern_mode {
      */
     LIBCAMERA_TEST_PATTERN_MODE_COLOR_BARS = 2,
     /**
-     * \brief The test pattern is similar to TestPatternModeColorBars,
+     * The test pattern is similar to TestPatternModeColorBars,
      * except that each bar should start at its specified color at the top
      * and fade to gray at the bottom. Furthermore each bar is further
      * subdevided into a left and right half. The left half should have a
@@ -968,7 +968,7 @@ enum libcamera_test_pattern_mode {
      */
     LIBCAMERA_TEST_PATTERN_MODE_COLOR_BARS_FADE_TO_GRAY = 3,
     /**
-     * \brief All pixel data is replaced by a pseudo-random sequence generated
+     * All pixel data is replaced by a pseudo-random sequence generated
      * from a PN9 512-bit sequence (typically implemented in hardware with
      * a linear feedback shift register). The generator should be reset at
      * the beginning of each frame, and thus each subsequent raw frame with
@@ -976,7 +976,7 @@ enum libcamera_test_pattern_mode {
      */
     LIBCAMERA_TEST_PATTERN_MODE_PN_9 = 4,
     /**
-     * \brief The first custom test pattern. All custom patterns that are
+     * The first custom test pattern. All custom patterns that are
      * available only on this camera device are at least this numeric
      * value. All of the custom test patterns will be static (that is the
      * raw image must not vary from frame to frame).
@@ -986,11 +986,11 @@ enum libcamera_test_pattern_mode {
 
 enum libcamera_property_id {
     /**
-     * \brief Camera mounting location
+     * Camera mounting location
      */
     LIBCAMERA_CONTROL_ID_LOCATION = 1,
     /**
-     * \brief The camera rotation is expressed as the angular difference in degrees
+     * The camera rotation is expressed as the angular difference in degrees
      * between two reference systems, one relative to the camera module, and
      * one defined on the external world scene to be captured when projected
      * on the image sensor pixel array.
@@ -1350,7 +1350,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_ROTATION = 2,
     /**
-     * \brief The model name shall to the extent possible describe the sensor. For
+     * The model name shall to the extent possible describe the sensor. For
      * most devices this is the model name of the sensor. While for some
      * devices the sensor model is unavailable as the sensor or the entire
      * camera is part of a larger unit and exposed as a black-box to the
@@ -1372,7 +1372,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_MODEL = 3,
     /**
-     * \brief The pixel unit cell physical size, in nanometers.
+     * The pixel unit cell physical size, in nanometers.
      * 
      * The UnitCellSize properties defines the horizontal and vertical sizes of
      * a single pixel unit, including its active and non-active parts. In
@@ -1384,7 +1384,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_UNIT_CELL_SIZE = 4,
     /**
-     * \brief The camera sensor pixel array readable area vertical and horizontal
+     * The camera sensor pixel array readable area vertical and horizontal
      * sizes, in pixels.
      * 
      * The PixelArraySize property defines the size in pixel units of the
@@ -1455,7 +1455,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_PIXEL_ARRAY_SIZE = 5,
     /**
-     * \brief The pixel array region(s) which contain optical black pixels
+     * The pixel array region(s) which contain optical black pixels
      * considered valid for calibration purposes.
      * 
      * This property describes the position and size of optical black pixel
@@ -1548,7 +1548,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_PIXEL_ARRAY_OPTICAL_BLACK_RECTANGLES = 6,
     /**
-     * \brief The PixelArrayActiveAreas property defines the (possibly multiple and
+     * The PixelArrayActiveAreas property defines the (possibly multiple and
      * overlapping) portions of the camera sensor readable pixel matrix
      * which are considered valid for image acquisition purposes.
      * 
@@ -1619,7 +1619,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_PIXEL_ARRAY_ACTIVE_AREAS = 7,
     /**
-     * \brief The maximum valid rectangle for the controls::ScalerCrop control. This
+     * The maximum valid rectangle for the controls::ScalerCrop control. This
      * reflects the minimum mandatory cropping applied in the camera sensor and
      * the rest of the pipeline. Just as the ScalerCrop control, it defines a
      * rectangle taken from the sensor's active pixel array.
@@ -1633,7 +1633,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_SCALER_CROP_MAXIMUM = 8,
     /**
-     * \brief The relative sensitivity of the chosen sensor mode.
+     * The relative sensitivity of the chosen sensor mode.
      * 
      * Some sensors have readout modes with different sensitivities. For example,
      * a binned camera mode might, with the same exposure and gains, produce
@@ -1644,7 +1644,7 @@ enum libcamera_property_id {
      */
     LIBCAMERA_CONTROL_ID_SENSOR_SENSITIVITY = 9,
     /**
-     * \brief The arrangement of color filters on sensor; represents the colors in the
+     * The arrangement of color filters on sensor; represents the colors in the
      * top-left 2x2 section of the sensor, in reading order. Currently
      * identical to ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT.
      */
@@ -1656,17 +1656,17 @@ enum libcamera_property_id {
  */
 enum libcamera_location {
     /**
-     * \brief The camera is mounted on the front side of the device, facing the
+     * The camera is mounted on the front side of the device, facing the
      * user
      */
     LIBCAMERA_CAMERA_LOCATION_FRONT = 0,
     /**
-     * \brief The camera is mounted on the back side of the device, facing away
+     * The camera is mounted on the back side of the device, facing away
      * from the user
      */
     LIBCAMERA_CAMERA_LOCATION_BACK = 1,
     /**
-     * \brief The camera is attached to the device in a way that allows it to
+     * The camera is attached to the device in a way that allows it to
      * be moved freely
      */
     LIBCAMERA_CAMERA_LOCATION_EXTERNAL = 2,
@@ -1677,28 +1677,28 @@ enum libcamera_location {
  */
 enum libcamera_color_filter_arrangement {
     /**
-     * \brief RGGB Bayer pattern
+     * RGGB Bayer pattern
      */
     LIBCAMERA_RGGB = 0,
     /**
-     * \brief GRBG Bayer pattern
+     * GRBG Bayer pattern
      */
     LIBCAMERA_GRBG = 1,
     /**
-     * \brief GBRG Bayer pattern
+     * GBRG Bayer pattern
      */
     LIBCAMERA_GBRG = 2,
     /**
-     * \brief BGGR Bayer pattern
+     * BGGR Bayer pattern
      */
     LIBCAMERA_BGGR = 3,
     /**
-     * \brief Sensor is not Bayer; output has 3 16-bit values for each pixel,
+     * Sensor is not Bayer; output has 3 16-bit values for each pixel,
      * instead of just 1 16-bit value per pixel.
      */
     LIBCAMERA_RGB = 4,
     /**
-     * \brief Sensor is not Bayer; output consists of a single colour channel.
+     * Sensor is not Bayer; output consists of a single colour channel.
      */
     LIBCAMERA_MONO = 5,
 };

@@ -52,7 +52,6 @@ fn to_enum_name(str: &str) -> String {
 
 fn format_docstring(desc: &str, indent: usize) -> String {
     let mut parts = desc.split("\n").map(str::to_string).collect::<Vec<_>>();
-    parts[0] = format!("\\brief {}", &parts[0]);
 
     // Remove last newline
     if parts.last().map(|s| s.is_empty()).unwrap_or(false) {
