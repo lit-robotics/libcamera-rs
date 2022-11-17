@@ -8,13 +8,13 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  PKG_CONFIG_PATH: ~/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/
-
 jobs:
   build_and_test:
     name: Build and test
     runs-on: ubuntu-22.04
+    env:
+      # Install libcamera into a non-default location so we can cache it
+      PKG_CONFIG_PATH: "/home/runner/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -31,8 +31,10 @@ jobs:
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
           git clone https://git.libcamera.org/libcamera/libcamera.git
           cd libcamera
-          meson build
+          # Use only VIMC for faster builds
+          meson build -Dipas=vimc -Dpipelines=vimc
           DESTDIR=~/libcamera_install ninja -C build install
+          ls ~/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
