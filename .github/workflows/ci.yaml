@@ -15,9 +15,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Cache libcamera
+        id: cache-libcamera
+        uses: actions/cache@v3
+        with:
+          path: libcamera_install
+          key: ${{ runner.os }}-libcamera
       - name: Install libcamera
+        if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get -y install libcamera-dev
+          pip3 install --user meson
+          sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2
+          git clone https://git.libcamera.org/libcamera/libcamera.git
+          cd libcamera
+          meson build
+          DESTDIR=~/libcamera_install ninja -C build install
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
