@@ -12,18 +12,9 @@ jobs:
   build_and_test:
     name: Build and test
     runs-on: ubuntu-22.04
-    env:
-      # Install libcamera into a non-default location so we can cache it
-      PKG_CONFIG_PATH: "/home/runner/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Cache libcamera
-        id: cache-libcamera
-        uses: actions/cache@v3
-        with:
-          path: libcamera_install
-          key: ${{ runner.os }}-libcamera
       - name: Install libcamera
         if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
@@ -33,8 +24,7 @@ jobs:
           cd libcamera
           # Use only VIMC for faster builds
           meson build -Dipas=vimc -Dpipelines=vimc
-          DESTDIR=~/libcamera_install ninja -C build install
-          ls ~/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/
+          sudo ninja -C build install
       - name: Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
