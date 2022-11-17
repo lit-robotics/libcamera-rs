@@ -1,11 +1,11 @@
 use std::{env, fs, path::PathBuf};
 
 fn main() {
-    let libcamera = match pkg_config::find_library("libcamera") {
+    let libcamera = match pkg_config::probe_library("libcamera") {
         Ok(lib) => Ok(lib),
         Err(e) => {
             // Older libcamera versions use camera name instead of libcamera, try that instead
-            match pkg_config::find_library("camera") {
+            match pkg_config::probe_library("camera") {
                 Ok(lib) => Ok(lib),
                 // Return original error
                 Err(_) => Err(e),
