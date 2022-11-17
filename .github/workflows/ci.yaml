@@ -18,7 +18,7 @@ jobs:
       - name: Install libcamera
         if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
-          pip3 install --user meson
+          sudo pip3 install meson
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
           git clone https://git.libcamera.org/libcamera/libcamera.git
           cd libcamera
