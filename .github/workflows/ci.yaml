@@ -8,6 +8,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  PKG_CONFIG_PATH=~/libcamera_install/usr/local/lib/x86_64-linux-gnu/pkgconfig/
+
 jobs:
   build_and_test:
     name: Build and test
@@ -25,7 +28,7 @@ jobs:
         if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
           pip3 install --user meson
-          sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2
+          sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
           git clone https://git.libcamera.org/libcamera/libcamera.git
           cd libcamera
           meson build
