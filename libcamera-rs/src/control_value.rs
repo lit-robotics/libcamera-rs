@@ -1,3 +1,5 @@
+use std::ptr::NonNull;
+
 use libcamera_sys::*;
 use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
@@ -202,10 +204,10 @@ impl TryFrom<ControlValue> for String {
 }
 
 impl ControlValue {
-    pub(crate) unsafe fn read(val: *const libcamera_control_value_t) -> Result<Self, ControlValueError> {
-        let ty = unsafe { libcamera_control_value_type(val) };
-        let num_elements = unsafe { libcamera_control_value_num_elements(val) } as usize;
-        let data = unsafe { libcamera_control_value_get(val) };
+    pub(crate) unsafe fn read(val: NonNull<libcamera_control_value_t>) -> Result<Self, ControlValueError> {
+        let ty = unsafe { libcamera_control_value_type(val.as_ptr()) };
+        let num_elements = unsafe { libcamera_control_value_num_elements(val.as_ptr()) } as usize;
+        let data = unsafe { libcamera_control_value_get(val.as_ptr()) };
 
         use libcamera_control_type::*;
         match ty {
@@ -250,17 +252,17 @@ impl ControlValue {
         }
     }
 
-    pub(crate) unsafe fn write(&self, val: *mut libcamera_control_value_t) {
+    pub(crate) unsafe fn write(&self, val: NonNull<libcamera_control_value_t>) {
         let (data, len) = match self {
             ControlValue::None => (core::ptr::null(), 0),
-            ControlValue::Bool(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Byte(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Int32(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Int64(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Float(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::String(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Rectangle(v) => (v.as_ptr() as _, v.len()),
-            ControlValue::Size(v) => (v.as_ptr() as _, v.len()),
+            ControlValue::Bool(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Byte(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Int32(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Int64(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Float(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::String(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Rectangle(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Size(v) => (v.as_ptr().cast(), v.len()),
         };
 
         let ty = self.ty();
@@ -270,7 +272,7 @@ impl ControlValue {
             len != 1
         };
 
-        libcamera_control_value_set(val, self.ty(), data, is_array, len as _);
+        libcamera_control_value_set(val.as_ptr(), self.ty(), data, is_array, len as _);
     }
 
     pub fn ty(&self) -> u32 {

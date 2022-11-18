@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, ptr::NonNull};
 
 use libcamera_sys::*;
 
@@ -25,28 +25,32 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
 }
 
 pub struct Request {
-    pub(crate) ptr: *mut libcamera_request_t,
+    pub(crate) ptr: NonNull<libcamera_request_t>,
 }
 
 impl Request {
-    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_request_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_request_t>) -> Self {
         Self { ptr }
     }
 
     pub fn controls(&self) -> Immutable<ControlListRef> {
-        unsafe { ControlListRef::from_ptr(libcamera_request_controls(self.ptr)) }
+        Immutable(unsafe {
+            ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap())
+        })
     }
 
     pub fn controls_mut(&mut self) -> ControlListRef {
-        unsafe { ControlListRef::from_ptr_mut(libcamera_request_controls(self.ptr)) }
+        unsafe { ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
     }
 
     pub fn metadata(&self) -> Immutable<ControlListRef> {
-        unsafe { ControlListRef::from_ptr(libcamera_request_metadata(self.ptr)) }
+        Immutable(unsafe {
+            ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
+        })
     }
 
     pub fn add_buffer(&mut self, stream: &Stream, buffer: &FrameBufferRef) -> io::Result<()> {
-        let ret = unsafe { libcamera_request_add_buffer(self.ptr, stream.ptr, buffer.ptr) };
+        let ret = unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr.as_ptr()) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
@@ -55,24 +59,20 @@ impl Request {
     }
 
     pub fn find_buffer(&self, stream: &Stream) -> Option<FrameBufferRef> {
-        let ptr = unsafe { libcamera_request_find_buffer(self.ptr, stream.ptr) };
-        if ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { FrameBufferRef::from_ptr_mut(ptr) })
-        }
+        let ptr = unsafe { libcamera_request_find_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        NonNull::new(ptr).map(|p| unsafe { FrameBufferRef::from_ptr(p) })
     }
 
     pub fn sequence(&self) -> u32 {
-        unsafe { libcamera_request_sequence(self.ptr) }
+        unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
     }
 
     pub fn cookie(&self) -> u64 {
-        unsafe { libcamera_request_cookie(self.ptr) }
+        unsafe { libcamera_request_cookie(self.ptr.as_ptr()) }
     }
 
     pub fn status(&self) -> RequestStatus {
-        RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr) }).unwrap()
+        RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
     }
 }
 
@@ -88,7 +88,7 @@ impl core::fmt::Debug for Request {
 
 impl Drop for Request {
     fn drop(&mut self) {
-        unsafe { libcamera_request_destroy(self.ptr) }
+        unsafe { libcamera_request_destroy(self.ptr.as_ptr()) }
     }
 }
 

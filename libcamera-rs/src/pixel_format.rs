@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::{ffi::CStr, ptr::NonNull};
 
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
@@ -30,7 +30,7 @@ impl PixelFormat {
     pub fn to_string(&self) -> String {
         let ptr = unsafe { libcamera_pixel_format_str(&self.0) };
         let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
-        unsafe { libc::free(ptr as _) };
+        unsafe { libc::free(ptr.cast()) };
         out
     }
 }
@@ -58,16 +58,16 @@ impl From<DrmFormat> for PixelFormat {
 }
 
 pub struct PixelFormats {
-    ptr: *mut libcamera_pixel_formats_t,
+    ptr: NonNull<libcamera_pixel_formats_t>,
 }
 
 impl PixelFormats {
-    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_pixel_formats_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_pixel_formats_t>) -> Self {
         Self { ptr }
     }
 
     pub fn len(&self) -> usize {
-        unsafe { libcamera_pixel_formats_size(self.ptr) as _ }
+        unsafe { libcamera_pixel_formats_size(self.ptr.as_ptr()) as _ }
     }
 
     pub fn get(&self, index: usize) -> Option<PixelFormat> {
@@ -79,7 +79,7 @@ impl PixelFormats {
     }
 
     pub unsafe fn get_unchecked(&self, index: usize) -> PixelFormat {
-        PixelFormat(unsafe { libcamera_pixel_formats_get(self.ptr, index as _) })
+        PixelFormat(unsafe { libcamera_pixel_formats_get(self.ptr.as_ptr(), index as _) })
     }
 }
 
@@ -98,7 +98,7 @@ impl<'d> IntoIterator for &'d PixelFormats {
 
 impl Drop for PixelFormats {
     fn drop(&mut self) {
-        unsafe { libcamera_pixel_formats_destroy(self.ptr) }
+        unsafe { libcamera_pixel_formats_destroy(self.ptr.as_ptr()) }
     }
 }
 

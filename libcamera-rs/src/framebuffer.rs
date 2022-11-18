@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -16,23 +16,27 @@ pub enum FrameMetadataStatus {
 pub type FrameMetadataPlane = libcamera_frame_metadata_plane_t;
 
 pub struct FrameMetadataPlanes {
-    pub(crate) ptr: *mut libcamera_frame_metadata_planes_t,
+    pub(crate) ptr: NonNull<libcamera_frame_metadata_planes_t>,
 }
 
 impl FrameMetadataPlanes {
-    pub(crate) unsafe fn from_ptr_mut(ptr: *mut libcamera_frame_metadata_planes_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_frame_metadata_planes_t>) -> Self {
         Self { ptr }
     }
 
     pub fn len(&self) -> usize {
-        unsafe { libcamera_frame_metadata_planes_size(self.ptr) as _ }
+        unsafe { libcamera_frame_metadata_planes_size(self.ptr.as_ptr()) as _ }
     }
 
     pub fn get(&self, index: usize) -> Option<FrameMetadataPlane> {
         if index >= self.len() {
             None
         } else {
-            Some(unsafe { libcamera_frame_metadata_planes_data(self.ptr).offset(index as _).read() })
+            Some(unsafe {
+                libcamera_frame_metadata_planes_data(self.ptr.as_ptr())
+                    .offset(index as _)
+                    .read()
+            })
         }
     }
 }
@@ -49,7 +53,7 @@ impl core::fmt::Debug for FrameMetadataPlanes {
 
 impl Drop for FrameMetadataPlanes {
     fn drop(&mut self) {
-        unsafe { libcamera_frame_metadata_planes_destroy(self.ptr) }
+        unsafe { libcamera_frame_metadata_planes_destroy(self.ptr.as_ptr()) }
     }
 }
 
@@ -82,32 +86,34 @@ impl<'d> Iterator for FrameMetadataPlanesIterator<'d> {
 }
 
 pub struct FrameMetadataRef<'d> {
-    pub(crate) ptr: *mut libcamera_frame_metadata_t,
+    pub(crate) ptr: NonNull<libcamera_frame_metadata_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> FrameMetadataRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_frame_metadata_t) -> Immutable<Self> {
-        Immutable(Self {
-            ptr: ptr as _,
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_frame_metadata_t>) -> Self {
+        Self {
+            ptr,
             _phantom: Default::default(),
-        })
+        }
     }
 
     pub fn status(&self) -> FrameMetadataStatus {
-        FrameMetadataStatus::try_from(unsafe { libcamera_frame_metadata_status(self.ptr) }).unwrap()
+        FrameMetadataStatus::try_from(unsafe { libcamera_frame_metadata_status(self.ptr.as_ptr()) }).unwrap()
     }
 
     pub fn sequence(&self) -> u32 {
-        unsafe { libcamera_frame_metadata_sequence(self.ptr) }
+        unsafe { libcamera_frame_metadata_sequence(self.ptr.as_ptr()) }
     }
 
     pub fn timestamp(&self) -> u64 {
-        unsafe { libcamera_frame_metadata_timestamp(self.ptr) }
+        unsafe { libcamera_frame_metadata_timestamp(self.ptr.as_ptr()) }
     }
 
     pub fn planes(&self) -> FrameMetadataPlanes {
-        unsafe { FrameMetadataPlanes::from_ptr_mut(libcamera_frame_metadata_planes(self.ptr)) }
+        unsafe {
+            FrameMetadataPlanes::from_ptr(NonNull::new(libcamera_frame_metadata_planes(self.ptr.as_ptr())).unwrap())
+        }
     }
 }
 
@@ -123,60 +129,62 @@ impl<'d> core::fmt::Debug for FrameMetadataRef<'d> {
 }
 
 pub struct FrameBufferPlaneRef<'d> {
-    pub(crate) ptr: *mut libcamera_framebuffer_plane_t,
+    pub(crate) ptr: NonNull<libcamera_framebuffer_plane_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> FrameBufferPlaneRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_framebuffer_plane_t) -> Immutable<Self> {
-        Immutable(Self {
-            ptr: ptr as _,
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_plane_t>) -> Self {
+        Self {
+            ptr,
             _phantom: Default::default(),
-        })
+        }
     }
 
     /// File descriptor is valid for the [FrameBufferRef] lifetime.
     pub fn fd(&self) -> i32 {
-        unsafe { libcamera_framebuffer_plane_fd(self.ptr) }
+        unsafe { libcamera_framebuffer_plane_fd(self.ptr.as_ptr()) }
     }
 
     pub fn offset(&self) -> Option<usize> {
-        if unsafe { libcamera_framebuffer_plane_offset_valid(self.ptr) } {
-            Some(unsafe { libcamera_framebuffer_plane_offset(self.ptr) as _ })
+        if unsafe { libcamera_framebuffer_plane_offset_valid(self.ptr.as_ptr()) } {
+            Some(unsafe { libcamera_framebuffer_plane_offset(self.ptr.as_ptr()) as _ })
         } else {
             None
         }
     }
 
     pub fn len(&self) -> usize {
-        unsafe { libcamera_framebuffer_plane_length(self.ptr) as _ }
+        unsafe { libcamera_framebuffer_plane_length(self.ptr.as_ptr()) as _ }
     }
 }
 
 pub struct FrameBufferPlanesRef<'d> {
-    pub(crate) ptr: *mut libcamera_framebuffer_planes_t,
+    pub(crate) ptr: NonNull<libcamera_framebuffer_planes_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> FrameBufferPlanesRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_framebuffer_planes_t) -> Immutable<Self> {
-        Immutable(Self {
-            ptr: ptr as _,
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_planes_t>) -> Self {
+        Self {
+            ptr,
             _phantom: Default::default(),
-        })
+        }
     }
 
     pub fn len(&self) -> usize {
-        unsafe { libcamera_framebuffer_planes_size(self.ptr) as _ }
+        unsafe { libcamera_framebuffer_planes_size(self.ptr.as_ptr()) as _ }
     }
 
     pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef>> {
         if index >= self.len() {
             None
         } else {
-            Some(unsafe {
-                FrameBufferPlaneRef::from_ptr(libcamera_framebuffer_planes_data(self.ptr).offset(index as _))
-            })
+            Some(Immutable(unsafe {
+                FrameBufferPlaneRef::from_ptr(
+                    NonNull::new(libcamera_framebuffer_planes_data(self.ptr.as_ptr()).offset(index as _)).unwrap(),
+                )
+            }))
         }
     }
 }
@@ -210,19 +218,12 @@ impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
 }
 
 pub struct FrameBufferRef<'d> {
-    pub(crate) ptr: *mut libcamera_framebuffer_t,
+    pub(crate) ptr: NonNull<libcamera_framebuffer_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> FrameBufferRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_framebuffer_t) -> Immutable<Self> {
-        Immutable(Self {
-            ptr: ptr as _,
-            _phantom: Default::default(),
-        })
-    }
-
-    pub(crate) unsafe fn from_ptr_mut(ptr: *mut libcamera_framebuffer_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_t>) -> Self {
         Self {
             ptr,
             _phantom: Default::default(),
@@ -230,10 +231,18 @@ impl<'d> FrameBufferRef<'d> {
     }
 
     pub fn metadata(&self) -> Immutable<FrameMetadataRef> {
-        unsafe { FrameMetadataRef::from_ptr(libcamera_framebuffer_metadata(self.ptr)) }
+        unsafe {
+            Immutable(FrameMetadataRef::from_ptr(
+                NonNull::new(libcamera_framebuffer_metadata(self.ptr.as_ptr()).cast_mut()).unwrap(),
+            ))
+        }
     }
 
     pub fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
-        unsafe { FrameBufferPlanesRef::from_ptr(libcamera_framebuffer_planes(self.ptr)) }
+        unsafe {
+            Immutable(FrameBufferPlanesRef::from_ptr(
+                NonNull::new(libcamera_framebuffer_planes(self.ptr.as_ptr()).cast_mut()).unwrap(),
+            ))
+        }
     }
 }

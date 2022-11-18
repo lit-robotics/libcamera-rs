@@ -1,10 +1,11 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
 
 use crate::{
     geometry::{Size, SizeRange},
     pixel_format::{PixelFormat, PixelFormats},
+    utils::Immutable,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -41,24 +42,26 @@ impl From<StreamRole> for libcamera_stream_role::Type {
 }
 
 pub struct StreamFormatsRef<'d> {
-    ptr: *const libcamera_stream_formats_t,
+    ptr: NonNull<libcamera_stream_formats_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> StreamFormatsRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *const libcamera_stream_formats_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_formats_t>) -> Self {
         Self {
             ptr,
             _phantom: Default::default(),
         }
     }
 
-    pub fn pixel_formats(&self) -> PixelFormats {
-        unsafe { PixelFormats::from_ptr(libcamera_stream_formats_pixel_formats(self.ptr)) }
+    pub fn pixel_formats(&self) -> Immutable<PixelFormats> {
+        Immutable(unsafe {
+            PixelFormats::from_ptr(NonNull::new(libcamera_stream_formats_pixel_formats(self.ptr.as_ptr())).unwrap())
+        })
     }
 
     pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
-        let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr, &pixel_format.0) };
+        let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
         let data = unsafe { libcamera_sizes_data(sizes) };
 
@@ -70,14 +73,14 @@ impl<'d> StreamFormatsRef<'d> {
     }
 
     pub fn range(&self, pixel_format: PixelFormat) -> SizeRange {
-        SizeRange::from(unsafe { libcamera_stream_formats_range(self.ptr, &pixel_format.0) })
+        SizeRange::from(unsafe { libcamera_stream_formats_range(self.ptr.as_ptr(), &pixel_format.0) })
     }
 }
 
 impl<'d> core::fmt::Debug for StreamFormatsRef<'d> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
-        for pixel_format in &self.pixel_formats() {
+        for pixel_format in self.pixel_formats().into_iter() {
             map.entry(&pixel_format, &self.sizes(pixel_format));
         }
         map.finish()
@@ -85,12 +88,12 @@ impl<'d> core::fmt::Debug for StreamFormatsRef<'d> {
 }
 
 pub struct StreamConfigurationRef<'d> {
-    ptr: *mut libcamera_stream_configuration_t,
+    ptr: NonNull<libcamera_stream_configuration_t>,
     _phantom: PhantomData<&'d ()>,
 }
 
 impl<'d> StreamConfigurationRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_stream_configuration_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_configuration_t>) -> Self {
         Self {
             ptr,
             _phantom: Default::default(),
@@ -98,58 +101,58 @@ impl<'d> StreamConfigurationRef<'d> {
     }
 
     pub fn get_pixel_format(&self) -> PixelFormat {
-        PixelFormat(unsafe { &*self.ptr }.pixel_format)
+        PixelFormat(unsafe { self.ptr.as_ref() }.pixel_format)
     }
 
     pub fn set_pixel_format(&mut self, pixel_format: PixelFormat) {
-        unsafe { &mut *self.ptr }.pixel_format = pixel_format.0;
+        unsafe { self.ptr.as_mut() }.pixel_format = pixel_format.0;
     }
 
     pub fn get_size(&self) -> Size {
-        unsafe { &*self.ptr }.size.into()
+        unsafe { self.ptr.as_ref() }.size.into()
     }
 
     pub fn set_size(&mut self, size: Size) {
-        unsafe { &mut *self.ptr }.size = size.into()
+        unsafe { self.ptr.as_mut() }.size = size.into()
     }
 
     pub fn get_stride(&self) -> u32 {
-        unsafe { &*self.ptr }.stride
+        unsafe { self.ptr.as_ref() }.stride
     }
 
     pub fn set_stride(&mut self, stride: u32) {
-        unsafe { &mut *self.ptr }.stride = stride
+        unsafe { self.ptr.as_mut() }.stride = stride
     }
 
     pub fn get_frame_size(&self) -> u32 {
-        unsafe { &*self.ptr }.frame_size
+        unsafe { self.ptr.as_ref() }.frame_size
     }
 
     pub fn set_frame_size(&mut self, frame_size: u32) {
-        unsafe { &mut *self.ptr }.frame_size = frame_size
+        unsafe { self.ptr.as_mut() }.frame_size = frame_size
     }
 
     pub fn get_buffer_count(&self) -> u32 {
-        unsafe { &*self.ptr }.buffer_count
+        unsafe { self.ptr.as_ref() }.buffer_count
     }
 
     pub fn set_buffer_count(&mut self, buffer_count: u32) {
-        unsafe { &mut *self.ptr }.buffer_count = buffer_count;
+        unsafe { self.ptr.as_mut() }.buffer_count = buffer_count;
     }
 
     pub fn stream(&self) -> Option<Stream> {
-        let stream = unsafe { libcamera_stream_configuration_stream(self.ptr) };
+        let stream = unsafe { libcamera_stream_configuration_stream(self.ptr.as_ptr()) };
         // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
         // Unfortunatelly, it's hard to handle it with lifetimes so invalid StreamRef's are possible.
-        if stream.is_null() {
-            None
-        } else {
-            Some(unsafe { Stream::from_ptr(stream) })
-        }
+        NonNull::new(stream).map(|p| unsafe { Stream::from_ptr(p) })
     }
 
     pub fn formats(&self) -> StreamFormatsRef {
-        unsafe { StreamFormatsRef::from_ptr(libcamera_stream_configuration_formats(self.ptr)) }
+        unsafe {
+            StreamFormatsRef::from_ptr(
+                NonNull::new(libcamera_stream_configuration_formats(self.ptr.as_ptr()).cast_mut()).unwrap(),
+            )
+        }
     }
 }
 
@@ -171,11 +174,11 @@ pub struct Stream {
     /// and adding a lifetime would be really inconvenient. Dangling pointer should not
     /// cause any harm by itself as collection loopup will fail gracefully, however,
     /// it is important to never dereference this pointer to obtain libcamera_stream_configuration_t.
-    pub(crate) ptr: *mut libcamera_stream_t,
+    pub(crate) ptr: NonNull<libcamera_stream_t>,
 }
 
 impl Stream {
-    pub(crate) unsafe fn from_ptr(ptr: *mut libcamera_stream_t) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_t>) -> Self {
         Self { ptr }
     }
 }

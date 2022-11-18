@@ -110,7 +110,7 @@ impl<'d> Drop for MemoryMappedFrameBuffer<'d> {
     fn drop(&mut self) {
         for (_fd, data) in self.mmaps.drain() {
             unsafe {
-                libc::munmap(data.as_ptr() as _, data.len());
+                libc::munmap(data.as_ptr().cast_mut().cast(), data.len());
             }
         }
     }
