@@ -1,17 +1,30 @@
 use std::ffi::CStr;
 
+use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
 
 #[derive(Clone, Copy)]
 pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
 
 impl PixelFormat {
+    pub fn new(fourcc: u32, modifier: u64) -> Self {
+        Self(libcamera_pixel_format_t { fourcc, modifier })
+    }
+
     pub fn fourcc(&self) -> u32 {
         self.0.fourcc
     }
 
+    pub fn set_fourcc(&mut self, fourcc: u32) {
+        self.0.fourcc = fourcc;
+    }
+
     pub fn modifier(&self) -> u64 {
         self.0.modifier
+    }
+
+    pub fn set_modifier(&mut self, modifier: u64) {
+        self.0.modifier = modifier;
     }
 
     pub fn to_string(&self) -> String {
@@ -27,6 +40,22 @@ impl PixelFormat {
 impl core::fmt::Debug for PixelFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.to_string())
+    }
+}
+
+impl TryFrom<PixelFormat> for DrmFormat {
+    type Error = drm_fourcc::UnrecognizedFourcc;
+
+    fn try_from(value: PixelFormat) -> Result<Self, Self::Error> {
+        let code = DrmFourcc::try_from(value.0.fourcc)?;
+        let modifier = DrmModifier::from(value.0.modifier);
+        Ok(DrmFormat { code, modifier })
+    }
+}
+
+impl From<DrmFormat> for PixelFormat {
+    fn from(f: DrmFormat) -> Self {
+        PixelFormat::new(f.code as u32, f.modifier.into())
     }
 }
 
