@@ -1,9 +1,12 @@
 use std::time::Duration;
 
 use libcamera_rs::{
-    camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator,
-    framebuffer_map::MemoryMappedFrameBuffer, properties, stream::StreamRole,
+    camera::CameraConfigurationStatus, camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator,
+    framebuffer_map::MemoryMappedFrameBuffer, pixel_format::PixelFormat, properties, stream::StreamRole,
 };
+
+// drm-fourcc does not have MJPEG type yet, construct it from raw fourcc identifier
+const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
 
 fn main() {
     let filename = std::env::args().nth(1).expect("Usage ./jpeg_capture <filename.jpg>");
@@ -24,17 +27,15 @@ fn main() {
     // This will generate default configuration for each specified role
     let mut cfgs = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
 
-    // TODO: Implement pixel format enum to manually set format
-    assert_eq!(
-        cfgs.get(0).unwrap().get_pixel_format().to_string(),
-        "MJPEG",
-        "Only MJPEG format is supported"
-    );
+    // Use MJPEG format so we can write resulting frame directly into jpeg file
+    cfgs.get_mut(0).unwrap().set_pixel_format(PIXEL_FORMAT_MJPEG);
 
     println!("Generated config: {:#?}", cfgs);
 
-    if cfgs.validate().is_invalid() {
-        panic!("Error validating camera configuration");
+    match cfgs.validate() {
+        CameraConfigurationStatus::Valid => println!("Camera configuration valid!"),
+        CameraConfigurationStatus::Adjusted => println!("Camera configuration was adjusted: {:#?}", cfgs),
+        CameraConfigurationStatus::Invalid => panic!("Error validating camera configuration"),
     }
 
     cam.configure(&mut cfgs).expect("Unable to configure camera");
