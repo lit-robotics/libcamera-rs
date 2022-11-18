@@ -7,7 +7,7 @@ use libcamera_sys::*;
 pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
 
 impl PixelFormat {
-    pub fn new(fourcc: u32, modifier: u64) -> Self {
+    pub const fn new(fourcc: u32, modifier: u64) -> Self {
         Self(libcamera_pixel_format_t { fourcc, modifier })
     }
 
@@ -28,12 +28,10 @@ impl PixelFormat {
     }
 
     pub fn to_string(&self) -> String {
-        let mut buf = [0u8; 64];
-        unsafe { libcamera_pixel_format_str(&self.0, buf.as_mut_ptr() as _, buf.len() as u64 - 1) };
-        unsafe { CStr::from_ptr(buf.as_ptr() as _) }
-            .to_str()
-            .unwrap()
-            .to_string()
+        let ptr = unsafe { libcamera_pixel_format_str(&self.0) };
+        let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+        unsafe { libc::free(ptr as _) };
+        out
     }
 }
 

@@ -5,8 +5,8 @@
 
 extern "C" {
 
-void libcamera_pixel_format_str(const libcamera_pixel_format_t *format, char* buf, size_t max_len) {
-    strncpy(buf, format->toString().c_str(), max_len);
+char *libcamera_pixel_format_str(const libcamera_pixel_format_t *format) {
+    return strdup(format->toString().c_str());
 }
 
 void libcamera_pixel_formats_destroy(libcamera_pixel_formats_t *formats) {

@@ -26,8 +26,10 @@ typedef struct libcamera_pixel_format libcamera_pixel_format_t;
 typedef struct libcamera_pixel_formats libcamera_pixel_formats_t;
 #endif
 
-// Works like strncpy
-void libcamera_pixel_format_str(const libcamera_pixel_format_t *format, char* buf, size_t max_len);
+/// @brief Converts pixel format to a human readable string representation
+/// @param format libcamera PixelFormat structure
+/// @return A heap allocated null-terminated string, that has to be deallocated with free()
+char *libcamera_pixel_format_str(const libcamera_pixel_format_t *format);
 
 void libcamera_pixel_formats_destroy(libcamera_pixel_formats_t *formats);
 size_t libcamera_pixel_formats_size(const libcamera_pixel_formats_t *formats);
