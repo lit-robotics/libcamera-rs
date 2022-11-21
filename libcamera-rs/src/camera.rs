@@ -1,9 +1,11 @@
 use std::{
+    collections::HashMap,
     ffi::CStr,
     io,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     ptr::NonNull,
+    sync::Mutex,
 };
 
 use libcamera_sys::*;
@@ -158,52 +160,55 @@ impl<'d> Drop for Camera<'d> {
     }
 }
 
-extern "C" fn request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
-    let cb: &mut Box<dyn FnMut(Request) + Send + Sync> = unsafe { core::mem::transmute(ptr) };
-    let req = unsafe { Request::from_ptr(NonNull::new(req).unwrap()) };
-    cb(req);
+extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState>) }.lock().unwrap();
+    let req = state.requests.remove(&req).unwrap();
+
+    if let Some(cb) = &mut state.request_completed_cb {
+        cb(req);
+    }
 }
 
-/// A [Camera] with exclusive access granted by [Camera::acquire()].
+#[derive(Default)]
+struct ActiveCameraState<'d> {
+    requests: HashMap<*mut libcamera_request_t, Request>,
+    request_completed_cb: Option<Box<dyn FnMut(Request) + Send + 'd>>,
+}
+
+/// A [Camera] with an exclusive access granted by [Camera::acquire()].
 pub struct ActiveCamera<'d> {
     cam: Camera<'d>,
-    request_completed_handle: Option<(
-        *mut libcamera_callback_handle_t,
-        *mut Box<dyn FnMut(Request) + Send + 'd>,
-    )>,
+    request_completed_handle: *mut libcamera_callback_handle_t,
+    state: Box<Mutex<ActiveCameraState<'d>>>,
 }
 
 impl<'d> ActiveCamera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
+        let mut state = Box::new(Mutex::new(ActiveCameraState::default()));
+
+        let request_completed_handle = unsafe {
+            libcamera_camera_request_completed_connect(
+                ptr.as_ptr(),
+                Some(camera_request_completed_cb),
+                state.as_mut() as *mut Mutex<ActiveCameraState> as *mut _,
+            )
+        };
+
         Self {
             cam: Camera::from_ptr(ptr),
-            request_completed_handle: None,
+            request_completed_handle,
+            state,
         }
     }
 
+    /// Sets a callback for completed camera requests.
+    ///
+    /// Callback is executed in the libcamera thread context so it is best to setup a channel to send all requests for processing elsewhere.
+    ///
+    /// Only one callback can be set at a time. If there was a previously set callback, it will be discarded when setting a new one.
     pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + 'd) {
-        self.disconnect_request_completed();
-
-        let cb: Box<Box<dyn FnMut(Request) + Send>> = Box::new(Box::new(cb));
-        let cb_ptr = Box::into_raw(cb);
-
-        self.request_completed_handle = Some((
-            unsafe {
-                libcamera_camera_request_completed_connect(
-                    self.ptr.as_ptr(),
-                    Some(request_completed_cb),
-                    cb_ptr as *mut _,
-                )
-            },
-            cb_ptr,
-        ));
-    }
-
-    pub fn disconnect_request_completed(&mut self) {
-        if let Some((handle, cb_ptr)) = self.request_completed_handle {
-            unsafe { libcamera_camera_request_completed_disconnect(self.ptr.as_ptr(), handle) };
-            unsafe { drop(Box::from_raw(cb_ptr)) };
-        }
+        let mut state = self.state.lock().unwrap();
+        state.request_completed_cb = Some(Box::new(cb));
     }
 
     pub fn configure(&mut self, config: &mut CameraConfiguration) -> io::Result<()> {
@@ -215,16 +220,27 @@ impl<'d> ActiveCamera<'d> {
         }
     }
 
+    /// Creates a capture [`Request`].
+    ///
+    /// To perform a capture, it must firstly be initialized by attaching a framebuffer with [Request::add_buffer()] and then queued
+    /// for execution by [ActiveCamera::queue_request()].
+    ///
+    /// # Arguments
+    ///
+    /// * `cookie` - An optional user-provided u64 identifier that can be used to uniquely identify request in request completed callback.
     pub fn create_request(&mut self, cookie: Option<u64>) -> Option<Request> {
         let req = unsafe { libcamera_camera_create_request(self.ptr.as_ptr(), cookie.unwrap_or(0)) };
         NonNull::new(req).map(|p| unsafe { Request::from_ptr(p) })
     }
 
-    pub fn queue_request(&mut self, req: Request) -> io::Result<()> {
-        let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), req.ptr.as_ptr()) };
+    /// Queues [`Request`] for execution. Completed requests are returned in request completed callback, set by the `ActiveCamera::on_request_completed()`.
+    ///
+    /// Requests that do not have attached framebuffers are invalid and are rejected without being queued.
+    pub fn queue_request(&self, req: Request) -> io::Result<()> {
+        let ptr = req.ptr.as_ptr();
+        self.state.lock().unwrap().requests.insert(ptr, req);
 
-        // Request will be recreated in callback from raw pointer
-        core::mem::forget(req);
+        let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), ptr) };
 
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
@@ -269,9 +285,8 @@ impl<'d> DerefMut for ActiveCamera<'d> {
 
 impl<'d> Drop for ActiveCamera<'d> {
     fn drop(&mut self) {
-        self.disconnect_request_completed();
-
         unsafe {
+            libcamera_camera_request_completed_disconnect(self.ptr.as_ptr(), self.request_completed_handle);
             libcamera_camera_stop(self.ptr.as_ptr());
             libcamera_camera_release(self.ptr.as_ptr());
         }

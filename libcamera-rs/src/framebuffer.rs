@@ -217,31 +217,22 @@ impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
     }
 }
 
-pub struct FrameBufferRef<'d> {
-    pub(crate) ptr: NonNull<libcamera_framebuffer_t>,
-    _phantom: PhantomData<&'d ()>,
-}
+pub trait AsFrameBuffer: Send {
+    /// Returns raw framebuffer used by libcamera
+    unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t>;
 
-impl<'d> FrameBufferRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_t>) -> Self {
-        Self {
-            ptr,
-            _phantom: Default::default(),
-        }
-    }
-
-    pub fn metadata(&self) -> Immutable<FrameMetadataRef> {
+    fn metadata(&self) -> Immutable<FrameMetadataRef> {
         unsafe {
             Immutable(FrameMetadataRef::from_ptr(
-                NonNull::new(libcamera_framebuffer_metadata(self.ptr.as_ptr()).cast_mut()).unwrap(),
+                NonNull::new(libcamera_framebuffer_metadata(self.ptr().as_ptr()).cast_mut()).unwrap(),
             ))
         }
     }
 
-    pub fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
+    fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(
-                NonNull::new(libcamera_framebuffer_planes(self.ptr.as_ptr()).cast_mut()).unwrap(),
+                NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr()).cast_mut()).unwrap(),
             ))
         }
     }

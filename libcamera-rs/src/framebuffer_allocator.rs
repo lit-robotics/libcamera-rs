@@ -1,82 +1,65 @@
-use std::{io, marker::PhantomData, ptr::NonNull};
+use std::{io, ptr::NonNull, sync::Arc};
 
 use libcamera_sys::*;
 
-use crate::{camera::Camera, framebuffer::FrameBufferRef, stream::Stream, utils::Immutable};
+use crate::{camera::Camera, framebuffer::AsFrameBuffer, stream::Stream};
 
-pub struct FrameBufferAllocator {
+/// Buffers are stored inside `libcamera_framebuffer_allocator_t` so we use Arc<FrameBufferAllocatorInstance>
+/// to keep the allocator alive as long as there are active buffers.
+struct FrameBufferAllocatorInstance {
     ptr: NonNull<libcamera_framebuffer_allocator_t>,
 }
 
-impl FrameBufferAllocator {
-    pub fn new(cam: &Camera) -> Self {
-        Self {
-            ptr: NonNull::new(unsafe { libcamera_framebuffer_allocator_create(cam.ptr.as_ptr()) }).unwrap(),
-        }
-    }
-
-    pub fn allocate(&mut self, stream: &Stream) -> io::Result<()> {
-        let ret = unsafe { libcamera_framebuffer_allocator_allocate(self.ptr.as_ptr(), stream.ptr.as_ptr()) };
-        if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn free(&mut self, stream: &Stream) -> io::Result<()> {
-        let ret = unsafe { libcamera_framebuffer_allocator_free(self.ptr.as_ptr(), stream.ptr.as_ptr()) };
-        if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn buffers(&self, stream: &Stream) -> Immutable<FrameBufferListRef> {
-        unsafe {
-            Immutable(FrameBufferListRef::from_ptr(
-                NonNull::new(
-                    libcamera_framebuffer_allocator_buffers(self.ptr.as_ptr(), stream.ptr.as_ptr()).cast_mut(),
-                )
-                .unwrap(),
-            ))
-        }
-    }
-}
-
-impl Drop for FrameBufferAllocator {
+impl Drop for FrameBufferAllocatorInstance {
     fn drop(&mut self) {
         unsafe { libcamera_framebuffer_allocator_destroy(self.ptr.as_ptr()) }
     }
 }
 
-pub struct FrameBufferListRef<'d> {
-    pub(crate) ptr: NonNull<libcamera_framebuffer_list_t>,
-    _phantom: PhantomData<&'d ()>,
+pub struct FrameBufferAllocator {
+    inner: Arc<FrameBufferAllocatorInstance>,
 }
 
-impl<'d> FrameBufferListRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_list_t>) -> Self {
+impl FrameBufferAllocator {
+    pub fn new(cam: &Camera) -> Self {
         Self {
-            ptr,
-            _phantom: Default::default(),
+            inner: Arc::new(FrameBufferAllocatorInstance {
+                ptr: NonNull::new(unsafe { libcamera_framebuffer_allocator_create(cam.ptr.as_ptr()) }).unwrap(),
+            }),
         }
     }
 
-    pub fn len(&self) -> usize {
-        unsafe { libcamera_framebuffer_list_size(self.ptr.as_ptr()) as _ }
-    }
-
-    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferRef<'d>>> {
-        if self.len() <= index {
-            None
+    /// Allocates buffers for a given stream based on [StreamConfigurationRef::get_buffer_count()].
+    pub fn alloc(&mut self, stream: &Stream) -> io::Result<Vec<FrameBuffer>> {
+        let ret = unsafe { libcamera_framebuffer_allocator_allocate(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
         } else {
-            Some(Immutable(unsafe {
-                FrameBufferRef::from_ptr(
-                    NonNull::new(libcamera_framebuffer_list_get(self.ptr.as_ptr(), index as _).cast_mut()).unwrap(),
-                )
-            }))
+            let buffers =
+                unsafe { libcamera_framebuffer_allocator_buffers(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+            let len = unsafe { libcamera_framebuffer_list_size(buffers) };
+            Ok((0..len)
+                .into_iter()
+                .map(|i| unsafe { libcamera_framebuffer_list_get(buffers, i) })
+                .map(|ptr| NonNull::new(ptr.cast_mut()).unwrap())
+                .map(|ptr| FrameBuffer {
+                    ptr,
+                    _alloc: self.inner.clone(),
+                })
+                .collect())
         }
+    }
+}
+
+pub struct FrameBuffer {
+    ptr: NonNull<libcamera_framebuffer_t>,
+    _alloc: Arc<FrameBufferAllocatorInstance>,
+}
+
+unsafe impl Send for FrameBuffer {}
+
+impl AsFrameBuffer for FrameBuffer {
+    unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t> {
+        self.ptr
     }
 }

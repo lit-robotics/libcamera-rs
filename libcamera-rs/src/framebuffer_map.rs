@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use thiserror::Error;
 
-use crate::framebuffer::FrameBufferRef;
+use crate::framebuffer::AsFrameBuffer;
 
 #[derive(Debug, Error)]
 pub enum MemoryMappedFrameBufferError {
@@ -17,13 +17,20 @@ pub enum MemoryMappedFrameBufferError {
     MemoryMapError(std::io::Error),
 }
 
-pub struct MemoryMappedFrameBuffer<'d> {
-    fb: &'d FrameBufferRef<'d>,
-    mmaps: HashMap<i32, &'d [u8]>,
+struct MappedPlane {
+    fd: i32,
+    offset: usize,
+    len: usize,
 }
 
-impl<'d> MemoryMappedFrameBuffer<'d> {
-    pub fn from_framebuffer(fb: &'d FrameBufferRef<'d>) -> Result<Self, MemoryMappedFrameBufferError> {
+pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
+    fb: T,
+    mmaps: HashMap<i32, (*const core::ffi::c_void, usize)>,
+    planes: Vec<MappedPlane>,
+}
+
+impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
+    pub fn new(fb: T) -> Result<Self, MemoryMappedFrameBufferError> {
         struct MapInfo {
             /// Maximum offset used by data planes
             mapped_len: usize,
@@ -31,12 +38,15 @@ impl<'d> MemoryMappedFrameBuffer<'d> {
             total_len: usize,
         }
 
+        let mut planes = Vec::new();
         let mut map_info: HashMap<i32, MapInfo> = HashMap::new();
 
         for (index, plane) in fb.planes().into_iter().enumerate() {
             let fd = plane.fd();
             let offset = plane.offset().unwrap();
             let len = plane.len();
+
+            planes.push(MappedPlane { fd, offset, len });
 
             // Find total FD length if not known yet
             if !map_info.contains_key(&fd) {
@@ -83,34 +93,40 @@ impl<'d> MemoryMappedFrameBuffer<'d> {
                         std::io::Error::last_os_error(),
                     ))
                 } else {
-                    let data = unsafe { core::slice::from_raw_parts(addr as *const u8, info.mapped_len) };
-                    Ok((*fd, data))
+                    Ok((*fd, (addr.cast_const(), info.mapped_len)))
                 }
             })
-            .collect::<Result<HashMap<i32, &[u8]>, MemoryMappedFrameBufferError>>()
+            .collect::<Result<HashMap<i32, (*const core::ffi::c_void, usize)>, MemoryMappedFrameBufferError>>()
             .unwrap();
 
-        Ok(Self { fb, mmaps })
+        Ok(Self { fb, mmaps, planes })
     }
 
-    pub fn planes(&self) -> Vec<&[u8]> {
-        self.fb
-            .planes()
-            .into_iter()
+    pub fn data(&self) -> Vec<&[u8]> {
+        self.planes
+            .iter()
             .map(|plane| {
-                let offset = plane.offset().unwrap();
-                let len = plane.len();
-                &self.mmaps[&plane.fd()][offset..offset + len]
+                let mmap_ptr: *const u8 = self.mmaps[&plane.fd].0.cast();
+                unsafe { core::slice::from_raw_parts(mmap_ptr.offset(plane.offset as _), plane.len) }
             })
             .collect()
     }
 }
 
-impl<'d> Drop for MemoryMappedFrameBuffer<'d> {
+impl<T: AsFrameBuffer> AsFrameBuffer for MemoryMappedFrameBuffer<T> {
+    unsafe fn ptr(&self) -> std::ptr::NonNull<libcamera_sys::libcamera_framebuffer_t> {
+        self.fb.ptr()
+    }
+}
+
+unsafe impl<T: AsFrameBuffer> Send for MemoryMappedFrameBuffer<T> {}
+
+impl<T: AsFrameBuffer> Drop for MemoryMappedFrameBuffer<T> {
     fn drop(&mut self) {
-        for (_fd, data) in self.mmaps.drain() {
+        // Unmap
+        for (_fd, (ptr, size)) in self.mmaps.drain() {
             unsafe {
-                libc::munmap(data.as_ptr().cast_mut().cast(), data.len());
+                libc::munmap(ptr.cast_mut(), size);
             }
         }
     }

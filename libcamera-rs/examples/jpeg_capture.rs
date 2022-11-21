@@ -1,8 +1,14 @@
 use std::time::Duration;
 
 use libcamera_rs::{
-    camera::CameraConfigurationStatus, camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator,
-    framebuffer_map::MemoryMappedFrameBuffer, pixel_format::PixelFormat, properties, stream::StreamRole,
+    camera::CameraConfigurationStatus,
+    camera_manager::CameraManager,
+    framebuffer::AsFrameBuffer,
+    framebuffer_allocator::{FrameBuffer, FrameBufferAllocator},
+    framebuffer_map::MemoryMappedFrameBuffer,
+    pixel_format::PixelFormat,
+    properties,
+    stream::StreamRole,
 };
 
 // drm-fourcc does not have MJPEG type yet, construct it from raw fourcc identifier
@@ -45,19 +51,24 @@ fn main() {
     // Allocate frame buffers for the the stream
     let cfg = cfgs.get(0).unwrap();
     let stream = cfg.stream().unwrap();
-    alloc.allocate(&stream).unwrap();
-
-    let buffers = alloc.buffers(&stream);
+    let buffers = alloc.alloc(&stream).unwrap();
     println!("Allocated {} buffers", buffers.len());
 
+    // Convert FrameBuffer to MemoryMappedFrameBuffer, which allows reading &[u8]
+    let buffers = buffers
+        .into_iter()
+        .map(|buf| MemoryMappedFrameBuffer::new(buf).unwrap())
+        .collect::<Vec<_>>();
+
     // Create capture requests and attach buffers
-    let mut reqs = Vec::new();
-    for i in 0..buffers.len() {
-        let mut req = cam.create_request(None).unwrap();
-        req.add_buffer(&stream, &alloc.buffers(&stream).get(i).unwrap())
-            .unwrap();
-        reqs.push(req);
-    }
+    let mut reqs = buffers
+        .into_iter()
+        .map(|buf| {
+            let mut req = cam.create_request(None).unwrap();
+            req.add_buffer(&stream, buf).unwrap();
+            req
+        })
+        .collect::<Vec<_>>();
 
     // Completed capture requests are returned as a callback
     let (tx, rx) = std::sync::mpsc::channel();
@@ -67,7 +78,7 @@ fn main() {
 
     cam.start(None).unwrap();
 
-    // Multiple requests can be queued at a time, but for this example we just want a single frame
+    // Multiple requests can be queued at a time, but for this example we just want a single frame.
     cam.queue_request(reqs.pop().unwrap()).unwrap();
 
     println!("Waiting for camera request execution");
@@ -77,15 +88,11 @@ fn main() {
     println!("Metadata: {:#?}", req.metadata());
 
     // Get framebuffer for our stream
-    let framebuffer = req.find_buffer(&stream).unwrap();
+    let framebuffer: &MemoryMappedFrameBuffer<FrameBuffer> = req.buffer(&stream).unwrap();
     println!("FrameBuffer metadata: {:#?}", framebuffer.metadata());
 
-    // Memory map framebuffer to obtain &[u8] slice to raw data.
-    // For continuous streaming this should be done once during initilization since buffers are reused.
-    let mapped_fb = MemoryMappedFrameBuffer::from_framebuffer(&framebuffer).unwrap();
-
     // MJPEG format has only one data plane containing encoded jpeg data with all the headers
-    let planes = mapped_fb.planes();
+    let planes = framebuffer.data();
     let jpeg_data = planes.get(0).unwrap();
 
     std::fs::write(&filename, jpeg_data).unwrap();
