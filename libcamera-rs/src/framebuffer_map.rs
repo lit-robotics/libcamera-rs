@@ -23,6 +23,7 @@ struct MappedPlane {
     len: usize,
 }
 
+/// FrameBuffer wrapper, which exposes internal file descriptors as memory mapped [&[u8]] plane slices.
 pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
     fb: T,
     mmaps: HashMap<i32, (*const core::ffi::c_void, usize)>,
@@ -30,6 +31,9 @@ pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
 }
 
 impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
+    /// Memory map framebuffer, which implements [AsFrameBuffer].
+    ///
+    /// This might fail if framebuffer has invalid plane sizes/offsets or if [libc::mmap] fails itself.
     pub fn new(fb: T) -> Result<Self, MemoryMappedFrameBufferError> {
         struct MapInfo {
             /// Maximum offset used by data planes
@@ -102,6 +106,7 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
         Ok(Self { fb, mmaps, planes })
     }
 
+    /// Returns data slice for each plane within the framebuffer.
     pub fn data(&self) -> Vec<&[u8]> {
         self.planes
             .iter()

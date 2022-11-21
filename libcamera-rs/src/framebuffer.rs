@@ -24,10 +24,16 @@ impl FrameMetadataPlanes {
         Self { ptr }
     }
 
+    /// Number of planes within framebuffer metadata.
+    ///
+    /// Should be consistent with other planes within framebuffer.
     pub fn len(&self) -> usize {
         unsafe { libcamera_frame_metadata_planes_size(self.ptr.as_ptr()) as _ }
     }
 
+    /// Returns framebuffer plane metadata at a given index.
+    ///
+    /// Return None if given index is out of range of available planes.
     pub fn get(&self, index: usize) -> Option<FrameMetadataPlane> {
         if index >= self.len() {
             None
@@ -141,11 +147,14 @@ impl<'d> FrameBufferPlaneRef<'d> {
         }
     }
 
-    /// File descriptor is valid for the [FrameBufferRef] lifetime.
+    /// File descriptor to the framebuffer plane data.
+    ///
+    /// Multiple planes may point to the same file descriptor at different offsets.
     pub fn fd(&self) -> i32 {
         unsafe { libcamera_framebuffer_plane_fd(self.ptr.as_ptr()) }
     }
 
+    /// Offset of data within the file descriptor.
     pub fn offset(&self) -> Option<usize> {
         if unsafe { libcamera_framebuffer_plane_offset_valid(self.ptr.as_ptr()) } {
             Some(unsafe { libcamera_framebuffer_plane_offset(self.ptr.as_ptr()) as _ })
@@ -154,6 +163,7 @@ impl<'d> FrameBufferPlaneRef<'d> {
         }
     }
 
+    /// Data length of the plane in bytes
     pub fn len(&self) -> usize {
         unsafe { libcamera_framebuffer_plane_length(self.ptr.as_ptr()) as _ }
     }
@@ -172,10 +182,12 @@ impl<'d> FrameBufferPlanesRef<'d> {
         }
     }
 
+    /// Number of planes within framebuffer
     pub fn len(&self) -> usize {
         unsafe { libcamera_framebuffer_planes_size(self.ptr.as_ptr()) as _ }
     }
 
+    /// Returns framebuffer plane at a given index
     pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef>> {
         if index >= self.len() {
             None
@@ -221,6 +233,7 @@ pub trait AsFrameBuffer: Send {
     /// Returns raw framebuffer used by libcamera
     unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t>;
 
+    /// Returns framebuffer metadata information
     fn metadata(&self) -> Immutable<FrameMetadataRef> {
         unsafe {
             Immutable(FrameMetadataRef::from_ptr(
@@ -229,6 +242,7 @@ pub trait AsFrameBuffer: Send {
         }
     }
 
+    /// Provides access to framebuffer data by exposing file descriptors, offsets and lengths of the planes.
     fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(

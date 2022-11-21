@@ -8,6 +8,9 @@ use crate::{
     utils::Immutable,
 };
 
+/// Stream role hint for generating configuration.
+///
+/// Used in [Camera::generate_configuration()](crate::camera::Camera::generate_configuration).
 #[derive(Debug, Clone, Copy)]
 pub enum StreamRole {
     Raw,
@@ -41,6 +44,7 @@ impl From<StreamRole> for libcamera_stream_role::Type {
     }
 }
 
+/// A list of available stream formats.
 pub struct StreamFormatsRef<'d> {
     ptr: NonNull<libcamera_stream_formats_t>,
     _phantom: PhantomData<&'d ()>,
@@ -54,12 +58,14 @@ impl<'d> StreamFormatsRef<'d> {
         }
     }
 
+    /// Returns all available [PixelFormat]s.
     pub fn pixel_formats(&self) -> Immutable<PixelFormats> {
         Immutable(unsafe {
             PixelFormats::from_ptr(NonNull::new(libcamera_stream_formats_pixel_formats(self.ptr.as_ptr())).unwrap())
         })
     }
 
+    /// Returns all supported stream [Size]s for a given [PixelFormat].
     pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
         let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
@@ -72,6 +78,7 @@ impl<'d> StreamFormatsRef<'d> {
         out
     }
 
+    /// Returns a [SizeRange] of supported stream sizes for a given [PixelFormat].
     pub fn range(&self, pixel_format: PixelFormat) -> SizeRange {
         SizeRange::from(unsafe { libcamera_stream_formats_range(self.ptr.as_ptr(), &pixel_format.0) })
     }
@@ -140,6 +147,10 @@ impl<'d> StreamConfigurationRef<'d> {
         unsafe { self.ptr.as_mut() }.buffer_count = buffer_count;
     }
 
+    /// Returns initialized [Stream] for this configuration.
+    ///
+    /// Stream is only available once this configuration is applied with [ActiveCamera::configure()](crate::camera::ActiveCamera::configure).
+    /// It is invalidated if camera is reconfigured.
     pub fn stream(&self) -> Option<Stream> {
         let stream = unsafe { libcamera_stream_configuration_stream(self.ptr.as_ptr()) };
         // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
@@ -147,6 +158,7 @@ impl<'d> StreamConfigurationRef<'d> {
         NonNull::new(stream).map(|p| unsafe { Stream::from_ptr(p) })
     }
 
+    /// Returns a list of available stream formats for this configuration.
     pub fn formats(&self) -> StreamFormatsRef {
         unsafe {
             StreamFormatsRef::from_ptr(
@@ -168,6 +180,9 @@ impl<'d> core::fmt::Debug for StreamConfigurationRef<'d> {
     }
 }
 
+/// Handle to a camera stream.
+///
+/// Obtained from [StreamConfigurationRef::stream()] and is valid as long as camera configuration is unchanged.
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Stream {
     /// libcamera_stream_t is used as unique key across various libcamera structures
@@ -184,4 +199,3 @@ impl Stream {
 }
 
 unsafe impl Send for Stream {}
-unsafe impl Sync for Stream {}

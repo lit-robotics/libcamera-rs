@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-/// A wrapper to make a type immutable.
+/// Provides only an immutable reference to the contained type T.
+///
+/// Used for FFI types to avoid having separate variants depending on mutability.
 pub struct Immutable<T: ?Sized>(pub(crate) T);
 
 impl<T> Immutable<T> {

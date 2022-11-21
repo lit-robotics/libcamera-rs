@@ -1,5 +1,6 @@
 use libcamera_sys::*;
 
+/// Represents `libcamera::Point`
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub x: i32,
@@ -12,6 +13,7 @@ impl From<libcamera_point_t> for Point {
     }
 }
 
+/// Represents `libcamera::Size`
 #[derive(Debug, Clone, Copy)]
 pub struct Size {
     pub width: u32,
@@ -36,6 +38,7 @@ impl From<Size> for libcamera_size_t {
     }
 }
 
+/// Represents `libcamera::SizeRange`
 #[derive(Debug, Clone, Copy)]
 pub struct SizeRange {
     pub min: Size,
@@ -66,6 +69,7 @@ impl From<SizeRange> for libcamera_size_range_t {
     }
 }
 
+/// Represents `libcamera::Rectangle`
 #[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
     pub x: i32,

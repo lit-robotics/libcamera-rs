@@ -4,10 +4,14 @@ use libcamera_sys::*;
 
 use crate::{control::ControlListRef, framebuffer::AsFrameBuffer, stream::Stream, utils::Immutable};
 
+/// Status of [Request]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestStatus {
+    /// Request is ready to be executed by [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request)
     Pending,
+    /// Request was executed successfully
     Complete,
+    /// Request was cancelled, most likely due to call to [ActiveCamera::stop()](crate::camera::ActiveCamera::stop)
     Cancelled,
 }
 
@@ -24,6 +28,12 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
     }
 }
 
+/// A camera capture request.
+///
+/// Caputre requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
+/// and scheduled for execution by [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request).
+/// Completed requests are returned by request completed callback (see [ActiveCamera::on_request_completed()](crate::camera::ActiveCamera::on_request_completed))
+/// and can (should) be reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
 pub struct Request {
     pub(crate) ptr: NonNull<libcamera_request_t>,
     buffers: HashMap<Stream, Box<dyn Any + 'static>>,
@@ -37,22 +47,34 @@ impl Request {
         }
     }
 
+    /// Returns an immutable reference of request controls.
+    ///
+    /// See [controls](crate::controls) for available items.
     pub fn controls(&self) -> Immutable<ControlListRef> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap())
         })
     }
 
+    /// Returns a mutable reference of request controls.
+    ///
+    /// See [controls](crate::controls) for available items.
     pub fn controls_mut(&mut self) -> ControlListRef {
         unsafe { ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
     }
 
+    /// Returns request metadata, which contains information relevant to the request execution (i.e. capture timestamp).
+    ///
+    /// See [controls](crate::controls) for available items.
     pub fn metadata(&self) -> Immutable<ControlListRef> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
         })
     }
 
+    /// Attaches framebuffer to the request.
+    ///
+    /// Buffers can only be attached once. To access framebuffer after executing request use [Self::buffer()] or [Self::buffer_mut()].
     pub fn add_buffer<T: AsFrameBuffer + Any>(&mut self, stream: &Stream, buffer: T) -> io::Result<()> {
         let ret =
             unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) };
@@ -64,22 +86,33 @@ impl Request {
         }
     }
 
+    /// Returns a reference to the buffer that was attached with [Self::add_buffer()].
+    ///
+    /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer<T: 'static>(&self, stream: &Stream) -> Option<&T> {
         self.buffers.get(stream).map(|b| b.downcast_ref()).flatten()
     }
 
+    /// Returns a mutable reference to the buffer that was attached with [Self::add_buffer()].
+    ///
+    /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer_mut<T: 'static>(&mut self, stream: &Stream) -> Option<&mut T> {
         self.buffers.get_mut(stream).map(|b| b.downcast_mut()).flatten()
     }
 
+    /// Returns auto-incrementing sequence number of the capture
     pub fn sequence(&self) -> u32 {
         unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
     }
 
+    /// Returns request identifier that was provided in [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request).
+    ///
+    /// Returns zero if cookie was not provided.
     pub fn cookie(&self) -> u64 {
         unsafe { libcamera_request_cookie(self.ptr.as_ptr()) }
     }
 
+    /// Capture request status
     pub fn status(&self) -> RequestStatus {
         RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
     }

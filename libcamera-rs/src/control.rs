@@ -26,6 +26,7 @@ pub trait ControlEntry:
 pub trait Control: ControlEntry {}
 pub trait Property: ControlEntry {}
 
+/// Dynamic Control, which does not have strong typing.
 pub trait DynControlEntry: core::fmt::Debug {
     fn id(&self) -> u32;
     fn value(&self) -> ControlValue;
@@ -104,10 +105,12 @@ impl<'d> core::fmt::Debug for ControlListRef<'d> {
         let mut map = f.debug_map();
         for (id, val) in self.into_iter() {
             match ControlId::try_from(id) {
+                // Try to parse dynamic control, if not successful, just display the raw ControlValue
                 Ok(id) => match controls::make_dyn(id, val.clone()) {
                     Ok(val) => map.entry(&id, &val),
                     Err(_) => map.entry(&id, &val),
                 },
+                // If ControlId is unknown just use u32 as key
                 Err(_) => map.entry(&id, &val),
             };
         }
@@ -164,10 +167,12 @@ impl<'d> core::fmt::Debug for PropertyListRef<'d> {
         let mut map = f.debug_map();
         for (id, val) in self.into_iter() {
             match PropertyId::try_from(id) {
+                // Try to parse dynamic property, if not successful, just display the raw ControlValue
                 Ok(id) => match properties::make_dyn(id, val.clone()) {
                     Ok(val) => map.entry(&id, &val),
                     Err(_) => map.entry(&id, &val),
                 },
+                // If PropertyId is unknown just use u32 as key
                 Err(_) => map.entry(&id, &val),
             };
         }

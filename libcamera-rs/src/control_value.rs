@@ -17,10 +17,12 @@ pub enum ControlValueError {
     /// Control value dimensionality mismatch
     #[error("Expected {expected} elements, found {found}")]
     InvalidLength { expected: usize, found: usize },
+    /// Control value type is correct, but it could not be converted into enum variant
     #[error("Unknown enum variant {0:?}")]
     UnknownVariant(ControlValue),
 }
 
+/// A value of a control or a property.
 #[derive(Debug, Clone)]
 pub enum ControlValue {
     None,

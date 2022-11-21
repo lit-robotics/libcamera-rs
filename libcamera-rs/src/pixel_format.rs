@@ -3,10 +3,19 @@ use std::{ffi::CStr, ptr::NonNull};
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
 
+/// Represents `libcamera::PixelFormat`, which itself is a pair of fourcc code and u64 modifier as defined in `libdrm`.
 #[derive(Clone, Copy)]
 pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
 
 impl PixelFormat {
+    /// Constructs new [PixelFormat] from given fourcc code and modifier.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Constructs MJPEG pixel format
+    /// const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
+    /// ```
     pub const fn new(fourcc: u32, modifier: u64) -> Self {
         Self(libcamera_pixel_format_t { fourcc, modifier })
     }
@@ -27,6 +36,7 @@ impl PixelFormat {
         self.0.modifier = modifier;
     }
 
+    /// Uses `libcamera` to convert pixel format into a human readable string.
     pub fn to_string(&self) -> String {
         let ptr = unsafe { libcamera_pixel_format_str(&self.0) };
         let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
@@ -57,6 +67,7 @@ impl From<DrmFormat> for PixelFormat {
     }
 }
 
+/// Vector of [PixelFormat]
 pub struct PixelFormats {
     ptr: NonNull<libcamera_pixel_formats_t>,
 }
@@ -66,10 +77,14 @@ impl PixelFormats {
         Self { ptr }
     }
 
+    /// Number of [PixelFormat]a
     pub fn len(&self) -> usize {
         unsafe { libcamera_pixel_formats_size(self.ptr.as_ptr()) as _ }
     }
 
+    /// Returns [PixelFormat] at a given index.
+    ///
+    /// Return None if index is out of range.
     pub fn get(&self, index: usize) -> Option<PixelFormat> {
         if index >= self.len() {
             None
@@ -78,6 +93,11 @@ impl PixelFormats {
         }
     }
 
+    /// Returns [PixelFormat] at a given index without checking bounds.
+    ///
+    /// # Safety
+    ///
+    /// `index` must be less than [PixelFormats::len()].
     pub unsafe fn get_unchecked(&self, index: usize) -> PixelFormat {
         PixelFormat(unsafe { libcamera_pixel_formats_get(self.ptr.as_ptr(), index as _) })
     }

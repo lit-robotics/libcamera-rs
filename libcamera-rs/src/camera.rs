@@ -17,10 +17,14 @@ use crate::{
     utils::Immutable,
 };
 
+/// Status of [CameraConfiguration]
 #[derive(Debug, Clone, Copy)]
 pub enum CameraConfigurationStatus {
+    /// Camera configuration was validated without issues.
     Valid,
+    /// Camera configuration is valid, but some of the fields were adjusted by libcamera.
     Adjusted,
+    /// Camera configuration is invalid.
     Invalid,
 }
 
@@ -60,6 +64,9 @@ impl TryFrom<libcamera_camera_configuration_status_t> for CameraConfigurationSta
     }
 }
 
+/// Camera configuration.
+///
+/// Contains [StreamConfigurationRef] for each stream used by the camera.
 pub struct CameraConfiguration {
     ptr: NonNull<libcamera_camera_configuration_t>,
 }
@@ -69,20 +76,32 @@ impl CameraConfiguration {
         Self { ptr }
     }
 
+    /// Returns immutable [StreamConfigurationRef] for the camera stream.
+    ///
+    /// # Parameters
+    ///
+    /// * `index` - Camera stream index.
     pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| Immutable(unsafe { StreamConfigurationRef::from_ptr(p) }))
     }
 
+    /// Returns mutable [StreamConfigurationRef] for the camera stream.
+    ///
+    /// # Parameters
+    ///
+    /// * `index` - Camera stream index.
     pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
     }
 
+    /// Returns number of streams within camera configuration.
     pub fn len(&self) -> usize {
         return unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) } as _;
     }
 
+    /// Validates camera configuration.
     pub fn validate(&mut self) -> CameraConfigurationStatus {
         unsafe { libcamera_camera_configuration_validate(self.ptr.as_ptr()) }
             .try_into()
@@ -106,6 +125,10 @@ impl Drop for CameraConfiguration {
     }
 }
 
+/// A read-only instance of a camera.
+///
+/// Can be used to obtain camera parameters or supported stream configurations.
+/// In order to be used for capturing, it must be turned into an [ActiveCamera] by [Camera::acquire()].
 pub struct Camera<'d> {
     pub(crate) ptr: NonNull<libcamera_camera_t>,
     _phantom: PhantomData<&'d ()>,
@@ -119,24 +142,39 @@ impl<'d> Camera<'d> {
         }
     }
 
+    /// ID of the camera.
+    ///
+    /// This usually contains hardware path within the system and is not human-friendly.
+    /// Use [properties::Model](crate::properties::Model) from [Camera::properties()] to obtain a human readable identification instead.
     pub fn id(&self) -> &str {
         unsafe { CStr::from_ptr(libcamera_camera_id(self.ptr.as_ptr())) }
             .to_str()
             .unwrap()
     }
 
+    /// Returns a list of camera controls.
+    ///
+    /// See [controls](crate::controls) for available items.
     pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
         Immutable(unsafe {
             ControlInfoMapRef::from_ptr(NonNull::new(libcamera_camera_controls(self.ptr.as_ptr()).cast_mut()).unwrap())
         })
     }
 
+    /// Returns a list of camera properties.
+    ///
+    /// See [properties](crate::properties) for available items.
     pub fn properties(&self) -> Immutable<PropertyListRef> {
         Immutable(unsafe {
             PropertyListRef::from_ptr(NonNull::new(libcamera_camera_properties(self.ptr.as_ptr()).cast_mut()).unwrap())
         })
     }
 
+    /// Generates default camera configuration for the given [StreamRole]s.
+    ///
+    /// The resulting [CameraConfiguration] contains stream configurations for each of the requested roles.
+    ///
+    /// Generated configuration can be adjusted as needed and then passed onto [ActiveCamera::configure()] to apply.
     pub fn generate_configuration(&self, roles: &[StreamRole]) -> Option<CameraConfiguration> {
         let roles: Vec<libcamera_stream_role::Type> = roles.iter().map(|r| (*r).into()).collect();
         let cfg =
@@ -144,6 +182,7 @@ impl<'d> Camera<'d> {
         NonNull::new(cfg).map(|p| unsafe { CameraConfiguration::from_ptr(p) })
     }
 
+    /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.
     pub fn acquire(&self) -> io::Result<ActiveCamera> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
         if ret < 0 {
@@ -171,14 +210,23 @@ extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut
 
 #[derive(Default)]
 struct ActiveCameraState<'d> {
+    /// List of queued requests that are yet to be executed.
+    /// Used to temporarily store [Request] before returning it back to the user.
     requests: HashMap<*mut libcamera_request_t, Request>,
+    /// Callback for libcamera `requestCompleted` signal.
     request_completed_cb: Option<Box<dyn FnMut(Request) + Send + 'd>>,
 }
 
-/// A [Camera] with an exclusive access granted by [Camera::acquire()].
+/// An active instance of a camera.
+///
+/// This gives exclusive access to the camera and allows capturing and modifying configuration.
+///
+/// Obtained by [Camera::acquire()].
 pub struct ActiveCamera<'d> {
     cam: Camera<'d>,
+    /// Handle to disconnect `requestCompleted` signal.
     request_completed_handle: *mut libcamera_callback_handle_t,
+    /// Internal state that is shared with callback handlers.
     state: Box<Mutex<ActiveCameraState<'d>>>,
 }
 
@@ -190,6 +238,7 @@ impl<'d> ActiveCamera<'d> {
             libcamera_camera_request_completed_connect(
                 ptr.as_ptr(),
                 Some(camera_request_completed_cb),
+                // state is valid for the lifetime of `ActiveCamera` and this callback will be disconnected on drop.
                 state.as_mut() as *mut Mutex<ActiveCameraState> as *mut _,
             )
         };
@@ -211,6 +260,9 @@ impl<'d> ActiveCamera<'d> {
         state.request_completed_cb = Some(Box::new(cb));
     }
 
+    /// Applies camera configuration.
+    ///
+    /// Default configuration can be obtained from [Camera::generate_configuration()] and then adjusted as needed.
     pub fn configure(&mut self, config: &mut CameraConfiguration) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_configure(self.ptr.as_ptr(), config.ptr.as_ptr()) };
         if ret < 0 {
@@ -249,6 +301,9 @@ impl<'d> ActiveCamera<'d> {
         }
     }
 
+    /// Starts camera capture session.
+    ///
+    /// Once started, [ActiveCamera::queue_request()] is permitted and camera configuration can no longer be changed.
     pub fn start(&mut self, controls: Option<ControlListRef>) -> io::Result<()> {
         let ctrl_ptr = controls.map(|c| c.ptr.as_ptr()).unwrap_or(core::ptr::null_mut());
         let ret = unsafe { libcamera_camera_start(self.ptr.as_ptr(), ctrl_ptr) };
@@ -259,6 +314,9 @@ impl<'d> ActiveCamera<'d> {
         }
     }
 
+    /// Stops camera capture session.
+    ///
+    /// Once stopped, [ActiveCamera::queue_request()] is no longer permitted and camera configuration can be adjusted.
     pub fn stop(&mut self) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_stop(self.ptr.as_ptr()) };
         if ret < 0 {

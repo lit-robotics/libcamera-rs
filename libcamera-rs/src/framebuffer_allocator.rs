@@ -29,7 +29,7 @@ impl FrameBufferAllocator {
         }
     }
 
-    /// Allocates buffers for a given stream based on [StreamConfigurationRef::get_buffer_count()].
+    /// Allocate N buffers for a given stream, where N is equal to [StreamConfigurationRef::get_buffer_count()](crate::stream::StreamConfigurationRef::get_buffer_count).
     pub fn alloc(&mut self, stream: &Stream) -> io::Result<Vec<FrameBuffer>> {
         let ret = unsafe { libcamera_framebuffer_allocator_allocate(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
         if ret < 0 {
