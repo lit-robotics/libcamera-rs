@@ -94,9 +94,11 @@ fn main() {
     // MJPEG format has only one data plane containing encoded jpeg data with all the headers
     let planes = framebuffer.data();
     let jpeg_data = planes.get(0).unwrap();
+    // Actual JPEG-encoded data will be smalled than framebuffer size, its length can be obtained from metadata.
+    let jpeg_len = framebuffer.metadata().planes().get(0).unwrap().bytes_used as usize;
 
-    std::fs::write(&filename, jpeg_data).unwrap();
-    println!("Written {} bytes to {}", jpeg_data.len(), &filename);
+    std::fs::write(&filename, &jpeg_data[..jpeg_len]).unwrap();
+    println!("Written {} bytes to {}", jpeg_len, &filename);
 
     // Everything is cleaned up automatically by Drop implementations
 }
