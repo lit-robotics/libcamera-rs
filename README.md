@@ -139,6 +139,10 @@ Written 4147789 bytes to target/image.jpg
 - List-like structures (`CameraConfiguration`, `ControlList`) are not indexable
   - It is impossible to implement `Index` and `IndexMut` traits for these structures, because traits can only return reference to an existing data within structure. Most of the libcamera wrappers return newtype variants, making them incompatible with indexing.
 
+# Random notes
+
+- libcamera's `FrameBuffer` has `FrameMetadata`, which by default is uninitialized with no way of checking that. It must only be read once attached `Request` is executed. This is hard to track, because our request accepts trait `AsFrameBuffer` to support other allocators and we can't attach a bool field to a trait. As a temporary fix, we set `FrameMetadata::status` to `u32::MAX` when `FrameBuffer` is created, which we can use to check if metadata was initialized. This way `AsFrameBuffer::metadata()` can return `None` instead of reading uninitialized memory.
+
 ## License
 
 Licensed under either of
