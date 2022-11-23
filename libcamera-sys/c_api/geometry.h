@@ -1,6 +1,7 @@
 #ifndef __LIBCAMERA_C_GEOMETRY__
 #define __LIBCAMERA_C_GEOMETRY__
 
+#include <stddef.h>
 #include <stdint.h>
 
 struct libcamera_point {
