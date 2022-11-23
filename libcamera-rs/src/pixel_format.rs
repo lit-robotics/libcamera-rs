@@ -46,6 +46,14 @@ impl PixelFormat {
     }
 }
 
+impl PartialEq for PixelFormat {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.fourcc.eq(&other.0.fourcc) && self.0.modifier.eq(&other.0.modifier)
+    }
+}
+
+impl Eq for PixelFormat {}
+
 impl core::fmt::Debug for PixelFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.to_string())

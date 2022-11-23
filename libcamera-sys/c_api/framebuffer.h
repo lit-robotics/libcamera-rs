@@ -13,10 +13,6 @@ struct libcamera_frame_metadata_plane {
     unsigned int bytes_used;
 };
 
-struct libcamera_framebuffer_plane {
-    unsigned int bytes_used;
-};
-
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 

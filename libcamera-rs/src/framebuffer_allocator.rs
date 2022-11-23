@@ -42,9 +42,21 @@ impl FrameBufferAllocator {
                 .into_iter()
                 .map(|i| unsafe { libcamera_framebuffer_list_get(buffers, i) })
                 .map(|ptr| NonNull::new(ptr.cast_mut()).unwrap())
-                .map(|ptr| FrameBuffer {
-                    ptr,
-                    _alloc: self.inner.clone(),
+                .map(|ptr| {
+                    // This is very very unsafe.
+                    // Setting first field of metadata (status) to u32::MAX, which is used as an indication that metadata is unavailable.
+                    // Otherwise all metadata fields are uninitialized and there is no way to detect availability.
+                    unsafe {
+                        libcamera_framebuffer_metadata(ptr.as_ptr())
+                            .cast_mut()
+                            .cast::<u32>()
+                            .write(u32::MAX)
+                    };
+
+                    FrameBuffer {
+                        ptr,
+                        _alloc: self.inner.clone(),
+                    }
                 })
                 .collect())
         }
@@ -54,6 +66,15 @@ impl FrameBufferAllocator {
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
     _alloc: Arc<FrameBufferAllocatorInstance>,
+}
+
+impl core::fmt::Debug for FrameBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FrameBuffer")
+            .field("metadata", &self.metadata())
+            .field("planes", &self.planes())
+            .finish()
+    }
 }
 
 unsafe impl Send for FrameBuffer {}

@@ -169,6 +169,16 @@ impl<'d> FrameBufferPlaneRef<'d> {
     }
 }
 
+impl<'d> core::fmt::Debug for FrameBufferPlaneRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FrameBufferPlaneRef")
+            .field("fd", &self.fd())
+            .field("offset", &self.offset())
+            .field("len", &self.len())
+            .finish()
+    }
+}
+
 pub struct FrameBufferPlanesRef<'d> {
     pub(crate) ptr: NonNull<libcamera_framebuffer_planes_t>,
     _phantom: PhantomData<&'d ()>,
@@ -201,6 +211,16 @@ impl<'d> FrameBufferPlanesRef<'d> {
     }
 }
 
+impl<'d> core::fmt::Debug for FrameBufferPlanesRef<'d> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = f.debug_list();
+        for plane in self.into_iter() {
+            list.entry(&plane);
+        }
+        list.finish()
+    }
+}
+
 impl<'d> IntoIterator for &'d FrameBufferPlanesRef<'d> {
     type Item = Immutable<FrameBufferPlaneRef<'d>>;
 
@@ -230,15 +250,21 @@ impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
 }
 
 pub trait AsFrameBuffer: Send {
-    /// Returns raw framebuffer used by libcamera
+    /// Returns raw framebuffer used by libcamera.
+    ///
+    /// It is expected that metadata status field is initialized with u32::MAX on a new buffer, which indicates that metadata
+    /// is not yet available. This "hackfix" prevents read of uninitialized data in [Self::metadata()].
     unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t>;
 
-    /// Returns framebuffer metadata information
-    fn metadata(&self) -> Immutable<FrameMetadataRef> {
-        unsafe {
-            Immutable(FrameMetadataRef::from_ptr(
-                NonNull::new(libcamera_framebuffer_metadata(self.ptr().as_ptr()).cast_mut()).unwrap(),
-            ))
+    /// Returns framebuffer metadata information.
+    ///
+    /// Only available after associated [Request](crate::request::Request) has completed.
+    fn metadata(&self) -> Option<Immutable<FrameMetadataRef>> {
+        let ptr = NonNull::new(unsafe { libcamera_framebuffer_metadata(self.ptr().as_ptr()) }.cast_mut()).unwrap();
+        if unsafe { libcamera_frame_metadata_status(ptr.as_ptr()) } != u32::MAX {
+            Some(unsafe { Immutable(FrameMetadataRef::from_ptr(ptr)) })
+        } else {
+            None
         }
     }
 

@@ -44,11 +44,18 @@ fn main() {
         CameraConfigurationStatus::Invalid => panic!("Error validating camera configuration"),
     }
 
+    // Ensure that pixel format was unchanged
+    assert_eq!(
+        cfgs.get(0).unwrap().get_pixel_format(),
+        PIXEL_FORMAT_MJPEG,
+        "MJPEG is not supported by the camera"
+    );
+
     cam.configure(&mut cfgs).expect("Unable to configure camera");
 
     let mut alloc = FrameBufferAllocator::new(&cam);
 
-    // Allocate frame buffers for the the stream
+    // Allocate frame buffers for the stream
     let cfg = cfgs.get(0).unwrap();
     let stream = cfg.stream().unwrap();
     let buffers = alloc.alloc(&stream).unwrap();
@@ -95,7 +102,7 @@ fn main() {
     let planes = framebuffer.data();
     let jpeg_data = planes.get(0).unwrap();
     // Actual JPEG-encoded data will be smalled than framebuffer size, its length can be obtained from metadata.
-    let jpeg_len = framebuffer.metadata().planes().get(0).unwrap().bytes_used as usize;
+    let jpeg_len = framebuffer.metadata().unwrap().planes().get(0).unwrap().bytes_used as usize;
 
     std::fs::write(&filename, &jpeg_data[..jpeg_len]).unwrap();
     println!("Written {} bytes to {}", jpeg_len, &filename);
