@@ -70,19 +70,27 @@ impl<'d> ControlListRef<'d> {
     }
 
     pub fn get<C: Control>(&self) -> Result<C, ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _) })
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _).cast_mut() })
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
         Ok(C::try_from(val)?)
     }
 
+    /// Sets control value.
+    ///
+    /// This can fail if control is not supported by the camera, but due to libcamera API limitations an error will not be returned.
+    /// Use [ControlListRef::get] if you need to ensure that value was set.
     pub fn set<C: Control>(&mut self, val: C) -> Result<(), ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _) })
-            .ok_or(ControlError::NotFound(C::ID))?;
-
         let ctrl_val: ControlValue = val.into();
-        unsafe { ctrl_val.write(val_ptr) };
+
+        unsafe {
+            let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
+            ctrl_val.write(val_ptr);
+            libcamera_control_list_set(self.ptr.as_ptr(), C::ID as _, val_ptr.as_ptr());
+            libcamera_control_value_destroy(val_ptr.as_ptr());
+        }
+
         Ok(())
     }
 }
@@ -132,19 +140,27 @@ impl<'d> PropertyListRef<'d> {
     }
 
     pub fn get<C: Property>(&self) -> Result<C, ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _) })
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _).cast_mut() })
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
         Ok(C::try_from(val)?)
     }
 
+    /// Sets property value.
+    ///
+    /// This can fail if property is not supported by the camera, but due to libcamera API limitations an error will not be returned.
+    /// Use [PropertyListRef::get] if you need to ensure that value was set.
     pub fn set<C: Property>(&mut self, val: C) -> Result<(), ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _) })
-            .ok_or(ControlError::NotFound(C::ID))?;
-
         let ctrl_val: ControlValue = val.into();
-        unsafe { ctrl_val.write(val_ptr) };
+
+        unsafe {
+            let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
+            ctrl_val.write(val_ptr);
+            libcamera_control_list_set(self.ptr.as_ptr(), C::ID as _, val_ptr.as_ptr());
+            libcamera_control_value_destroy(val_ptr.as_ptr());
+        }
+
         Ok(())
     }
 }

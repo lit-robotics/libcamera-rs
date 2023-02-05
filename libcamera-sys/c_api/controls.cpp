@@ -37,13 +37,18 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
 
-libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id) {
+const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id) {
     if (list->contains(id)) {
-        // if control list contains a value, it will not return `static const ControlValue zero` and is safe to cast
-        return const_cast<libcamera_control_value_t *>(&list->get(id));
+        return &list->get(id);
     } else {
         return nullptr;
     }
+}
+
+void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val) {
+    // It would be nice to report status of this operation, however API does not provide any feedback
+    // and internally used `_validator` is private.
+    list->set(id, *val);
 }
 
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list) {
@@ -71,6 +76,14 @@ unsigned int libcamera_control_list_iter_id(libcamera_control_list_iter_t *iter)
 
 const libcamera_control_value_t *libcamera_control_list_iter_value(libcamera_control_list_iter_t *iter) {
     return &iter->it->second;
+}
+
+libcamera_control_value_t *libcamera_control_value_create() {
+    return new libcamera::ControlValue();
+}
+
+void libcamera_control_value_destroy(libcamera_control_value_t *val) {
+    delete val;
 }
 
 enum libcamera_control_type libcamera_control_value_type(const libcamera_control_value_t *val) {

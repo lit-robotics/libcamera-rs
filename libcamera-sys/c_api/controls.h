@@ -49,7 +49,8 @@ const char *libcamera_property_name(enum libcamera_property_id id);
 enum libcamera_control_type libcamera_property_type(enum libcamera_property_id id);
 
 // --- libcamera_control_list_t ---
-libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
+const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
+void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list);
 
 // --- libcamera_control_list_iter_t ---
@@ -60,6 +61,8 @@ unsigned int libcamera_control_list_iter_id(libcamera_control_list_iter_t *iter)
 const libcamera_control_value_t *libcamera_control_list_iter_value(libcamera_control_list_iter_t *iter);
 
 // --- libcamera_control_value_t ---
+libcamera_control_value_t *libcamera_control_value_create();
+void libcamera_control_value_destroy(libcamera_control_value_t *val);
 enum libcamera_control_type libcamera_control_value_type(const libcamera_control_value_t *val);
 bool libcamera_control_value_is_none(const libcamera_control_value_t *val);
 bool libcamera_control_value_is_array(const libcamera_control_value_t *val);
