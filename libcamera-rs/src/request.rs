@@ -28,6 +28,24 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
     }
 }
 
+/// Flags to control the behaviour of [Request::reuse()]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReuseFlag {
+    /// Do not reuse buffers.
+    Default,
+    /// Reuse the buffers that were previously added by [Request::add_buffer()].
+    ReuseBuffers,
+}
+
+impl From<ReuseFlag> for libcamera_request_reuse_flag_t {
+    fn from(value: ReuseFlag) -> Self {
+        match value {
+            ReuseFlag::Default => libcamera_request_reuse_flag::LIBCAMERA_REQUEST_REUSE_FLAG_DEFAULT,
+            ReuseFlag::ReuseBuffers => libcamera_request_reuse_flag::LIBCAMERA_REQUEST_REUSE_FLAG_REUSE_BUFFERS,
+        }
+    }
+}
+
 /// A camera capture request.
 ///
 /// Caputre requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
@@ -115,6 +133,15 @@ impl Request {
     /// Capture request status
     pub fn status(&self) -> RequestStatus {
         RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
+    }
+
+    /// Reset the request for reuse.
+    ///
+    /// Reset the status and controls associated with the request, to allow it to be reused and requeued without destruction. This
+    /// function shall be called prior to queueing the request to the camera, in lieu of constructing a new request. The application
+    /// can reuse the buffers that were previously added to the request via addBuffer() by setting flags to ReuseBuffers.
+    pub fn reuse(&mut self, flags: ReuseFlag) {
+        unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.into()) }
     }
 }
 
