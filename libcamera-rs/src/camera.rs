@@ -12,7 +12,7 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMapRef, ControlListRef, PropertyListRef},
-    request::Request,
+    request::{Request, WithBuffers, WithoutBuffers},
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
@@ -212,9 +212,9 @@ extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut
 struct ActiveCameraState<'d> {
     /// List of queued requests that are yet to be executed.
     /// Used to temporarily store [Request] before returning it back to the user.
-    requests: HashMap<*mut libcamera_request_t, Request>,
+    requests: HashMap<*mut libcamera_request_t, Request<WithBuffers>>,
     /// Callback for libcamera `requestCompleted` signal.
-    request_completed_cb: Option<Box<dyn FnMut(Request) + Send + 'd>>,
+    request_completed_cb: Option<Box<dyn FnMut(Request<WithBuffers>) + Send + 'd>>,
 }
 
 /// An active instance of a camera.
@@ -255,7 +255,7 @@ impl<'d> ActiveCamera<'d> {
     /// Callback is executed in the libcamera thread context so it is best to setup a channel to send all requests for processing elsewhere.
     ///
     /// Only one callback can be set at a time. If there was a previously set callback, it will be discarded when setting a new one.
-    pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + 'd) {
+    pub fn on_request_completed(&mut self, cb: impl FnMut(Request<WithBuffers>) + Send + 'd) {
         let mut state = self.state.lock().unwrap();
         state.request_completed_cb = Some(Box::new(cb));
     }
@@ -280,7 +280,7 @@ impl<'d> ActiveCamera<'d> {
     /// # Arguments
     ///
     /// * `cookie` - An optional user-provided u64 identifier that can be used to uniquely identify request in request completed callback.
-    pub fn create_request(&mut self, cookie: Option<u64>) -> Option<Request> {
+    pub fn create_request(&mut self, cookie: Option<u64>) -> Option<Request<WithoutBuffers>> {
         let req = unsafe { libcamera_camera_create_request(self.ptr.as_ptr(), cookie.unwrap_or(0)) };
         NonNull::new(req).map(|p| unsafe { Request::from_ptr(p) })
     }
@@ -288,7 +288,7 @@ impl<'d> ActiveCamera<'d> {
     /// Queues [`Request`] for execution. Completed requests are returned in request completed callback, set by the `ActiveCamera::on_request_completed()`.
     ///
     /// Requests that do not have attached framebuffers are invalid and are rejected without being queued.
-    pub fn queue_request(&self, req: Request) -> io::Result<()> {
+    pub fn queue_request(&self, req: Request<WithBuffers>) -> io::Result<()> {
         let ptr = req.ptr.as_ptr();
         self.state.lock().unwrap().requests.insert(ptr, req);
 
