@@ -1,4 +1,4 @@
-on: [push]
+on: [push, pull_request]
 
 name: CI
 
@@ -43,6 +43,7 @@ jobs:
           command: doc
           args: --no-deps --lib
       - name: Upload docs artifact
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v3
         with:
           name: docs
