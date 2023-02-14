@@ -139,7 +139,7 @@ impl Request {
     ///
     /// Reset the status and controls associated with the request, to allow it to be reused and requeued without destruction. This
     /// function shall be called prior to queueing the request to the camera, in lieu of constructing a new request. The application
-    /// can reuse the buffers that were previously added to the request via addBuffer() by setting flags to ReuseBuffers.
+    /// can reuse the buffers that were previously added to the request via [Self::add_buffer()] by setting flags to [ReuseFlag::ReuseBuffers].
     pub fn reuse(&mut self, flags: ReuseFlag) {
         unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.into()) }
     }
