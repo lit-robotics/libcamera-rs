@@ -1,4 +1,8 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 name: CI
 
@@ -39,6 +43,8 @@ jobs:
           command: test
       - name: Generate docs
         uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: "-Dwarnings"
         with:
           command: doc
           args: --no-deps --lib
