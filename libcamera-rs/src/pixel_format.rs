@@ -36,14 +36,6 @@ impl PixelFormat {
     pub fn set_modifier(&mut self, modifier: u64) {
         self.0.modifier = modifier;
     }
-
-    /// Uses `libcamera` to convert pixel format into a human readable string.
-    pub fn to_string(&self) -> String {
-        let ptr = unsafe { libcamera_pixel_format_str(&self.0) };
-        let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
-        unsafe { libc::free(ptr.cast()) };
-        out
-    }
 }
 
 impl PartialEq for PixelFormat {
@@ -56,7 +48,11 @@ impl Eq for PixelFormat {}
 
 impl core::fmt::Debug for PixelFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_string())
+        let ptr = unsafe { libcamera_pixel_format_str(&self.0) };
+        let out = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
+        f.write_str(out)?;
+        unsafe { libc::free(ptr.cast()) };
+        Ok(())
     }
 }
 
@@ -86,9 +82,14 @@ impl PixelFormats {
         Self { ptr }
     }
 
-    /// Number of [PixelFormat]a
+    /// Number of [PixelFormat]
     pub fn len(&self) -> usize {
         unsafe { libcamera_pixel_formats_size(self.ptr.as_ptr()) as _ }
+    }
+
+    /// Returns `true` if there there are no pixel formats
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Returns [PixelFormat] at a given index.

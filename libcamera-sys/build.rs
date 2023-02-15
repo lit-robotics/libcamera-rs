@@ -31,7 +31,7 @@ fn main() {
             continue;
         }
 
-        match entry.path().extension().map(|s| s.to_str()).flatten() {
+        match entry.path().extension().and_then(|s| s.to_str()) {
             Some("h") => c_api_headers.push(entry.path()),
             Some("cpp") => c_api_sources.push(entry.path()),
             _ => {}

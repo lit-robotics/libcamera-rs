@@ -47,7 +47,7 @@ libcamera_frame_metadata_planes_t *libcamera_frame_metadata_planes(libcamera_fra
 // --- libcamera_frame_metadata_planes_t ---
 void libcamera_frame_metadata_planes_destroy(libcamera_frame_metadata_planes_t *planes);
 size_t libcamera_frame_metadata_planes_size(const libcamera_frame_metadata_planes_t *planes);
-libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_data(libcamera_frame_metadata_planes_t *planes);
+libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_frame_metadata_planes_t *planes, size_t index);
 
 // --- libcamera_framebuffer_t ---
 const libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer);
@@ -62,7 +62,7 @@ size_t libcamera_framebuffer_plane_length(const libcamera_framebuffer_plane_t *p
 
 // --- libcamera_framebuffer_planes_t ---
 size_t libcamera_framebuffer_planes_size(const libcamera_framebuffer_planes_t *planes);
-libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_data(libcamera_framebuffer_planes_t *planes);
+libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_at(libcamera_framebuffer_planes_t *planes, size_t index);
 
 #ifdef __cplusplus
 }

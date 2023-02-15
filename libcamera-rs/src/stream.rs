@@ -69,13 +69,11 @@ impl<'d> StreamFormatsRef<'d> {
     pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
         let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
-        let data = unsafe { libcamera_sizes_data(sizes) };
 
-        let mut out = Vec::with_capacity(len);
-        for i in 0..len {
-            out.push(Size::from(unsafe { *data.offset(i as _) }));
-        }
-        out
+        (0..len)
+            .into_iter()
+            .map(|i| Size::from(unsafe { *libcamera_sizes_at(sizes, i as _) }))
+            .collect()
     }
 
     /// Returns a [SizeRange] of supported stream sizes for a given [PixelFormat].

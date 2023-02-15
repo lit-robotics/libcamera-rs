@@ -241,14 +241,12 @@ impl ControlValue {
             LIBCAMERA_CONTROL_TYPE_RECTANGLE => {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_rectangle_t, num_elements);
                 Ok(Self::Rectangle(SmallVec::from_iter(
-                    slice.into_iter().map(|r| Rectangle::from(*r)),
+                    slice.iter().map(|r| Rectangle::from(*r)),
                 )))
             }
             LIBCAMERA_CONTROL_TYPE_SIZE => {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_size_t, num_elements);
-                Ok(Self::Size(SmallVec::from_iter(
-                    slice.into_iter().map(|r| Size::from(*r)),
-                )))
+                Ok(Self::Size(SmallVec::from_iter(slice.iter().map(|r| Size::from(*r)))))
             }
             _ => Err(ControlValueError::UnknownType(ty)),
         }
