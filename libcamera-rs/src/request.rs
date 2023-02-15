@@ -1,3 +1,5 @@
+#![allow(clippy::manual_strip)]
+
 use std::{any::Any, collections::HashMap, io, ptr::NonNull};
 
 use bitflags::bitflags;
@@ -97,14 +99,14 @@ impl Request {
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer<T: 'static>(&self, stream: &Stream) -> Option<&T> {
-        self.buffers.get(stream).map(|b| b.downcast_ref()).flatten()
+        self.buffers.get(stream).and_then(|b| b.downcast_ref())
     }
 
     /// Returns a mutable reference to the buffer that was attached with [Self::add_buffer()].
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer_mut<T: 'static>(&mut self, stream: &Stream) -> Option<&mut T> {
-        self.buffers.get_mut(stream).map(|b| b.downcast_mut()).flatten()
+        self.buffers.get_mut(stream).and_then(|b| b.downcast_mut())
     }
 
     /// Returns auto-incrementing sequence number of the capture
