@@ -92,13 +92,13 @@ fn main() {
     });
 
     // TODO: Set `Control::FrameDuration()` here. Blocked on https://github.com/lit-robotics/libcamera-rs/issues/2
+    cam.start(None).unwrap();
 
     // Enqueue all requests to the camera
     for req in reqs {
         println!("Request queued for execution: {req:#?}");
         cam.queue_request(req).unwrap();
     }
-    cam.start(None).unwrap();
 
     let mut file = OpenOptions::new()
         .append(true)

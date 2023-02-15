@@ -187,11 +187,11 @@ impl<S: RequestState> core::fmt::Debug for Request<S> {
     }
 }
 
-impl<S: RequestState> Drop for Request<S> {
-    fn drop(&mut self) {
-        unsafe { libcamera_request_destroy(self.ptr.as_ptr()) }
-    }
-}
+// impl<S: RequestState> Drop for Request<S> {
+//     fn drop(&mut self) {
+//         unsafe { libcamera_request_destroy(self.ptr.as_ptr()) }
+//     }
+// }
 
 /// A marker trait for the typestate of a [Request].
 pub trait RequestState {}
