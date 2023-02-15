@@ -5,7 +5,7 @@ fn format_docstring(desc: &str, indent: usize) -> String {
     let mut out = String::new();
     let mut in_text_block = false;
 
-    for line in desc.trim().split("\n") {
+    for line in desc.trim().split('\n') {
         if !in_text_block && line.starts_with("  ") {
             in_text_block = true;
             out.push_str(&format!("{}/// ```text\n", " ".repeat(indent)))
@@ -58,7 +58,7 @@ enum ControlsType {
     Property,
 }
 
-fn generate_controls(controls: &Vec<Control>, ty: ControlsType) {
+fn generate_controls(controls: &[Control], ty: ControlsType) {
     let name = match ty {
         ControlsType::Control => "ControlId",
         ControlsType::Property => "PropertyId",

@@ -12,8 +12,8 @@ size_t libcamera_sizes_size(const libcamera_sizes_t *sizes) {
     return sizes->size();
 }
 
-const libcamera_size_t *libcamera_sizes_data(const libcamera_sizes_t *sizes) {
-    return sizes->data();
+const libcamera_size_t *libcamera_sizes_at(const libcamera_sizes_t *sizes, size_t index) {
+    return &sizes->at(index);
 }
 
 }

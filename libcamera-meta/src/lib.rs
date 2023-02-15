@@ -1,8 +1,8 @@
 use yaml_rust::{Yaml, YamlLoader};
 
-pub const CONTROL_IDS_YAML: &'static str = include_str!("./control_ids.yaml");
-pub const PROPERTY_IDS_YAML: &'static str = include_str!("./property_ids.yaml");
-pub const FORMATS_YAML: &'static str = include_str!("./formats.yaml");
+pub const CONTROL_IDS_YAML: &str = include_str!("./control_ids.yaml");
+pub const PROPERTY_IDS_YAML: &str = include_str!("./property_ids.yaml");
+pub const FORMATS_YAML: &str = include_str!("./formats.yaml");
 
 #[derive(Debug, Clone, Copy)]
 pub enum ControlType {
@@ -44,7 +44,7 @@ impl TryFrom<&Yaml> for ControlSize {
 
     fn try_from(value: &Yaml) -> Result<Self, Self::Error> {
         match value {
-            Yaml::Integer(size) => match size.clone().try_into() {
+            Yaml::Integer(size) => match (*size).try_into() {
                 Ok(size) => Ok(ControlSize::Fixed(size)),
                 _ => Err(format!("Invalid ControlSize integer {}", size)),
             },
@@ -81,7 +81,7 @@ fn parse_controls(yaml: &str) -> Vec<Control> {
     controls
         .as_vec()
         .unwrap()
-        .into_iter()
+        .iter()
         .map(|control| {
             let (name, val) = control.as_hash().unwrap().front().unwrap();
 

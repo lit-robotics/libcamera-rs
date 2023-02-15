@@ -53,16 +53,13 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
             planes.push(MappedPlane { fd, offset, len });
 
             // Find total FD length if not known yet
-            if !map_info.contains_key(&fd) {
+            map_info.entry(fd).or_insert_with(|| {
                 let total_len = unsafe { libc::lseek64(fd, 0, libc::SEEK_END) } as usize;
-                map_info.insert(
-                    fd,
-                    MapInfo {
-                        mapped_len: 0,
-                        total_len,
-                    },
-                );
-            }
+                MapInfo {
+                    mapped_len: 0,
+                    total_len,
+                }
+            });
 
             let info = map_info.get_mut(&fd).unwrap();
 
@@ -112,7 +109,7 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
             .iter()
             .map(|plane| {
                 let mmap_ptr: *const u8 = self.mmaps[&plane.fd].0.cast();
-                unsafe { core::slice::from_raw_parts(mmap_ptr.offset(plane.offset as _), plane.len) }
+                unsafe { core::slice::from_raw_parts(mmap_ptr.add(plane.offset), plane.len) }
             })
             .collect()
     }

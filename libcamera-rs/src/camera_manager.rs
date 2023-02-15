@@ -62,6 +62,11 @@ impl<'d> CameraList<'d> {
         unsafe { libcamera_camera_list_size(self.ptr.as_ptr()) as usize }
     }
 
+    /// Returns `true` if there are no cameras available
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns camera at a given index.
     ///
     /// Returns [None] if index is out of range of available cameras.

@@ -30,24 +30,15 @@ pub enum CameraConfigurationStatus {
 
 impl CameraConfigurationStatus {
     pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Valid => true,
-            _ => false,
-        }
+        matches!(self, Self::Valid)
     }
 
     pub fn is_adjusted(&self) -> bool {
-        match self {
-            Self::Adjusted => true,
-            _ => false,
-        }
+        matches!(self, Self::Adjusted)
     }
 
     pub fn is_invalid(&self) -> bool {
-        match self {
-            Self::Invalid => true,
-            _ => false,
-        }
+        matches!(self, Self::Invalid)
     }
 }
 
@@ -98,7 +89,12 @@ impl CameraConfiguration {
 
     /// Returns number of streams within camera configuration.
     pub fn len(&self) -> usize {
-        return unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) } as _;
+        unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) as usize }
+    }
+
+    /// Returns `true` if camera configuration has no streams.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Validates camera configuration.
