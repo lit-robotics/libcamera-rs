@@ -11,7 +11,7 @@ use std::{
 use libcamera_sys::*;
 
 use crate::{
-    control::{ControlInfoMapRef, ControlListRef, PropertyListRef},
+    control::{ControlInfoMap, ControlList, PropertyList},
     request::Request,
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
@@ -152,22 +152,20 @@ impl<'d> Camera<'d> {
             .unwrap()
     }
 
-    /// Returns a list of camera controls.
-    ///
-    /// See [controls](crate::controls) for available items.
-    pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
-        Immutable(unsafe {
-            ControlInfoMapRef::from_ptr(NonNull::new(libcamera_camera_controls(self.ptr.as_ptr()).cast_mut()).unwrap())
-        })
+    /// Returns a list of available camera controls and their limit.
+    pub fn controls(&self) -> &ControlInfoMap {
+        unsafe {
+            ControlInfoMap::from_ptr(NonNull::new(libcamera_camera_controls(self.ptr.as_ptr()).cast_mut()).unwrap())
+        }
     }
 
     /// Returns a list of camera properties.
     ///
     /// See [properties](crate::properties) for available items.
-    pub fn properties(&self) -> Immutable<PropertyListRef> {
-        Immutable(unsafe {
-            PropertyListRef::from_ptr(NonNull::new(libcamera_camera_properties(self.ptr.as_ptr()).cast_mut()).unwrap())
-        })
+    pub fn properties(&self) -> &PropertyList {
+        unsafe {
+            PropertyList::from_ptr(NonNull::new(libcamera_camera_properties(self.ptr.as_ptr()).cast_mut()).unwrap())
+        }
     }
 
     /// Generates default camera configuration for the given [StreamRole]s.
@@ -304,8 +302,8 @@ impl<'d> ActiveCamera<'d> {
     /// Starts camera capture session.
     ///
     /// Once started, [ActiveCamera::queue_request()] is permitted and camera configuration can no longer be changed.
-    pub fn start(&mut self, controls: Option<ControlListRef>) -> io::Result<()> {
-        let ctrl_ptr = controls.map(|c| c.ptr.as_ptr()).unwrap_or(core::ptr::null_mut());
+    pub fn start(&mut self, controls: Option<&ControlList>) -> io::Result<()> {
+        let ctrl_ptr = controls.map(|c| c.ptr()).unwrap_or(core::ptr::null_mut());
         let ret = unsafe { libcamera_camera_start(self.ptr.as_ptr(), ctrl_ptr) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))

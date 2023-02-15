@@ -49,6 +49,8 @@ const char *libcamera_property_name(enum libcamera_property_id id);
 enum libcamera_control_type libcamera_property_type(enum libcamera_property_id id);
 
 // --- libcamera_control_list_t ---
+libcamera_control_list_t *libcamera_control_list_create();
+void libcamera_control_list_destroy(libcamera_control_list_t *list);
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
 void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list);

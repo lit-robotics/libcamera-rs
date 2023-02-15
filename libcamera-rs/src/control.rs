@@ -7,6 +7,7 @@ use crate::{
     control_value::{ControlValue, ControlValueError},
     controls::{self, ControlId},
     properties::{self, PropertyId},
+    utils::{UniquePtr, UniquePtrTarget},
 };
 
 #[derive(Debug, Error)]
@@ -42,35 +43,46 @@ impl<T: ControlEntry> DynControlEntry for T {
     }
 }
 
-pub struct ControlInfoMapRef<'d> {
-    _ptr: NonNull<libcamera_control_info_map_t>,
-    _phantom: PhantomData<&'d ()>,
-}
+#[repr(transparent)]
+pub struct ControlInfoMap(libcamera_control_info_map_t);
 
-impl<'d> ControlInfoMapRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_control_info_map_t>) -> Self {
-        Self {
-            _ptr: ptr,
-            _phantom: Default::default(),
-        }
+impl ControlInfoMap {
+    pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_info_map_t>) -> &'a mut Self {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &mut *(ptr.as_ptr() as *mut Self)
     }
 }
 
-pub struct ControlListRef<'d> {
-    pub(crate) ptr: NonNull<libcamera_control_list_t>,
-    _phantom: PhantomData<&'d ()>,
+#[repr(transparent)]
+pub struct ControlList(libcamera_control_list_t);
+
+unsafe impl UniquePtrTarget for ControlList {
+    unsafe fn ptr_new() -> *mut Self {
+        libcamera_control_list_create() as *mut Self
+    }
+
+    unsafe fn ptr_drop(ptr: *mut Self) {
+        libcamera_control_list_destroy(ptr as *mut libcamera_control_list_t)
+    }
 }
 
-impl<'d> ControlListRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_control_list_t>) -> Self {
-        Self {
-            ptr,
-            _phantom: Default::default(),
-        }
+impl ControlList {
+    pub fn new() -> UniquePtr<Self> {
+        UniquePtr::new()
+    }
+
+    pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_list_t>) -> &'a mut Self {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &mut *(ptr.as_ptr() as *mut Self)
+    }
+
+    pub(crate) fn ptr(&self) -> *const libcamera_control_list_t {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &self.0 as *const libcamera_control_list_t
     }
 
     pub fn get<C: Control>(&self) -> Result<C, ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _).cast_mut() })
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr().cast_mut(), C::ID as _).cast_mut() })
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
@@ -87,7 +99,7 @@ impl<'d> ControlListRef<'d> {
         unsafe {
             let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
             ctrl_val.write(val_ptr);
-            libcamera_control_list_set(self.ptr.as_ptr(), C::ID as _, val_ptr.as_ptr());
+            libcamera_control_list_set(self.ptr().cast_mut(), C::ID as _, val_ptr.as_ptr());
             libcamera_control_value_destroy(val_ptr.as_ptr());
         }
 
@@ -95,20 +107,20 @@ impl<'d> ControlListRef<'d> {
     }
 }
 
-impl<'d> IntoIterator for &'d ControlListRef<'d> {
+impl<'d> IntoIterator for &'d ControlList {
     type Item = (u32, ControlValue);
 
     type IntoIter = ControlListRefIterator<'d>;
 
     fn into_iter(self) -> Self::IntoIter {
         ControlListRefIterator {
-            it: NonNull::new(unsafe { libcamera_control_list_iter(self.ptr.as_ptr()) }).unwrap(),
+            it: NonNull::new(unsafe { libcamera_control_list_iter(self.ptr().cast_mut()) }).unwrap(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<'d> core::fmt::Debug for ControlListRef<'d> {
+impl core::fmt::Debug for ControlList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
         for (id, val) in self.into_iter() {
@@ -126,21 +138,22 @@ impl<'d> core::fmt::Debug for ControlListRef<'d> {
     }
 }
 
-pub struct PropertyListRef<'d> {
-    pub(crate) ptr: NonNull<libcamera_control_list_t>,
-    _phantom: PhantomData<&'d ()>,
-}
+#[repr(transparent)]
+pub struct PropertyList(libcamera_control_list_t);
 
-impl<'d> PropertyListRef<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_control_list_t>) -> Self {
-        Self {
-            ptr,
-            _phantom: Default::default(),
-        }
+impl PropertyList {
+    pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_list_t>) -> &'a mut Self {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &mut *(ptr.as_ptr() as *mut Self)
+    }
+
+    pub(crate) fn ptr(&self) -> *const libcamera_control_list_t {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &self.0 as *const libcamera_control_list_t
     }
 
     pub fn get<C: Property>(&self) -> Result<C, ControlError> {
-        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr.as_ptr(), C::ID as _).cast_mut() })
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr().cast_mut(), C::ID as _).cast_mut() })
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
@@ -157,7 +170,7 @@ impl<'d> PropertyListRef<'d> {
         unsafe {
             let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
             ctrl_val.write(val_ptr);
-            libcamera_control_list_set(self.ptr.as_ptr(), C::ID as _, val_ptr.as_ptr());
+            libcamera_control_list_set(self.ptr().cast_mut(), C::ID as _, val_ptr.as_ptr());
             libcamera_control_value_destroy(val_ptr.as_ptr());
         }
 
@@ -165,20 +178,20 @@ impl<'d> PropertyListRef<'d> {
     }
 }
 
-impl<'d> IntoIterator for &'d PropertyListRef<'d> {
+impl<'d> IntoIterator for &'d PropertyList {
     type Item = (u32, ControlValue);
 
     type IntoIter = ControlListRefIterator<'d>;
 
     fn into_iter(self) -> Self::IntoIter {
         ControlListRefIterator {
-            it: NonNull::new(unsafe { libcamera_control_list_iter(self.ptr.as_ptr()) }).unwrap(),
+            it: NonNull::new(unsafe { libcamera_control_list_iter(self.ptr().cast_mut()) }).unwrap(),
             _phantom: Default::default(),
         }
     }
 }
 
-impl<'d> core::fmt::Debug for PropertyListRef<'d> {
+impl<'d> core::fmt::Debug for PropertyList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
         for (id, val) in self.into_iter() {
