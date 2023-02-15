@@ -127,7 +127,7 @@ fn main() {
         println!("Written {} bytes to {}", bytes_used, &filename);
 
         // Recycle the request back to the camera for execution
-        req.reuse(ReuseFlag::ReuseBuffers);
+        req.reuse(ReuseFlag::REUSE_BUFFERS);
         cam.queue_request(req).unwrap();
 
         count += 1;
