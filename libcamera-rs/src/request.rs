@@ -32,22 +32,14 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
 bitflags! {
     /// Flags to control the behaviour of [Request::reuse()].
     pub struct ReuseFlag: u32 {
+        /// Reuse the buffers that were previously added by [Request::add_buffer()].
         const REUSE_BUFFERS = 1 << 0;
     }
 }
 
-// impl From<ReuseFlag> for libcamera_request_reuse_flag_t {
-//     fn from(value: ReuseFlag) -> Self {
-//         match value {
-//             ReuseFlag::Default => libcamera_request_reuse_flag::LIBCAMERA_REQUEST_REUSE_FLAG_DEFAULT,
-//             ReuseFlag::ReuseBuffers => libcamera_request_reuse_flag::LIBCAMERA_REQUEST_REUSE_FLAG_REUSE_BUFFERS,
-//         }
-//     }
-// }
-
 /// A camera capture request.
 ///
-/// Caputre requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
+/// Capture requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
 /// and scheduled for execution by [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request).
 /// Completed requests are returned by request completed callback (see [ActiveCamera::on_request_completed()](crate::camera::ActiveCamera::on_request_completed))
 /// and can (should) be reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
@@ -81,8 +73,6 @@ impl Request {
     }
 
     /// Returns request metadata, which contains information relevant to the request execution (i.e. capture timestamp).
-    ///
-    /// See [controls](crate::controls) for available items.
     pub fn metadata(&self) -> Immutable<ControlListRef> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
@@ -138,7 +128,7 @@ impl Request {
     ///
     /// Reset the status and controls associated with the request, to allow it to be reused and requeued without destruction. This
     /// function shall be called prior to queueing the request to the camera, in lieu of constructing a new request. The application
-    /// can reuse the buffers that were previously added to the request via [Self::add_buffer()] by setting flags to [ReuseFlag::ReuseBuffers].
+    /// can reuse the buffers that were previously added to the request via [Self::add_buffer()] by setting flags to [ReuseFlag::REUSE_BUFFERS].
     pub fn reuse(&mut self, flags: ReuseFlag) {
         unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.bits()) }
     }
