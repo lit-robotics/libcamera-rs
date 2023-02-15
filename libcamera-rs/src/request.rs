@@ -1,5 +1,8 @@
+#![allow(clippy::manual_strip)]
+
 use std::{any::Any, collections::HashMap, io, ptr::NonNull};
 
+use bitflags::bitflags;
 use libcamera_sys::*;
 
 use crate::{control::ControlListRef, framebuffer::AsFrameBuffer, stream::Stream, utils::Immutable};
@@ -28,9 +31,17 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
     }
 }
 
+bitflags! {
+    /// Flags to control the behaviour of [Request::reuse()].
+    pub struct ReuseFlag: u32 {
+        /// Reuse the buffers that were previously added by [Request::add_buffer()].
+        const REUSE_BUFFERS = 1 << 0;
+    }
+}
+
 /// A camera capture request.
 ///
-/// Caputre requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
+/// Capture requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
 /// and scheduled for execution by [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request).
 /// Completed requests are returned by request completed callback (see [ActiveCamera::on_request_completed()](crate::camera::ActiveCamera::on_request_completed))
 /// and can (should) be reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
@@ -64,8 +75,6 @@ impl Request {
     }
 
     /// Returns request metadata, which contains information relevant to the request execution (i.e. capture timestamp).
-    ///
-    /// See [controls](crate::controls) for available items.
     pub fn metadata(&self) -> Immutable<ControlListRef> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
@@ -90,14 +99,14 @@ impl Request {
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer<T: 'static>(&self, stream: &Stream) -> Option<&T> {
-        self.buffers.get(stream).map(|b| b.downcast_ref()).flatten()
+        self.buffers.get(stream).and_then(|b| b.downcast_ref())
     }
 
     /// Returns a mutable reference to the buffer that was attached with [Self::add_buffer()].
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer_mut<T: 'static>(&mut self, stream: &Stream) -> Option<&mut T> {
-        self.buffers.get_mut(stream).map(|b| b.downcast_mut()).flatten()
+        self.buffers.get_mut(stream).and_then(|b| b.downcast_mut())
     }
 
     /// Returns auto-incrementing sequence number of the capture
@@ -115,6 +124,15 @@ impl Request {
     /// Capture request status
     pub fn status(&self) -> RequestStatus {
         RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
+    }
+
+    /// Reset the request for reuse.
+    ///
+    /// Reset the status and controls associated with the request, to allow it to be reused and requeued without destruction. This
+    /// function shall be called prior to queueing the request to the camera, in lieu of constructing a new request. The application
+    /// can reuse the buffers that were previously added to the request via [Self::add_buffer()] by setting flags to [ReuseFlag::REUSE_BUFFERS].
+    pub fn reuse(&mut self, flags: ReuseFlag) {
+        unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.bits()) }
     }
 }
 

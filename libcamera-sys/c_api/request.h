@@ -13,6 +13,12 @@ enum libcamera_request_status {
     LIBCAMERA_REQUEST_STATUS_CANCELLED,
 };
 
+enum libcamera_request_reuse_flag {
+    LIBCAMERA_REQUEST_REUSE_FLAG_DEFAULT = 0,
+    LIBCAMERA_REQUEST_REUSE_FLAG_REUSE_BUFFERS = 1 << 0,
+
+};
+
 #ifdef __cplusplus
 #include <libcamera/camera.h>
 
@@ -22,6 +28,7 @@ struct libcamera_request_buffer_map_iter {
 };
 
 typedef libcamera::Request::Status libcamera_request_status_t;
+typedef libcamera::Request::ReuseFlag libcamera_request_reuse_flag_t;
 typedef libcamera::Request libcamera_request_t;
 typedef libcamera::Request::BufferMap libcamera_request_buffer_map_t;
 typedef struct libcamera_request_buffer_map_iter libcamera_request_buffer_map_iter_t;
@@ -29,6 +36,7 @@ typedef struct libcamera_request_buffer_map_iter libcamera_request_buffer_map_it
 extern "C" {
 #else
 typedef enum libcamera_request_status libcamera_request_status_t;
+typedef enum libcamera_request_reuse_flag libcamera_request_reuse_flag_t;
 typedef struct libcamera_request libcamera_request_t;
 typedef struct libcamera_request_buffer_map libcamera_request_buffer_map_t;
 typedef struct libcamera_request_buffer_map_iter libcamera_request_buffer_map_iter_t;
@@ -44,6 +52,7 @@ libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t
 uint32_t libcamera_request_sequence(const libcamera_request_t *request);
 uint64_t libcamera_request_cookie(const libcamera_request_t *request);
 libcamera_request_status_t libcamera_request_status(const libcamera_request_t *request);
+void libcamera_request_reuse(libcamera_request_t *request, libcamera_request_reuse_flag_t flags);
 
 // --- libcamera_request_buffer_map_t ---
 libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream);

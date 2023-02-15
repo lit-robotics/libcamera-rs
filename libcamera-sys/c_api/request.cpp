@@ -38,6 +38,10 @@ libcamera_request_status_t libcamera_request_status(const libcamera_request_t *r
     return request->status();
 }
 
+void libcamera_request_reuse(libcamera_request_t *request, libcamera_request_reuse_flag_t flags) {
+    return request->reuse(flags);
+}
+
 libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream) {
 	const auto it = buffer_map->find(stream);
 	if (it == buffer_map->end())
