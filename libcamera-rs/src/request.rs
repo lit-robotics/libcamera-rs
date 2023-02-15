@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, ptr::NonNull};
+use std::{any::Any, collections::HashMap, fmt::Debug, mem::ManuallyDrop, ptr::NonNull};
 
 use libc::EEXIST;
 use libcamera_sys::*;
@@ -71,6 +71,29 @@ impl Request<WithoutBuffers> {
             state: WithoutBuffers {},
         }
     }
+
+    /// Attaches a framebuffer to the request.
+    ///
+    /// Buffers can only be attached once per stream, otherwise an error will be raised. Use [Self::buffer()] or [Self::buffer_mut()]
+    /// to access the buffer once it has been added.
+    pub fn add_buffer<T: AsFrameBuffer + Any>(self, stream: &Stream, buffer: T) -> Request<WithBuffers> {
+        match unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) } {
+            0 => (),
+            // `libcamera_request_add_buffer` has three failure modes:
+            //    -EINVAL - `stream` is null, but we know that our stream is non-null
+            //    -EEXIST - either the stream already has an associated buffer, or the buffer
+            //              has an associated `fence`, which we don't currently support.
+            _ => unreachable!(),
+        };
+        let Request { ptr, state } = self;
+        std::mem::forget(self);
+
+        let mut buffers: HashMap<Stream, Box<dyn Any + 'static>> = HashMap::new();
+        buffers.insert(*stream, Box::new(buffer));
+        let state = WithBuffers { buffers };
+        println!("hmm");
+        Request { ptr, state }
+    }
 }
 
 impl Request<WithBuffers> {
@@ -106,18 +129,12 @@ impl Request<WithBuffers> {
             state: WithoutBuffers {},
         }
     }
-}
 
-impl<S: RequestState> Request<S> {
     /// Attaches a framebuffer to the request.
     ///
     /// Buffers can only be attached once per stream, otherwise an error will be rasied. Use [Self::buffer()] or [Self::buffer_mut()]
     /// to access the buffer once it has been added.
-    pub fn add_buffer<T: AsFrameBuffer + Any>(
-        self,
-        stream: &Stream,
-        buffer: T,
-    ) -> Result<Request<WithBuffers>, RequestError> {
+    pub fn add_buffer<T: AsFrameBuffer + Any>(mut self, stream: &Stream, buffer: T) -> Result<Self, RequestError> {
         match unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) } {
             0 => Ok(()),
             // `libcamera_request_add_buffer` has three failure modes:
@@ -128,12 +145,12 @@ impl<S: RequestState> Request<S> {
             _ => unreachable!(),
         }?;
 
-        let mut buffers: HashMap<Stream, Box<dyn Any + 'static>> = HashMap::new();
-        buffers.insert(*stream, Box::new(buffer));
-        let state = WithBuffers { buffers };
-        Ok(Request { ptr: self.ptr, state })
+        self.state.buffers.insert(*stream, Box::new(buffer));
+        Ok(self)
     }
+}
 
+impl<S: RequestState> Request<S> {
     /// Returns an immutable reference of request controls.
     ///
     /// See [controls](crate::controls) for available items.
@@ -183,28 +200,39 @@ impl<S: RequestState> core::fmt::Debug for Request<S> {
             .field("seq", &self.sequence())
             .field("status", &self.status())
             .field("cookie", &self.cookie())
+            .field("state", &self.state)
             .finish()
     }
 }
 
-// impl<S: RequestState> Drop for Request<S> {
-//     fn drop(&mut self) {
-//         unsafe { libcamera_request_destroy(self.ptr.as_ptr()) }
-//     }
-// }
+impl<S: RequestState> Drop for Request<S> {
+    fn drop(&mut self) {
+        println!("dropping request {self:?}");
+        unsafe { libcamera_request_destroy(self.ptr.as_ptr()) }
+    }
+}
 
 /// A marker trait for the typestate of a [Request].
-pub trait RequestState {}
+pub trait RequestState: Debug {}
 
 /// The typestate of a fresh [Request] which has not yet had any buffers added to it. Before a request can
 /// be queued for execution by the camera, [Request::add_buffer()] must have been called at least once to move
 /// it into the `Request<WithBuffers>` state.
+#[derive(Clone, Copy, Debug)]
 pub struct WithoutBuffers {}
 
 /// The typestate of a [Request] which has a buffer associated to at least one of its configured streams. In this
 /// state, it can be queued to the camera for execution.
 pub struct WithBuffers {
     buffers: HashMap<Stream, Box<dyn Any + 'static>>,
+}
+
+impl Debug for WithBuffers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WithBuffers")
+            .field("buffers", &self.buffers.len())
+            .finish()
+    }
 }
 
 impl RequestState for WithBuffers {}

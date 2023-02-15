@@ -79,11 +79,13 @@ fn main() {
         .into_iter()
         .enumerate()
         .map(|(i, buf)| {
-            let req = cam.create_request(Some(i as u64)).unwrap();
-            let req = req.add_buffer(&stream, buf).unwrap();
+            let req = cam.create_request(Some(i as u64)).unwrap().add_buffer(&stream, buf);
+            println!("yo");
             req
         })
+        .inspect(|_| println!("ahoy"))
         .collect::<Vec<_>>();
+    println!("hi");
 
     // Completed capture requests are returned as a callback
     let (tx, rx) = std::sync::mpsc::channel();
@@ -106,7 +108,7 @@ fn main() {
         .open(&filename)
         .expect("Unable to create output file");
     let mut count = 0;
-    while count < 60 {
+    while count < 120 {
         println!("Waiting for camera request execution");
         let mut req = rx.recv_timeout(Duration::from_secs(2)).expect("Camera request failed");
 
