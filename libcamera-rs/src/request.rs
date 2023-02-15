@@ -85,7 +85,7 @@ impl Request<WithoutBuffers> {
             //              has an associated `fence`, which we don't currently support.
             _ => unreachable!(),
         };
-        let Request { ptr, state } = self;
+        let Request { ptr, state: _ } = self;
         std::mem::forget(self);
 
         let mut buffers: HashMap<Stream, Box<dyn Any + 'static>> = HashMap::new();
@@ -124,8 +124,11 @@ impl Request<WithBuffers> {
     pub fn reset(self) -> Request<WithoutBuffers> {
         let flags = ReuseFlag::Default;
         unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.into()) };
+        let Request { ptr, state: _ } = self;
+        std::mem::forget(self);
+
         Request {
-            ptr: self.ptr,
+            ptr,
             state: WithoutBuffers {},
         }
     }
@@ -174,13 +177,6 @@ impl<S: RequestState> Request<S> {
         })
     }
 
-    // TODO: libcamera sets the sequence number after queuing it to the camera. Does it get zeroed after Request::reuse? If so,
-    // it may only make sense if sequence is implemented just for State=WithBuffer
-    /// Returns auto-incrementing sequence number of the capture
-    pub fn sequence(&self) -> u32 {
-        unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
-    }
-
     /// Returns request identifier that was provided in [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request).
     ///
     /// Returns zero if cookie was not provided.
@@ -192,6 +188,14 @@ impl<S: RequestState> Request<S> {
     pub fn status(&self) -> RequestStatus {
         RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
     }
+
+    /// Returns auto-incrementing sequence number of the capture.
+    ///
+    /// The value is set after the request is queued with [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request),
+    /// otherwise it is initialised to 0. It will also be reset to 0 after [Self::reuse()] is called.
+    pub fn sequence(&self) -> u32 {
+        unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
+    }
 }
 
 impl<S: RequestState> core::fmt::Debug for Request<S> {
@@ -200,7 +204,6 @@ impl<S: RequestState> core::fmt::Debug for Request<S> {
             .field("seq", &self.sequence())
             .field("status", &self.status())
             .field("cookie", &self.cookie())
-            .field("state", &self.state)
             .finish()
     }
 }
@@ -213,26 +216,18 @@ impl<S: RequestState> Drop for Request<S> {
 }
 
 /// A marker trait for the typestate of a [Request].
-pub trait RequestState: Debug {}
+pub trait RequestState {}
 
 /// The typestate of a fresh [Request] which has not yet had any buffers added to it. Before a request can
 /// be queued for execution by the camera, [Request::add_buffer()] must have been called at least once to move
 /// it into the `Request<WithBuffers>` state.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct WithoutBuffers {}
 
 /// The typestate of a [Request] which has a buffer associated to at least one of its configured streams. In this
 /// state, it can be queued to the camera for execution.
 pub struct WithBuffers {
     buffers: HashMap<Stream, Box<dyn Any + 'static>>,
-}
-
-impl Debug for WithBuffers {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WithBuffers")
-            .field("buffers", &self.buffers.len())
-            .finish()
-    }
 }
 
 impl RequestState for WithBuffers {}

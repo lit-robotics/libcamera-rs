@@ -108,7 +108,7 @@ fn main() {
         .open(&filename)
         .expect("Unable to create output file");
     let mut count = 0;
-    while count < 120 {
+    while count < 30 {
         println!("Waiting for camera request execution");
         let mut req = rx.recv_timeout(Duration::from_secs(2)).expect("Camera request failed");
 
