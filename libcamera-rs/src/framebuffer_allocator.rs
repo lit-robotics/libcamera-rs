@@ -29,7 +29,8 @@ impl FrameBufferAllocator {
         }
     }
 
-    /// Allocate N buffers for a given stream, where N is equal to [StreamConfigurationRef::get_buffer_count()](crate::stream::StreamConfigurationRef::get_buffer_count).
+    /// Allocate N buffers for a given stream, where N is equal to
+    /// [StreamConfigurationRef::get_buffer_count()](crate::stream::StreamConfigurationRef::get_buffer_count).
     pub fn alloc(&mut self, stream: &Stream) -> io::Result<Vec<FrameBuffer>> {
         let ret = unsafe { libcamera_framebuffer_allocator_allocate(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
         if ret < 0 {
@@ -44,8 +45,9 @@ impl FrameBufferAllocator {
                 .map(|ptr| NonNull::new(ptr.cast_mut()).unwrap())
                 .map(|ptr| {
                     // This is very very unsafe.
-                    // Setting first field of metadata (status) to u32::MAX, which is used as an indication that metadata is unavailable.
-                    // Otherwise all metadata fields are uninitialized and there is no way to detect availability.
+                    // Setting first field of metadata (status) to u32::MAX, which is used as an indication that
+                    // metadata is unavailable. Otherwise all metadata fields are uninitialized and
+                    // there is no way to detect availability.
                     unsafe {
                         libcamera_framebuffer_metadata(ptr.as_ptr())
                             .cast_mut()

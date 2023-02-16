@@ -11,5 +11,6 @@ pub mod request;
 pub mod stream;
 pub mod utils;
 
+#[rustfmt::skip]
 mod generated;
 pub use generated::*;

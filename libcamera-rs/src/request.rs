@@ -43,8 +43,9 @@ bitflags! {
 ///
 /// Capture requests are created by [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request)
 /// and scheduled for execution by [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request).
-/// Completed requests are returned by request completed callback (see [ActiveCamera::on_request_completed()](crate::camera::ActiveCamera::on_request_completed))
-/// and can (should) be reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
+/// Completed requests are returned by request completed callback (see
+/// [ActiveCamera::on_request_completed()](crate::camera::ActiveCamera::on_request_completed)) and can (should) be
+/// reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
 pub struct Request {
     pub(crate) ptr: NonNull<libcamera_request_t>,
     buffers: HashMap<Stream, Box<dyn Any + 'static>>,
@@ -83,7 +84,8 @@ impl Request {
 
     /// Attaches framebuffer to the request.
     ///
-    /// Buffers can only be attached once. To access framebuffer after executing request use [Self::buffer()] or [Self::buffer_mut()].
+    /// Buffers can only be attached once. To access framebuffer after executing request use [Self::buffer()] or
+    /// [Self::buffer_mut()].
     pub fn add_buffer<T: AsFrameBuffer + Any>(&mut self, stream: &Stream, buffer: T) -> io::Result<()> {
         let ret =
             unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) };
@@ -114,7 +116,8 @@ impl Request {
         unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
     }
 
-    /// Returns request identifier that was provided in [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request).
+    /// Returns request identifier that was provided in
+    /// [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request).
     ///
     /// Returns zero if cookie was not provided.
     pub fn cookie(&self) -> u64 {
@@ -128,9 +131,10 @@ impl Request {
 
     /// Reset the request for reuse.
     ///
-    /// Reset the status and controls associated with the request, to allow it to be reused and requeued without destruction. This
-    /// function shall be called prior to queueing the request to the camera, in lieu of constructing a new request. The application
-    /// can reuse the buffers that were previously added to the request via [Self::add_buffer()] by setting flags to [ReuseFlag::REUSE_BUFFERS].
+    /// Reset the status and controls associated with the request, to allow it to be reused and requeued without
+    /// destruction. This function shall be called prior to queueing the request to the camera, in lieu of
+    /// constructing a new request. The application can reuse the buffers that were previously added to the request
+    /// via [Self::add_buffer()] by setting flags to [ReuseFlag::REUSE_BUFFERS].
     pub fn reuse(&mut self, flags: ReuseFlag) {
         unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.bits()) }
     }

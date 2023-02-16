@@ -15,7 +15,8 @@ impl PixelFormat {
     /// ```rust
     /// use libcamera_rs::pixel_format::PixelFormat;
     /// // Constructs MJPEG pixel format
-    /// const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
+    /// const PIXEL_FORMAT_MJPEG: PixelFormat =
+    ///     PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
     /// ```
     pub const fn new(fourcc: u32, modifier: u64) -> Self {
         Self(libcamera_pixel_format_t { fourcc, modifier })
