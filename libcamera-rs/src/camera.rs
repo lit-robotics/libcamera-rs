@@ -196,7 +196,9 @@ impl<'d> Drop for Camera<'d> {
 }
 
 extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
-    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }.lock().unwrap();
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }
+        .lock()
+        .unwrap();
     let req = state.requests.remove(&req).unwrap();
 
     if let Some(cb) = &mut state.request_completed_cb {
