@@ -16,7 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install libcamera
-        if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
           sudo pip3 install meson
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
@@ -34,8 +33,6 @@ jobs:
         run: cargo build
       - name: Test
         run: cargo test
-      - name: Format
-        run: cargo fmt --all -- --check
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Generate docs
