@@ -209,7 +209,7 @@ impl<'d> FrameBufferPlanesRef<'d> {
     }
 
     /// Returns framebuffer plane at a given index
-    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef>> {
+    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef<'_>>> {
         if index >= self.len() {
             None
         } else {
@@ -274,7 +274,7 @@ pub trait AsFrameBuffer: Send {
     /// Returns framebuffer metadata information.
     ///
     /// Only available after associated [Request](crate::request::Request) has completed.
-    fn metadata(&self) -> Option<Immutable<FrameMetadataRef>> {
+    fn metadata(&self) -> Option<Immutable<FrameMetadataRef<'_>>> {
         let ptr = NonNull::new(unsafe { libcamera_framebuffer_metadata(self.ptr().as_ptr()) }.cast_mut()).unwrap();
         if unsafe { libcamera_frame_metadata_status(ptr.as_ptr()) } != u32::MAX {
             Some(unsafe { Immutable(FrameMetadataRef::from_ptr(ptr)) })
@@ -284,7 +284,7 @@ pub trait AsFrameBuffer: Send {
     }
 
     /// Provides access to framebuffer data by exposing file descriptors, offsets and lengths of the planes.
-    fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
+    fn planes(&self) -> Immutable<FrameBufferPlanesRef<'_>> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(
                 NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr()).cast_mut()).unwrap(),

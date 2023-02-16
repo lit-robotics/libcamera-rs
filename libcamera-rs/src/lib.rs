@@ -1,3 +1,5 @@
+#![warn(rust_2018_idioms)]
+
 pub mod camera;
 pub mod camera_manager;
 pub mod control;

@@ -72,7 +72,7 @@ impl CameraConfiguration {
     /// # Parameters
     ///
     /// * `index` - Camera stream index.
-    pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef>> {
+    pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef<'_>>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| Immutable(unsafe { StreamConfigurationRef::from_ptr(p) }))
     }
@@ -82,7 +82,7 @@ impl CameraConfiguration {
     /// # Parameters
     ///
     /// * `index` - Camera stream index.
-    pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef> {
+    pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef<'_>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
     }
@@ -151,7 +151,7 @@ impl<'d> Camera<'d> {
     /// Returns a list of camera controls.
     ///
     /// See [controls](crate::controls) for available items.
-    pub fn controls(&self) -> Immutable<ControlInfoMapRef> {
+    pub fn controls(&self) -> Immutable<ControlInfoMapRef<'_>> {
         Immutable(unsafe {
             ControlInfoMapRef::from_ptr(NonNull::new(libcamera_camera_controls(self.ptr.as_ptr()).cast_mut()).unwrap())
         })
@@ -160,7 +160,7 @@ impl<'d> Camera<'d> {
     /// Returns a list of camera properties.
     ///
     /// See [properties](crate::properties) for available items.
-    pub fn properties(&self) -> Immutable<PropertyListRef> {
+    pub fn properties(&self) -> Immutable<PropertyListRef<'_>> {
         Immutable(unsafe {
             PropertyListRef::from_ptr(NonNull::new(libcamera_camera_properties(self.ptr.as_ptr()).cast_mut()).unwrap())
         })
@@ -179,7 +179,7 @@ impl<'d> Camera<'d> {
     }
 
     /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.
-    pub fn acquire(&self) -> io::Result<ActiveCamera> {
+    pub fn acquire(&self) -> io::Result<ActiveCamera<'_>> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
@@ -196,7 +196,7 @@ impl<'d> Drop for Camera<'d> {
 }
 
 extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
-    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState>) }.lock().unwrap();
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }.lock().unwrap();
     let req = state.requests.remove(&req).unwrap();
 
     if let Some(cb) = &mut state.request_completed_cb {
@@ -235,7 +235,7 @@ impl<'d> ActiveCamera<'d> {
                 ptr.as_ptr(),
                 Some(camera_request_completed_cb),
                 // state is valid for the lifetime of `ActiveCamera` and this callback will be disconnected on drop.
-                state.as_mut() as *mut Mutex<ActiveCameraState> as *mut _,
+                state.as_mut() as *mut Mutex<ActiveCameraState<'_>> as *mut _,
             )
         };
 
@@ -300,7 +300,7 @@ impl<'d> ActiveCamera<'d> {
     /// Starts camera capture session.
     ///
     /// Once started, [ActiveCamera::queue_request()] is permitted and camera configuration can no longer be changed.
-    pub fn start(&mut self, controls: Option<ControlListRef>) -> io::Result<()> {
+    pub fn start(&mut self, controls: Option<ControlListRef<'_>>) -> io::Result<()> {
         let ctrl_ptr = controls.map(|c| c.ptr.as_ptr()).unwrap_or(core::ptr::null_mut());
         let ret = unsafe { libcamera_camera_start(self.ptr.as_ptr(), ctrl_ptr) };
         if ret < 0 {

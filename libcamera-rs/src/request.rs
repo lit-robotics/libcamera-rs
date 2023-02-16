@@ -61,7 +61,7 @@ impl Request {
     /// Returns an immutable reference of request controls.
     ///
     /// See [controls](crate::controls) for available items.
-    pub fn controls(&self) -> Immutable<ControlListRef> {
+    pub fn controls(&self) -> Immutable<ControlListRef<'_>> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap())
         })
@@ -70,12 +70,12 @@ impl Request {
     /// Returns a mutable reference of request controls.
     ///
     /// See [controls](crate::controls) for available items.
-    pub fn controls_mut(&mut self) -> ControlListRef {
+    pub fn controls_mut(&mut self) -> ControlListRef<'_> {
         unsafe { ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
     }
 
     /// Returns request metadata, which contains information relevant to the request execution (i.e. capture timestamp).
-    pub fn metadata(&self) -> Immutable<ControlListRef> {
+    pub fn metadata(&self) -> Immutable<ControlListRef<'_>> {
         Immutable(unsafe {
             ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
         })

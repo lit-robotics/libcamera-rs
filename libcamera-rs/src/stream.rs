@@ -157,7 +157,7 @@ impl<'d> StreamConfigurationRef<'d> {
     }
 
     /// Returns a list of available stream formats for this configuration.
-    pub fn formats(&self) -> StreamFormatsRef {
+    pub fn formats(&self) -> StreamFormatsRef<'_> {
         unsafe {
             StreamFormatsRef::from_ptr(
                 NonNull::new(libcamera_stream_configuration_formats(self.ptr.as_ptr()).cast_mut()).unwrap(),
