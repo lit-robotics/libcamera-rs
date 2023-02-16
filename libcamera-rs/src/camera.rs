@@ -9,6 +9,7 @@ use std::{
 };
 
 use libcamera_sys::*;
+use thiserror::Error;
 
 use crate::{
     control::{ControlInfoMapRef, ControlListRef, PropertyListRef},
@@ -16,6 +17,23 @@ use crate::{
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
+
+/// Error enum for queue-related errors.
+#[derive(Debug, Error)]
+pub enum QueueError {
+    #[error("The provided request was created by a different camera to this one")]
+    WrongCamera,
+    #[error("The provided request does not have any buffers associated with any of its streams")]
+    NoBuffersPresent,
+    #[error("The camera is disconnected")]
+    Disconnected,
+    #[error("The camera is not accessible")]
+    NoAccess,
+    #[error("The stream associated with the provided request is not active")]
+    StreamNotActive,
+    #[error(transparent)]
+    Unexpected(#[from] io::Error),
+}
 
 /// Status of [CameraConfiguration]
 #[derive(Debug, Clone, Copy)]
@@ -284,16 +302,22 @@ impl<'d> ActiveCamera<'d> {
     /// Queues [`Request`] for execution. Completed requests are returned in request completed callback, set by the `ActiveCamera::on_request_completed()`.
     ///
     /// Requests that do not have attached framebuffers are invalid and are rejected without being queued.
-    pub fn queue_request(&self, req: Request) -> io::Result<()> {
+    pub fn queue_request(&self, req: Request) -> Result<(), QueueError> {
+        if req.buffers.is_empty() {
+            return Err(QueueError::NoBuffersPresent);
+        }
         let ptr = req.ptr.as_ptr();
         self.state.lock().unwrap().requests.insert(ptr, req);
 
         let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), ptr) };
 
-        if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
-        } else {
-            Ok(())
+        match ret {
+            0 => Ok(()),
+            v if v == -libc::EXDEV => Err(QueueError::WrongCamera),
+            v if v == -libc::EINVAL => Err(QueueError::StreamNotActive),
+            v if v == -libc::ENODEV => Err(QueueError::Disconnected),
+            v if v == -libc::EACCES => Err(QueueError::NoAccess),
+            v => Err(QueueError::Unexpected(io::Error::from_raw_os_error(v))),
         }
     }
 
@@ -343,6 +367,46 @@ impl<'d> Drop for ActiveCamera<'d> {
             libcamera_camera_request_completed_disconnect(self.ptr.as_ptr(), self.request_completed_handle);
             libcamera_camera_stop(self.ptr.as_ptr());
             libcamera_camera_release(self.ptr.as_ptr());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator};
+
+    use super::*;
+
+    #[test]
+    fn test_queue_request_without_buffers_returns_nice_error() {
+        let mgr = CameraManager::new().unwrap();
+        let cameras = mgr.cameras();
+        let cam = cameras.get(0).expect("No cameras found");
+        let mut cam = cam.acquire().expect("Unable to acquire camera");
+        let mut cfgs = cam.generate_configuration(&[StreamRole::ViewFinder]).unwrap();
+        cam.configure(&mut cfgs).expect("Failed to configure camera");
+
+        let mut alloc = FrameBufferAllocator::new(&cam);
+
+        let cfg = cfgs.get(0).unwrap();
+        let stream = cfg.stream().unwrap();
+        let buffers = alloc.alloc(&stream).unwrap();
+        println!("Allocated {} buffers", buffers.len());
+
+        // Create capture requests but don't attach buffers
+        let mut reqs = buffers
+            .into_iter()
+            .enumerate()
+            .map(|(i, _buf)| cam.create_request(Some(i as u64)).unwrap())
+            .collect::<Vec<_>>();
+
+        cam.start(None).expect("Failed to start camera");
+
+        let ret = cam.queue_request(reqs.pop().expect("No requests available"));
+        assert!(ret.is_err());
+        match ret.unwrap_err() {
+            QueueError::NoBuffersPresent => (),
+            _ => panic!("Incorrect error returned"),
         }
     }
 }
