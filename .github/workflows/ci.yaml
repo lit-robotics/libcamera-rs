@@ -35,7 +35,9 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Generate docs
-        run: cargo doc --no-deps --lib -- -D warnings
+        env:
+          RUSTFLAGS: "-Dwarnings"
+        run: cargo doc --no-deps --lib
       - name: Upload docs artifact
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v3
