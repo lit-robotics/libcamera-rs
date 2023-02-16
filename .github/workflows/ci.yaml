@@ -1,8 +1,4 @@
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 name: CI
 
@@ -18,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install libcamera
         if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
@@ -30,24 +26,22 @@ jobs:
           meson build -Dipas=vimc -Dpipelines=vimc
           sudo ninja -C build install
       - name: Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: clippy, rustfmt
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
+        run: cargo build
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy
       - name: Generate docs
-        uses: actions-rs/cargo@v1
         env:
           RUSTFLAGS: "-Dwarnings"
-        with:
-          command: doc
-          args: --no-deps --lib
+        run: cargo doc --no-deps --lib
       - name: Upload docs artifact
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v3
@@ -68,7 +62,7 @@ jobs:
           name: docs
           path: .
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v3
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
