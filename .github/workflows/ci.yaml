@@ -1,12 +1,4 @@
-on:
-  push:
-    paths-ignore:
-      - .gitignore
-      - "*.md"
-  pull_request:
-    paths-ignore:
-      - .gitignore
-      - "*.md"
+on: [push, pull_request]
 
 name: CI
 
@@ -37,10 +29,13 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: clippy, rustfmt
       - name: Build
         run: cargo build
       - name: Test
         run: cargo test
+      - name: Clippy
+        run: cargo clippy
       - name: Generate docs
         env:
           RUSTFLAGS: "-Dwarnings"
