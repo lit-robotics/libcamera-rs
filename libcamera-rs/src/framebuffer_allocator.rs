@@ -21,7 +21,7 @@ pub struct FrameBufferAllocator {
 }
 
 impl FrameBufferAllocator {
-    pub fn new(cam: &Camera) -> Self {
+    pub fn new(cam: &Camera<'_>) -> Self {
         Self {
             inner: Arc::new(FrameBufferAllocatorInstance {
                 ptr: NonNull::new(unsafe { libcamera_framebuffer_allocator_create(cam.ptr.as_ptr()) }).unwrap(),
