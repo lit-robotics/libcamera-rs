@@ -2,7 +2,12 @@
 name = "libcamera-sys"
 version = "0.2.0"
 edition = "2021"
+description = "Low-level unsafe bindings to libcamera"
+documentation = "https://docs.rs/libcamera-sys"
+repository = "https://github.com/lit-robotics/libcamera-rs"
 license = "MIT OR Apache-2.0"
+keywords = ["libcamera", "camera"]
+categories = ["external-ffi-bindings", "computer-vision", "multimedia"]
 
 [lib]
 # libcamera comments are interpreted as rust code blocks failing the doctest
