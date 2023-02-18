@@ -24,6 +24,7 @@ jobs:
           # Use only VIMC for faster builds
           meson build -Dipas=vimc -Dpipelines=vimc
           sudo ninja -C build install
+          sudo ldconfig
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

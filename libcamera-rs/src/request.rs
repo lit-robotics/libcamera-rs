@@ -48,7 +48,7 @@ bitflags! {
 /// reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
 pub struct Request {
     pub(crate) ptr: NonNull<libcamera_request_t>,
-    buffers: HashMap<Stream, Box<dyn Any + 'static>>,
+    pub(crate) buffers: HashMap<Stream, Box<dyn Any + 'static>>,
 }
 
 impl Request {

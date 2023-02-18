@@ -1,8 +1,27 @@
-use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
+use std::{ffi::CStr, io, marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
+use thiserror::Error;
 
 use crate::camera::Camera;
+
+#[derive(Debug, Error)]
+pub enum CameraManagerError {
+    #[error("No cameras were found by the camera manager")]
+    NoCamerasFound,
+    #[error(transparent)]
+    Unexpected(#[from] io::Error),
+}
+
+impl CameraManagerError {
+    pub fn from_raw_os_error(errno: i32) -> Result<(), Self> {
+        match errno {
+            e if e >= 0 => Ok(()),
+            e if e == -libc::ENODEV => Err(Self::NoCamerasFound),
+            e => Err(Self::Unexpected(io::Error::from_raw_os_error(e))),
+        }
+    }
+}
 
 /// Camera manager used to enumerate available cameras in the system.
 pub struct CameraManager {
@@ -11,15 +30,10 @@ pub struct CameraManager {
 
 impl CameraManager {
     /// Initializes `libcamera` and creates [Self].
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> Result<Self, CameraManagerError> {
         let ptr = NonNull::new(unsafe { libcamera_camera_manager_create() }).unwrap();
         let ret = unsafe { libcamera_camera_manager_start(ptr.as_ptr()) };
-
-        if ret < 0 {
-            Err(std::io::Error::from_raw_os_error(ret))
-        } else {
-            Ok(CameraManager { ptr })
-        }
+        CameraManagerError::from_raw_os_error(ret).map(|_| Ok(CameraManager { ptr }))?
     }
 
     /// Returns version string of the linked libcamera.
