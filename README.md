@@ -5,9 +5,9 @@ Experimental Rust bindings for [libcamera](https://libcamera.org/).
 Project structure:
   - [libcamera-sys](./libcamera-sys/) - Low-level unsafe bindings to libcamera. Also contains libcamera [C API shim](./libcamera-sys/c_api/) to make interfacing with C++ code easier.
   - [libcamera-meta](./libcamera-meta/) - Scripts for generating C and Rust code from libcamera controls, properties and formats YAMLs. Mostly used by the [regenerate.sh](./regenerate.sh) script.
-  - [libcamera-rs](./libcamera-rs/) - Safe libcamera Rust interface on top of `libcamera-sys`.
+  - [libcamera](./libcamera/) - Safe libcamera Rust interface on top of `libcamera-sys`.
 
-## [Documentation](https://lit-robotics.github.io/libcamera-rs/libcamera_rs/index.html)
+## [Documentation](https://lit-robotics.github.io/libcamera-rs/libcamera/index.html)
 
 ## Building
 
@@ -25,7 +25,7 @@ osboxes@osboxes:~/libcamera-rs$ cargo run --example version
 libcamera: v0.0.1+50-aa7b3740
 ```
 
-List cameras with `libcamera-rs` ([code](./libcamera-rs/examples/list_cameras.rs)):
+List cameras ([code](./libcamera/examples/list_cameras.rs)):
 ```console
 osboxes@osboxes:~/libcamera-rs$ cargo run --example list_cameras
     Finished dev [unoptimized + debuginfo] target(s) in 0.03s
@@ -83,7 +83,7 @@ Available formats: {
 }
 ```
 
-Capture JPEG image into a file ([code](./libcamera-rs/examples/jpeg_capture.rs)):
+Capture JPEG image into a file ([code](./libcamera/examples/jpeg_capture.rs)):
 ```console
 osboxes@osboxes:~/libcamera-rs$ cargo run --example jpeg_capture target/image.jpg
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
