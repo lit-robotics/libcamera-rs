@@ -8,6 +8,7 @@ repository = "https://github.com/lit-robotics/libcamera-rs"
 license = "MIT OR Apache-2.0"
 keywords = ["libcamera", "camera"]
 categories = ["api-bindings", "computer-vision", "multimedia"]
+readme = "../README.md"
 
 [dependencies]
 bitflags = "2.0.0-rc.2"
