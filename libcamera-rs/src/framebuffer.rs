@@ -263,8 +263,8 @@ impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
 pub trait AsFrameBuffer: Send {
     /// Returns raw framebuffer used by libcamera.
     ///
-    /// It is expected that metadata status field is initialized with u32::MAX on a new buffer, which indicates that metadata
-    /// is not yet available. This "hackfix" prevents read of uninitialized data in [Self::metadata()].
+    /// It is expected that metadata status field is initialized with u32::MAX on a new buffer, which indicates that
+    /// metadata is not yet available. This "hackfix" prevents read of uninitialized data in [Self::metadata()].
     ///
     /// # Safety
     ///

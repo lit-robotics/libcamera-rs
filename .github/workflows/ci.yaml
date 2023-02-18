@@ -16,7 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install libcamera
-        if: steps.cache-libcamera.outputs.cache-hit != 'true'
         run: |
           sudo pip3 install meson
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
@@ -26,18 +25,15 @@ jobs:
           meson build -Dipas=vimc -Dpipelines=vimc
           sudo ninja -C build install
       - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          components: clippy, rustfmt
+          components: clippy
       - name: Build
         run: cargo build
       - name: Test
         run: cargo test
-      - name: Format
-        run: cargo fmt --all -- --check
       - name: Clippy
-        run: cargo clippy
+        run: cargo clippy -- -D warnings
       - name: Generate docs
         env:
           RUSTFLAGS: "-Dwarnings"
@@ -48,10 +44,21 @@ jobs:
         with:
           name: docs
           path: target/doc
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
   docs:
     name: Publish docs
     runs-on: ubuntu-latest
-    needs: build_and_test
+    needs: [build_and_test, rustfmt]
     environment:
       name: github-pages
       url: ${{steps.deployment.outputs.page_url}}

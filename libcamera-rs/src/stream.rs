@@ -147,8 +147,9 @@ impl<'d> StreamConfigurationRef<'d> {
 
     /// Returns initialized [Stream] for this configuration.
     ///
-    /// Stream is only available once this configuration is applied with [ActiveCamera::configure()](crate::camera::ActiveCamera::configure).
-    /// It is invalidated if camera is reconfigured.
+    /// Stream is only available once this configuration is applied with
+    /// [ActiveCamera::configure()](crate::camera::ActiveCamera::configure). It is invalidated if camera is
+    /// reconfigured.
     pub fn stream(&self) -> Option<Stream> {
         let stream = unsafe { libcamera_stream_configuration_stream(self.ptr.as_ptr()) };
         // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
