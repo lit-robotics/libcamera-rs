@@ -5,7 +5,7 @@ use std::{any::Any, collections::HashMap, io, ptr::NonNull};
 use bitflags::bitflags;
 use libcamera_sys::*;
 
-use crate::{control::ControlListRef, framebuffer::AsFrameBuffer, stream::Stream, utils::Immutable};
+use crate::{control::ControlList, framebuffer::AsFrameBuffer, stream::Stream};
 
 /// Status of [Request]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,24 +62,22 @@ impl Request {
     /// Returns an immutable reference of request controls.
     ///
     /// See [controls](crate::controls) for available items.
-    pub fn controls(&self) -> Immutable<ControlListRef<'_>> {
-        Immutable(unsafe {
-            ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap())
-        })
+    pub fn controls(&self) -> &ControlList {
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
     }
 
     /// Returns a mutable reference of request controls.
     ///
     /// See [controls](crate::controls) for available items.
-    pub fn controls_mut(&mut self) -> ControlListRef<'_> {
-        unsafe { ControlListRef::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
+    pub fn controls_mut(&mut self) -> &mut ControlList {
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
     }
 
     /// Returns request metadata, which contains information relevant to the request execution (i.e. capture timestamp).
-    pub fn metadata(&self) -> Immutable<ControlListRef<'_>> {
-        Immutable(unsafe {
-            ControlListRef::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap())
-        })
+    ///
+    /// See [controls](crate::controls) for available items.
+    pub fn metadata(&self) -> &ControlList {
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap()) }
     }
 
     /// Attaches framebuffer to the request.

@@ -37,6 +37,14 @@ enum libcamera_control_type libcamera_property_type(enum libcamera_property_id i
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
 
+libcamera_control_list_t *libcamera_control_list_create() {
+    return new libcamera::ControlList();
+}
+
+void libcamera_control_list_destroy(libcamera_control_list_t *list) {
+    delete list;
+}
+
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id) {
     if (list->contains(id)) {
         return &list->get(id);
