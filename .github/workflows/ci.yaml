@@ -36,7 +36,7 @@ jobs:
         run: cargo clippy -- -D warnings
       - name: Generate docs
         env:
-          RUSTFLAGS: "-Dwarnings"
+          RUSTDOCFLAGS: "-Dwarnings"
         run: cargo doc --no-deps --lib
       - name: Upload docs artifact
         if: github.ref == 'refs/heads/main'
