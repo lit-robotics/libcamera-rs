@@ -31,6 +31,11 @@ impl FrameMetadataPlanes {
         unsafe { libcamera_frame_metadata_planes_size(self.ptr.as_ptr()) as _ }
     }
 
+    /// Returns `true` if there are no planes.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns framebuffer plane metadata at a given index.
     ///
     /// Return None if given index is out of range of available planes.
@@ -38,11 +43,7 @@ impl FrameMetadataPlanes {
         if index >= self.len() {
             None
         } else {
-            Some(unsafe {
-                libcamera_frame_metadata_planes_data(self.ptr.as_ptr())
-                    .offset(index as _)
-                    .read()
-            })
+            Some(unsafe { libcamera_frame_metadata_planes_at(self.ptr.as_ptr(), index as _).read() })
         }
     }
 }
@@ -167,6 +168,11 @@ impl<'d> FrameBufferPlaneRef<'d> {
     pub fn len(&self) -> usize {
         unsafe { libcamera_framebuffer_plane_length(self.ptr.as_ptr()) as _ }
     }
+
+    /// Returns `true` if plane has no data
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<'d> core::fmt::Debug for FrameBufferPlaneRef<'d> {
@@ -197,14 +203,19 @@ impl<'d> FrameBufferPlanesRef<'d> {
         unsafe { libcamera_framebuffer_planes_size(self.ptr.as_ptr()) as _ }
     }
 
+    /// Returns `true` if framebuffer has no planes
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns framebuffer plane at a given index
-    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef>> {
+    pub fn get(&self, index: usize) -> Option<Immutable<FrameBufferPlaneRef<'_>>> {
         if index >= self.len() {
             None
         } else {
             Some(Immutable(unsafe {
                 FrameBufferPlaneRef::from_ptr(
-                    NonNull::new(libcamera_framebuffer_planes_data(self.ptr.as_ptr()).offset(index as _)).unwrap(),
+                    NonNull::new(libcamera_framebuffer_planes_at(self.ptr.as_ptr(), index as _)).unwrap(),
                 )
             }))
         }
@@ -252,14 +263,18 @@ impl<'d> Iterator for FrameBufferPlanesRefIterator<'d> {
 pub trait AsFrameBuffer: Send {
     /// Returns raw framebuffer used by libcamera.
     ///
-    /// It is expected that metadata status field is initialized with u32::MAX on a new buffer, which indicates that metadata
-    /// is not yet available. This "hackfix" prevents read of uninitialized data in [Self::metadata()].
+    /// It is expected that metadata status field is initialized with u32::MAX on a new buffer, which indicates that
+    /// metadata is not yet available. This "hackfix" prevents read of uninitialized data in [Self::metadata()].
+    ///
+    /// # Safety
+    ///
+    /// This function must return a valid instance of `libcamera::FrameBuffer`.
     unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t>;
 
     /// Returns framebuffer metadata information.
     ///
     /// Only available after associated [Request](crate::request::Request) has completed.
-    fn metadata(&self) -> Option<Immutable<FrameMetadataRef>> {
+    fn metadata(&self) -> Option<Immutable<FrameMetadataRef<'_>>> {
         let ptr = NonNull::new(unsafe { libcamera_framebuffer_metadata(self.ptr().as_ptr()) }.cast_mut()).unwrap();
         if unsafe { libcamera_frame_metadata_status(ptr.as_ptr()) } != u32::MAX {
             Some(unsafe { Immutable(FrameMetadataRef::from_ptr(ptr)) })
@@ -269,7 +284,7 @@ pub trait AsFrameBuffer: Send {
     }
 
     /// Provides access to framebuffer data by exposing file descriptors, offsets and lengths of the planes.
-    fn planes(&self) -> Immutable<FrameBufferPlanesRef> {
+    fn planes(&self) -> Immutable<FrameBufferPlanesRef<'_>> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(
                 NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr()).cast_mut()).unwrap(),

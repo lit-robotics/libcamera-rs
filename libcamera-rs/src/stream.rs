@@ -69,13 +69,11 @@ impl<'d> StreamFormatsRef<'d> {
     pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
         let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
-        let data = unsafe { libcamera_sizes_data(sizes) };
 
-        let mut out = Vec::with_capacity(len);
-        for i in 0..len {
-            out.push(Size::from(unsafe { *data.offset(i as _) }));
-        }
-        out
+        (0..len)
+            .into_iter()
+            .map(|i| Size::from(unsafe { *libcamera_sizes_at(sizes, i as _) }))
+            .collect()
     }
 
     /// Returns a [SizeRange] of supported stream sizes for a given [PixelFormat].
@@ -149,8 +147,9 @@ impl<'d> StreamConfigurationRef<'d> {
 
     /// Returns initialized [Stream] for this configuration.
     ///
-    /// Stream is only available once this configuration is applied with [ActiveCamera::configure()](crate::camera::ActiveCamera::configure).
-    /// It is invalidated if camera is reconfigured.
+    /// Stream is only available once this configuration is applied with
+    /// [ActiveCamera::configure()](crate::camera::ActiveCamera::configure). It is invalidated if camera is
+    /// reconfigured.
     pub fn stream(&self) -> Option<Stream> {
         let stream = unsafe { libcamera_stream_configuration_stream(self.ptr.as_ptr()) };
         // Stream is valid after camera->configure(), but might be invalidated after following reconfigurations.
@@ -159,7 +158,7 @@ impl<'d> StreamConfigurationRef<'d> {
     }
 
     /// Returns a list of available stream formats for this configuration.
-    pub fn formats(&self) -> StreamFormatsRef {
+    pub fn formats(&self) -> StreamFormatsRef<'_> {
         unsafe {
             StreamFormatsRef::from_ptr(
                 NonNull::new(libcamera_stream_configuration_formats(self.ptr.as_ptr()).cast_mut()).unwrap(),

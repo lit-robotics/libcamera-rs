@@ -28,8 +28,8 @@ size_t libcamera_frame_metadata_planes_size(const libcamera_frame_metadata_plane
     return planes->size();
 }
 
-libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_data(libcamera_frame_metadata_planes_t *planes) {
-    return planes->data();
+libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_frame_metadata_planes_t *planes, size_t index) {
+    return &planes->data()[index];
 }
 
 // --- libcamera_framebuffer_t ---
@@ -67,8 +67,8 @@ size_t libcamera_framebuffer_planes_size(const libcamera_framebuffer_planes_t *p
     return planes->size();
 }
 
-libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_data(libcamera_framebuffer_planes_t *planes) {
-    return planes->data();
+libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_at(libcamera_framebuffer_planes_t *planes, size_t index) {
+    return &planes->at(index);
 }
 
 }

@@ -30,7 +30,7 @@ impl CameraManager {
     }
 
     /// Enumerates cameras within the system.
-    pub fn cameras(&self) -> CameraList {
+    pub fn cameras(&self) -> CameraList<'_> {
         unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
     }
 }
@@ -62,10 +62,15 @@ impl<'d> CameraList<'d> {
         unsafe { libcamera_camera_list_size(self.ptr.as_ptr()) as usize }
     }
 
+    /// Returns `true` if there are no cameras available
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns camera at a given index.
     ///
     /// Returns [None] if index is out of range of available cameras.
-    pub fn get(&self, index: usize) -> Option<Camera> {
+    pub fn get(&self, index: usize) -> Option<Camera<'_>> {
         let cam_ptr = unsafe { libcamera_camera_list_get(self.ptr.as_ptr(), index as _) };
         NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr(p) })
     }

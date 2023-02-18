@@ -30,24 +30,15 @@ pub enum CameraConfigurationStatus {
 
 impl CameraConfigurationStatus {
     pub fn is_valid(&self) -> bool {
-        match self {
-            Self::Valid => true,
-            _ => false,
-        }
+        matches!(self, Self::Valid)
     }
 
     pub fn is_adjusted(&self) -> bool {
-        match self {
-            Self::Adjusted => true,
-            _ => false,
-        }
+        matches!(self, Self::Adjusted)
     }
 
     pub fn is_invalid(&self) -> bool {
-        match self {
-            Self::Invalid => true,
-            _ => false,
-        }
+        matches!(self, Self::Invalid)
     }
 }
 
@@ -81,7 +72,7 @@ impl CameraConfiguration {
     /// # Parameters
     ///
     /// * `index` - Camera stream index.
-    pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef>> {
+    pub fn get(&self, index: usize) -> Option<Immutable<StreamConfigurationRef<'_>>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| Immutable(unsafe { StreamConfigurationRef::from_ptr(p) }))
     }
@@ -91,14 +82,19 @@ impl CameraConfiguration {
     /// # Parameters
     ///
     /// * `index` - Camera stream index.
-    pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef> {
+    pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef<'_>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
     }
 
     /// Returns number of streams within camera configuration.
     pub fn len(&self) -> usize {
-        return unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) } as _;
+        unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) as usize }
+    }
+
+    /// Returns `true` if camera configuration has no streams.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Validates camera configuration.
@@ -145,7 +141,8 @@ impl<'d> Camera<'d> {
     /// ID of the camera.
     ///
     /// This usually contains hardware path within the system and is not human-friendly.
-    /// Use [properties::Model](crate::properties::Model) from [Camera::properties()] to obtain a human readable identification instead.
+    /// Use [properties::Model](crate::properties::Model) from [Camera::properties()] to obtain a human readable
+    /// identification instead.
     pub fn id(&self) -> &str {
         unsafe { CStr::from_ptr(libcamera_camera_id(self.ptr.as_ptr())) }
             .to_str()
@@ -181,7 +178,7 @@ impl<'d> Camera<'d> {
     }
 
     /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.
-    pub fn acquire(&self) -> io::Result<ActiveCamera> {
+    pub fn acquire(&self) -> io::Result<ActiveCamera<'_>> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
@@ -198,7 +195,9 @@ impl<'d> Drop for Camera<'d> {
 }
 
 extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut libcamera_request_t) {
-    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState>) }.lock().unwrap();
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }
+        .lock()
+        .unwrap();
     let req = state.requests.remove(&req).unwrap();
 
     if let Some(cb) = &mut state.request_completed_cb {
@@ -237,7 +236,7 @@ impl<'d> ActiveCamera<'d> {
                 ptr.as_ptr(),
                 Some(camera_request_completed_cb),
                 // state is valid for the lifetime of `ActiveCamera` and this callback will be disconnected on drop.
-                state.as_mut() as *mut Mutex<ActiveCameraState> as *mut _,
+                state.as_mut() as *mut Mutex<ActiveCameraState<'_>> as *mut _,
             )
         };
 
@@ -250,9 +249,11 @@ impl<'d> ActiveCamera<'d> {
 
     /// Sets a callback for completed camera requests.
     ///
-    /// Callback is executed in the libcamera thread context so it is best to setup a channel to send all requests for processing elsewhere.
+    /// Callback is executed in the libcamera thread context so it is best to setup a channel to send all requests for
+    /// processing elsewhere.
     ///
-    /// Only one callback can be set at a time. If there was a previously set callback, it will be discarded when setting a new one.
+    /// Only one callback can be set at a time. If there was a previously set callback, it will be discarded when
+    /// setting a new one.
     pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + 'd) {
         let mut state = self.state.lock().unwrap();
         state.request_completed_cb = Some(Box::new(cb));
@@ -272,18 +273,20 @@ impl<'d> ActiveCamera<'d> {
 
     /// Creates a capture [`Request`].
     ///
-    /// To perform a capture, it must firstly be initialized by attaching a framebuffer with [Request::add_buffer()] and then queued
-    /// for execution by [ActiveCamera::queue_request()].
+    /// To perform a capture, it must firstly be initialized by attaching a framebuffer with [Request::add_buffer()] and
+    /// then queued for execution by [ActiveCamera::queue_request()].
     ///
     /// # Arguments
     ///
-    /// * `cookie` - An optional user-provided u64 identifier that can be used to uniquely identify request in request completed callback.
+    /// * `cookie` - An optional user-provided u64 identifier that can be used to uniquely identify request in request
+    ///   completed callback.
     pub fn create_request(&mut self, cookie: Option<u64>) -> Option<Request> {
         let req = unsafe { libcamera_camera_create_request(self.ptr.as_ptr(), cookie.unwrap_or(0)) };
         NonNull::new(req).map(|p| unsafe { Request::from_ptr(p) })
     }
 
-    /// Queues [`Request`] for execution. Completed requests are returned in request completed callback, set by the `ActiveCamera::on_request_completed()`.
+    /// Queues [`Request`] for execution. Completed requests are returned in request completed callback, set by the
+    /// `ActiveCamera::on_request_completed()`.
     ///
     /// Requests that do not have attached framebuffers are invalid and are rejected without being queued.
     pub fn queue_request(&self, req: Request) -> io::Result<()> {

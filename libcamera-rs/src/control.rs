@@ -91,8 +91,8 @@ impl ControlList {
 
     /// Sets control value.
     ///
-    /// This can fail if control is not supported by the camera, but due to libcamera API limitations an error will not be returned.
-    /// Use [ControlList::get] if you need to ensure that value was set.
+    /// This can fail if control is not supported by the camera, but due to libcamera API limitations an error will not
+    /// be returned. Use [ControlListRef::get] if you need to ensure that value was set.
     pub fn set<C: Control>(&mut self, val: C) -> Result<(), ControlError> {
         let ctrl_val: ControlValue = val.into();
 
@@ -162,8 +162,8 @@ impl PropertyList {
 
     /// Sets property value.
     ///
-    /// This can fail if property is not supported by the camera, but due to libcamera API limitations an error will not be returned.
-    /// Use [PropertyList::get] if you need to ensure that value was set.
+    /// This can fail if property is not supported by the camera, but due to libcamera API limitations an error will not
+    /// be returned. Use [PropertyListRef::get] if you need to ensure that value was set.
     pub fn set<C: Property>(&mut self, val: C) -> Result<(), ControlError> {
         let ctrl_val: ControlValue = val.into();
 

@@ -51,7 +51,7 @@ fn to_enum_name(str: &str) -> String {
 }
 
 fn format_docstring(desc: &str, indent: usize) -> String {
-    let mut parts = desc.split("\n").map(str::to_string).collect::<Vec<_>>();
+    let mut parts = desc.split('\n').map(str::to_string).collect::<Vec<_>>();
 
     // Remove last newline
     if parts.last().map(|s| s.is_empty()).unwrap_or(false) {
@@ -71,7 +71,7 @@ fn format_docstring(desc: &str, indent: usize) -> String {
         .collect()
 }
 
-fn generate_controls(controls: &Vec<Control>, name: &str) {
+fn generate_controls(controls: &[Control], name: &str) {
     let mut i = 1;
     println!("enum libcamera_{}_id {{", name);
     for ctrl in controls.iter() {
