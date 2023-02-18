@@ -1,5 +1,10 @@
 # libcamera-rs
 
+[![Rust](https://github.com/lit-robotics/libcamera-rs/workflows/CI/badge.svg)](https://github.com/lit-robotics/libcamera-rs/actions)
+[![Latest version](https://img.shields.io/crates/v/libcamera.svg)](https://crates.io/crates/libcamera)
+[![Documentation](https://docs.rs/libcamera/badge.svg)](https://docs.rs/libcamera)
+![License](https://img.shields.io/crates/l/libcamera.svg)
+
 Experimental Rust bindings for [libcamera](https://libcamera.org/).
 
 Project structure:
@@ -7,11 +12,11 @@ Project structure:
   - [libcamera-meta](./libcamera-meta/) - Scripts for generating C and Rust code from libcamera controls, properties and formats YAMLs. Mostly used by the [regenerate.sh](./regenerate.sh) script.
   - [libcamera](./libcamera/) - Safe libcamera Rust interface on top of `libcamera-sys`.
 
-## [Documentation](https://lit-robotics.github.io/libcamera-rs/libcamera/index.html)
+Unreleased documentation for `main`: [here](https://lit-robotics.github.io/libcamera-rs/libcamera/index.html)
 
 ## Building
 
-`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that libcamera does not have a stable release yet and any API changes might break the build. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera rev `a5fdf63`.
+`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that we don't have a release schedule tied to libcamera yet so breaking changes are likely. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera  `v0.0.4`.
 
 No other special dependencies are needed. All crates can be built from the root workspace dir with `cargo build`.
 
@@ -138,10 +143,6 @@ Written 4147789 bytes to target/image.jpg
   - Writting a C++ wrapper in Rust is quite difficult because many features do no translate to Rust well: polymorphism, function overloading, templates, etc. There are tools to generate C++ bindings, but they usually break for anything more complex or result in even more boilerplate code than an additional C layer.
 - List-like structures (`CameraConfiguration`, `ControlList`) are not indexable
   - It is impossible to implement `Index` and `IndexMut` traits for these structures, because traits can only return reference to an existing data within structure. Most of the libcamera wrappers return newtype variants, making them incompatible with indexing.
-
-# Random notes
-
-- libcamera's `FrameBuffer` has `FrameMetadata`, which by default is uninitialized with no way of checking that. It must only be read once attached `Request` is executed. This is hard to track, because our request accepts trait `AsFrameBuffer` to support other allocators and we can't attach a bool field to a trait. As a temporary fix, we set `FrameMetadata::status` to `u32::MAX` when `FrameBuffer` is created, which we can use to check if metadata was initialized. This way `AsFrameBuffer::metadata()` can return `None` instead of reading uninitialized memory.
 
 ## License
 

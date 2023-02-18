@@ -2,7 +2,7 @@
 name = "libcamera"
 version = "0.2.0"
 edition = "2021"
-description = "Rust bindings for libcamera"
+description = "Safe Rust bindings for libcamera"
 documentation = "https://docs.rs/libcamera"
 repository = "https://github.com/lit-robotics/libcamera-rs"
 license = "MIT OR Apache-2.0"
