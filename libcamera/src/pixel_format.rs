@@ -13,7 +13,7 @@ impl PixelFormat {
     /// # Examples
     ///
     /// ```rust
-    /// use libcamera_rs::pixel_format::PixelFormat;
+    /// use libcamera::pixel_format::PixelFormat;
     /// // Constructs MJPEG pixel format
     /// const PIXEL_FORMAT_MJPEG: PixelFormat =
     ///     PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);

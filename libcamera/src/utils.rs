@@ -34,13 +34,13 @@ pub trait UniquePtrTarget: Sized {
     ///
     /// # Safety
     ///
-    /// Pointer must be deallocated by calling [ptr_drop()] when no longer needed.
+    /// Pointer must be deallocated by calling [Self::ptr_drop()] when no longer needed.
     unsafe fn ptr_new() -> *mut Self;
     /// Destroys pointer allocated in `ptr_new()`.
     ///
     /// # Safety
     ///
-    /// Pointer must have been created by [ptr_new()] and is no longer aliased.
+    /// Pointer must have been created by [Self::ptr_new()] and is no longer aliased.
     unsafe fn ptr_drop(ptr: *mut Self);
 }
 

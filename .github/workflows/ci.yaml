@@ -19,8 +19,8 @@ jobs:
         run: |
           sudo pip3 install meson
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
-          git clone https://git.libcamera.org/libcamera/libcamera.git
-          cd libcamera
+          git clone https://git.libcamera.org/libcamera/libcamera.git deps/libcamera --branch v0.0.4
+          cd deps/libcamera
           # Use only VIMC for faster builds
           meson build -Dipas=vimc -Dpipelines=vimc
           sudo ninja -C build install
@@ -36,7 +36,7 @@ jobs:
         run: cargo clippy -- -D warnings
       - name: Generate docs
         env:
-          RUSTFLAGS: "-Dwarnings"
+          RUSTDOCFLAGS: "-Dwarnings"
         run: cargo doc --no-deps --lib
       - name: Upload docs artifact
         if: github.ref == 'refs/heads/main'

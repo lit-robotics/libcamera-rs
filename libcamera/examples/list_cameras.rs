@@ -1,4 +1,4 @@
-use libcamera_rs::{camera_manager::CameraManager, stream::StreamRole};
+use libcamera::{camera_manager::CameraManager, stream::StreamRole};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();
