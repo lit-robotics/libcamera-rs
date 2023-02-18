@@ -29,10 +29,18 @@ impl<T: core::fmt::Debug> core::fmt::Debug for Immutable<T> {
 }
 
 /// Trait, which allows type to be used in [UniquePtr]
-pub unsafe trait UniquePtrTarget: Sized {
-    /// Allocates `Self` in the heap and returns pointer
+pub trait UniquePtrTarget: Sized {
+    /// Allocates `Self` in the heap and returns pointer.
+    ///
+    /// # Safety
+    ///
+    /// Pointer must be deallocated by calling [ptr_drop()] when no longer needed.
     unsafe fn ptr_new() -> *mut Self;
-    /// Destroys pointer allocated in `ptr_new()`
+    /// Destroys pointer allocated in `ptr_new()`.
+    ///
+    /// # Safety
+    ///
+    /// Pointer must have been created by [ptr_new()] and is no longer aliased.
     unsafe fn ptr_drop(ptr: *mut Self);
 }
 
@@ -46,6 +54,12 @@ impl<T: UniquePtrTarget> UniquePtr<T> {
         Self {
             ptr: NonNull::new(unsafe { T::ptr_new() }).unwrap(),
         }
+    }
+}
+
+impl<T: UniquePtrTarget> Default for UniquePtr<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

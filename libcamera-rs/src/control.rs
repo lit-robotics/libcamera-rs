@@ -56,7 +56,7 @@ impl ControlInfoMap {
 #[repr(transparent)]
 pub struct ControlList(libcamera_control_list_t);
 
-unsafe impl UniquePtrTarget for ControlList {
+impl UniquePtrTarget for ControlList {
     unsafe fn ptr_new() -> *mut Self {
         libcamera_control_list_create() as *mut Self
     }
@@ -191,7 +191,7 @@ impl<'d> IntoIterator for &'d PropertyList {
     }
 }
 
-impl<'d> core::fmt::Debug for PropertyList {
+impl core::fmt::Debug for PropertyList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
         for (id, val) in self.into_iter() {
