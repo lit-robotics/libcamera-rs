@@ -1,6 +1,7 @@
 #ifndef __LIBCAMERA_C_FRAMEBUFFER__
 #define __LIBCAMERA_C_FRAMEBUFFER__
 
+#include <stdbool.h>
 #include <stdint.h>
 
 enum libcamera_frame_metadata_status {
