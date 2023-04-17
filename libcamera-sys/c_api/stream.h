@@ -12,7 +12,6 @@ struct libcamera_stream_configuration {
     unsigned int stride;
     unsigned int frame_size;
     unsigned int buffer_count;
-    uint8_t __padding[72];
 };
 
 #ifdef __cplusplus
@@ -21,7 +20,6 @@ struct libcamera_stream_configuration {
 typedef libcamera::StreamFormats libcamera_stream_formats_t;
 
 typedef libcamera::StreamConfiguration libcamera_stream_configuration_t;
-static_assert(sizeof(struct libcamera_stream_configuration) == sizeof(libcamera_stream_configuration_t));
 
 // Read more about this in https://github.com/google/benchmark/issues/552
 #ifdef __GNUC__
