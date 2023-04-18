@@ -71,7 +71,6 @@ impl<'d> StreamFormatsRef<'d> {
         let len = unsafe { libcamera_sizes_size(sizes) } as usize;
 
         (0..len)
-            .into_iter()
             .map(|i| Size::from(unsafe { *libcamera_sizes_at(sizes, i as _) }))
             .collect()
     }

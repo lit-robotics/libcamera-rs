@@ -40,7 +40,6 @@ impl FrameBufferAllocator {
                 unsafe { libcamera_framebuffer_allocator_buffers(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
             let len = unsafe { libcamera_framebuffer_list_size(buffers) };
             Ok((0..len)
-                .into_iter()
                 .map(|i| unsafe { libcamera_framebuffer_list_get(buffers, i) })
                 .map(|ptr| NonNull::new(ptr.cast_mut()).unwrap())
                 .map(|ptr| {
