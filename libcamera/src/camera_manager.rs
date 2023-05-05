@@ -1,8 +1,13 @@
-use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
+use std::{
+    ffi::{CStr, CString},
+    io,
+    marker::PhantomData,
+    ptr::NonNull,
+};
 
 use libcamera_sys::*;
 
-use crate::camera::Camera;
+use crate::{camera::Camera, logging::LoggingLevel, utils::handle_result};
 
 /// Camera manager used to enumerate available cameras in the system.
 pub struct CameraManager {
@@ -11,15 +16,11 @@ pub struct CameraManager {
 
 impl CameraManager {
     /// Initializes `libcamera` and creates [Self].
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> io::Result<Self> {
         let ptr = NonNull::new(unsafe { libcamera_camera_manager_create() }).unwrap();
         let ret = unsafe { libcamera_camera_manager_start(ptr.as_ptr()) };
-
-        if ret < 0 {
-            Err(std::io::Error::from_raw_os_error(ret))
-        } else {
-            Ok(CameraManager { ptr })
-        }
+        handle_result(ret)?;
+        Ok(CameraManager { ptr })
     }
 
     /// Returns version string of the linked libcamera.
@@ -32,6 +33,21 @@ impl CameraManager {
     /// Enumerates cameras within the system.
     pub fn cameras(&self) -> CameraList<'_> {
         unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
+    }
+
+    /// Set the log level.
+    ///
+    /// # Parameters
+    ///
+    /// * `category` - Free-form category string, a list of those can be seen by running `grep 'LOG_DEFINE_CATEGORY('
+    ///   -R` on the `libcamera` source code
+    /// * `level` - Maximum log importance level to show, anything more less important than that will be hidden.
+    pub fn log_set_level(&self, category: &str, level: LoggingLevel) {
+        let category = CString::new(category).expect("category contains null byte");
+        let level: &CStr = level.into();
+        unsafe {
+            libcamera_log_set_level(category.as_ptr(), level.as_ptr());
+        }
     }
 }
 

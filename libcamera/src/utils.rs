@@ -1,4 +1,6 @@
 use std::{
+    ffi::c_int,
+    io,
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -86,5 +88,14 @@ impl<T: UniquePtrTarget> Drop for UniquePtr<T> {
 impl<T: UniquePtrTarget + core::fmt::Debug> core::fmt::Debug for UniquePtr<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.deref().fmt(f)
+    }
+}
+
+#[inline]
+pub fn handle_result(ret: c_int) -> io::Result<()> {
+    if ret < 0 {
+        Err(io::Error::from_raw_os_error(ret))
+    } else {
+        Ok(())
     }
 }
