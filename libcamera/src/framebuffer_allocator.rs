@@ -56,7 +56,8 @@ impl FrameBufferAllocator {
 
                     FrameBuffer {
                         ptr,
-                        _alloc: self.inner.clone(),
+                        alloc: self.inner.clone(),
+                        stream_ptr: stream.ptr,
                     }
                 })
                 .collect())
@@ -66,7 +67,9 @@ impl FrameBufferAllocator {
 
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
-    _alloc: Arc<FrameBufferAllocatorInstance>,
+    alloc: Arc<FrameBufferAllocatorInstance>,
+    /// Only used as an ID for deallocating framebuffer, may be invalid otherwise
+    stream_ptr: NonNull<libcamera_stream_t>,
 }
 
 impl core::fmt::Debug for FrameBuffer {
@@ -83,5 +86,13 @@ unsafe impl Send for FrameBuffer {}
 impl AsFrameBuffer for FrameBuffer {
     unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t> {
         self.ptr
+    }
+}
+
+impl Drop for FrameBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            libcamera_framebuffer_allocator_free(self.alloc.ptr.as_ptr(), self.stream_ptr.as_ptr());
+        }
     }
 }
