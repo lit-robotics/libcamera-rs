@@ -1,7 +1,9 @@
-use libcamera::{camera_manager::CameraManager, stream::StreamRole};
+use libcamera::{camera_manager::CameraManager, logging::LoggingLevel, stream::StreamRole};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();
+
+    mgr.log_set_level("Camera", LoggingLevel::Error);
 
     let cameras = mgr.cameras();
 
