@@ -1,7 +1,5 @@
 #include "camera.h"
 
-#include <libcamera/libcamera/version.h>
-
 extern "C" {
 
 void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
@@ -69,11 +67,7 @@ const libcamera_control_list_t *libcamera_camera_properties(const libcamera_came
 }
 
 libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count) {
-#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR == 0
-    libcamera::StreamRoles roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
-#else
-    libcamera::utils::span roles_vec {(libcamera::StreamRole*)roles, role_count};
-#endif
+    std::vector<libcamera::StreamRole> roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
     return cam->get()->generateConfiguration(roles_vec).release();
 }
 
