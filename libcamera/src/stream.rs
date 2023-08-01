@@ -68,7 +68,7 @@ impl<'d> StreamFormatsRef<'d> {
     /// Returns all supported stream [Size]s for a given [PixelFormat].
     pub fn sizes(&self, pixel_format: PixelFormat) -> Vec<Size> {
         let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
-        let len = unsafe { libcamera_sizes_size(sizes) } as usize;
+        let len = unsafe { libcamera_sizes_size(sizes) };
 
         (0..len)
             .map(|i| Size::from(unsafe { *libcamera_sizes_at(sizes, i as _) }))
