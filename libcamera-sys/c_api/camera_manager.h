@@ -8,7 +8,6 @@
 
 #ifdef __cplusplus
 #include <libcamera/camera_manager.h>
-#include <libcamera/libcamera/version.h>
 
 typedef libcamera::CameraManager libcamera_camera_manager_t;
 typedef std::vector<std::shared_ptr<libcamera::Camera>> libcamera_camera_list_t;
