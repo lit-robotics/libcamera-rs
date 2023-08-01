@@ -1,6 +1,7 @@
 #include "camera_manager.h"
 
 #include <libcamera/camera_manager.h>
+#include <libcamera/libcamera/version.h>
 
 extern "C" {
 
@@ -33,6 +34,7 @@ libcamera_camera_t *libcamera_camera_manager_get_id(libcamera_camera_manager_t *
         return new libcamera_camera_t(camera);
 }
 
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR == 0
 libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, dev_t dev) {
     auto camera = mgr->get(dev);
 
@@ -41,6 +43,16 @@ libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t 
     else
         return new libcamera_camera_t(camera);
 }
+#else
+libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, const char *dev) {
+    auto camera = mgr->get(std::string(dev));
+
+    if (camera == nullptr)
+        return NULL;
+    else
+        return new libcamera_camera_t(camera);
+}
+#endif
 
 const char *libcamera_camera_manager_version(libcamera_camera_manager_t *mgr) {
     return mgr->version().c_str();

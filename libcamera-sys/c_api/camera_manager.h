@@ -8,6 +8,7 @@
 
 #ifdef __cplusplus
 #include <libcamera/camera_manager.h>
+#include <libcamera/libcamera/version.h>
 
 typedef libcamera::CameraManager libcamera_camera_manager_t;
 typedef std::vector<std::shared_ptr<libcamera::Camera>> libcamera_camera_list_t;
@@ -24,7 +25,11 @@ int libcamera_camera_manager_start(libcamera_camera_manager_t *mgr);
 void libcamera_camera_manager_stop(libcamera_camera_manager_t *mgr);
 libcamera_camera_list_t *libcamera_camera_manager_cameras(const libcamera_camera_manager_t *mgr);
 libcamera_camera_t *libcamera_camera_manager_get_id(libcamera_camera_manager_t *mgr, const char *id);
-libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, dev_t dev);
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR == 0
+    libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, dev_t dev);
+#else
+    libcamera_camera_t *libcamera_camera_manager_get_dev(libcamera_camera_manager_t *mgr, const char *dev);
+#endif
 const char *libcamera_camera_manager_version(libcamera_camera_manager_t *mgr);
 
 void libcamera_camera_list_destroy(libcamera_camera_list_t *list);
