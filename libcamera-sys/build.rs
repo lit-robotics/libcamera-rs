@@ -44,7 +44,7 @@ fn main() {
 
     cc::Build::new()
         .cpp(true)
-        .flag("-std=c++20")
+        .flag("-std=c++17")
         .files(c_api_sources)
         .include(libcamera_include_path)
         .compile("camera_c_api");
