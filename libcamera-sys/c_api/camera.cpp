@@ -2,9 +2,6 @@
 
 #include <libcamera/libcamera/version.h>
 
-#if LIBCAMERA_VERSION_MAJOR > 0 || LIBCAMERA_VERSION_MINOR > 0
-#include <span>
-#endif
 extern "C" {
 
 void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
