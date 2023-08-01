@@ -208,7 +208,7 @@ impl TryFrom<ControlValue> for String {
 impl ControlValue {
     pub(crate) unsafe fn read(val: NonNull<libcamera_control_value_t>) -> Result<Self, ControlValueError> {
         let ty = unsafe { libcamera_control_value_type(val.as_ptr()) };
-        let num_elements = unsafe { libcamera_control_value_num_elements(val.as_ptr()) } as usize;
+        let num_elements = unsafe { libcamera_control_value_num_elements(val.as_ptr()) };
         let data = unsafe { libcamera_control_value_get(val.as_ptr()) };
 
         use libcamera_control_type::*;

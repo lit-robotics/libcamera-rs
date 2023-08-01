@@ -1,5 +1,7 @@
 #include "camera.h"
 
+#include <libcamera/libcamera/version.h>
+
 extern "C" {
 
 void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config) {
@@ -37,7 +39,7 @@ const char *libcamera_camera_id(const libcamera_camera_t *cam) {
 
 libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamera_camera_t *cam, libcamera_request_completed_cb_t *callback, void *data) {
     libcamera_callback_handle_t *handle = new libcamera_callback_handle_t {};
-    
+
     cam->get()->requestCompleted.connect(handle, [=](libcamera::Request *request) {
         callback(data, request);
     });
@@ -67,7 +69,11 @@ const libcamera_control_list_t *libcamera_camera_properties(const libcamera_came
 }
 
 libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count) {
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR == 0
     libcamera::StreamRoles roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
+#else
+    libcamera::utils::span roles_vec {(libcamera::StreamRole*)roles, role_count};
+#endif
     return cam->get()->generateConfiguration(roles_vec).release();
 }
 

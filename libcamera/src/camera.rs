@@ -89,7 +89,7 @@ impl CameraConfiguration {
 
     /// Returns number of streams within camera configuration.
     pub fn len(&self) -> usize {
-        unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) as usize }
+        unsafe { libcamera_camera_configuration_size(self.ptr.as_ptr()) }
     }
 
     /// Returns `true` if camera configuration has no streams.

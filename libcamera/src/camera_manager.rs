@@ -75,7 +75,7 @@ impl<'d> CameraList<'d> {
 
     /// Number of cameras
     pub fn len(&self) -> usize {
-        unsafe { libcamera_camera_list_size(self.ptr.as_ptr()) as usize }
+        unsafe { libcamera_camera_list_size(self.ptr.as_ptr()) }
     }
 
     /// Returns `true` if there are no cameras available
