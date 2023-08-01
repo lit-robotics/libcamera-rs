@@ -75,7 +75,7 @@ libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcam
 #if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR == 0
     libcamera::StreamRoles roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
 #else
-    std::span roles_vec {(libcamera::StreamRole*)roles, role_count};
+    libcamera::utils::span roles_vec {(libcamera::StreamRole*)roles, role_count};
 #endif
     return cam->get()->generateConfiguration(roles_vec).release();
 }
