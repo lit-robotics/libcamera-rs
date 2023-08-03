@@ -37,7 +37,7 @@ const char *libcamera_camera_id(const libcamera_camera_t *cam) {
 
 libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamera_camera_t *cam, libcamera_request_completed_cb_t *callback, void *data) {
     libcamera_callback_handle_t *handle = new libcamera_callback_handle_t {};
-    
+
     cam->get()->requestCompleted.connect(handle, [=](libcamera::Request *request) {
         callback(data, request);
     });
@@ -67,7 +67,7 @@ const libcamera_control_list_t *libcamera_camera_properties(const libcamera_came
 }
 
 libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count) {
-    libcamera::StreamRoles roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
+    std::vector<libcamera::StreamRole> roles_vec((libcamera::StreamRole*)roles, (libcamera::StreamRole*)roles + role_count);
     return cam->get()->generateConfiguration(roles_vec).release();
 }
 

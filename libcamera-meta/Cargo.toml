@@ -6,4 +6,4 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 yaml-rust = "0.4"
-indoc = "1.0"
+indoc = "2.0.3"
