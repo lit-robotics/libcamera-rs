@@ -1,4 +1,8 @@
-use std::{io, ptr::NonNull, sync::Arc};
+use std::{
+    io,
+    ptr::NonNull,
+    sync::{Arc, Mutex},
+};
 
 use libcamera_sys::*;
 
@@ -8,10 +12,21 @@ use crate::{camera::Camera, framebuffer::AsFrameBuffer, stream::Stream};
 /// to keep the allocator alive as long as there are active buffers.
 struct FrameBufferAllocatorInstance {
     ptr: NonNull<libcamera_framebuffer_allocator_t>,
+    /// List of streams for which buffers were allocated.
+    /// We use this list to free buffers on drop.
+    allocated_streams: Mutex<Vec<NonNull<libcamera_stream_t>>>,
 }
 
 impl Drop for FrameBufferAllocatorInstance {
     fn drop(&mut self) {
+        // Free allocated streams
+        let mut streams = self.allocated_streams.lock().unwrap();
+        for stream in streams.drain(..) {
+            unsafe {
+                libcamera_framebuffer_allocator_free(self.ptr.as_ptr(), stream.as_ptr());
+            }
+        }
+
         unsafe { libcamera_framebuffer_allocator_destroy(self.ptr.as_ptr()) }
     }
 }
@@ -25,6 +40,7 @@ impl FrameBufferAllocator {
         Self {
             inner: Arc::new(FrameBufferAllocatorInstance {
                 ptr: NonNull::new(unsafe { libcamera_framebuffer_allocator_create(cam.ptr.as_ptr()) }).unwrap(),
+                allocated_streams: Mutex::new(Vec::new()),
             }),
         }
     }
@@ -36,9 +52,13 @@ impl FrameBufferAllocator {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
+            self.inner.allocated_streams.lock().unwrap().push(stream.ptr);
+
             let buffers =
                 unsafe { libcamera_framebuffer_allocator_buffers(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+
             let len = unsafe { libcamera_framebuffer_list_size(buffers) };
+
             Ok((0..len)
                 .map(|i| unsafe { libcamera_framebuffer_list_get(buffers, i) })
                 .map(|ptr| NonNull::new(ptr.cast_mut()).unwrap())
@@ -56,8 +76,7 @@ impl FrameBufferAllocator {
 
                     FrameBuffer {
                         ptr,
-                        alloc: self.inner.clone(),
-                        stream_ptr: stream.ptr,
+                        _alloc: self.inner.clone(),
                     }
                 })
                 .collect())
@@ -67,9 +86,7 @@ impl FrameBufferAllocator {
 
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
-    alloc: Arc<FrameBufferAllocatorInstance>,
-    /// Only used as an ID for deallocating framebuffer, may be invalid otherwise
-    stream_ptr: NonNull<libcamera_stream_t>,
+    _alloc: Arc<FrameBufferAllocatorInstance>,
 }
 
 impl core::fmt::Debug for FrameBuffer {
@@ -86,13 +103,5 @@ unsafe impl Send for FrameBuffer {}
 impl AsFrameBuffer for FrameBuffer {
     unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t> {
         self.ptr
-    }
-}
-
-impl Drop for FrameBuffer {
-    fn drop(&mut self) {
-        unsafe {
-            libcamera_framebuffer_allocator_free(self.alloc.ptr.as_ptr(), self.stream_ptr.as_ptr());
-        }
     }
 }
