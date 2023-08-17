@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 enum libcamera_frame_metadata_status {
     LIBCAMERA_FRAME_METADATA_STATUS_SUCCESS,
