@@ -5,3 +5,5 @@ members = [
     "libcamera-sys",
     "libcamera",
 ]
+
+resolver = "2"
