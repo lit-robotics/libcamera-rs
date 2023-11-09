@@ -97,12 +97,13 @@ fn generate_controls(controls: &[Control], ty: ControlsType) {
             printdoc! {"
                 impl TryFrom<ControlValue> for {ctrl_name} {{
                     type Error = ControlValueError;
-                
+
                     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {{
-                        Self::try_from({ctrl_type}::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
+                        Self::try_from({ctrl_type}::try_from(value.clone())?)
+                            .map_err(|_| ControlValueError::UnknownVariant(value))
                     }}
                 }}
-                
+
                 impl From<{ctrl_name}> for ControlValue {{
                     fn from(val: {ctrl_name}) -> Self {{
                         ControlValue::from(<{ctrl_type}>::from(val))
@@ -116,12 +117,12 @@ fn generate_controls(controls: &[Control], ty: ControlsType) {
 
                 impl Deref for {ctrl_name} {{
                     type Target = {ctrl_type};
-                
+
                     fn deref(&self) -> &Self::Target {{
                         &self.0
                     }}
                 }}
-                
+
                 impl DerefMut for {ctrl_name} {{
                     fn deref_mut(&mut self) -> &mut Self::Target {{
                         &mut self.0
