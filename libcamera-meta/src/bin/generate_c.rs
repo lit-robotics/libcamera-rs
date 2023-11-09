@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use libcamera_meta::{control_ids, property_ids, Control};
 
 /// Converts `ExampleName` to `example_name`
@@ -66,9 +68,10 @@ fn format_docstring(desc: &str, indent: usize) -> String {
     }
     out.push(" */".to_string());
 
-    out.iter()
-        .map(|line| format!("{}{}\n", " ".repeat(indent), line))
-        .collect()
+    out.iter().fold(String::new(), |mut output, line| {
+        writeln!(output, "{}{}", " ".repeat(indent), line).unwrap();
+        output
+    })
 }
 
 fn generate_controls(controls: &[Control], name: &str) {

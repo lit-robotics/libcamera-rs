@@ -14,14 +14,15 @@ struct FrameBufferAllocatorInstance {
     ptr: NonNull<libcamera_framebuffer_allocator_t>,
     /// List of streams for which buffers were allocated.
     /// We use this list to free buffers on drop.
-    allocated_streams: Mutex<Vec<NonNull<libcamera_stream_t>>>,
+    allocated_streams: Vec<NonNull<libcamera_stream_t>>,
 }
+
+unsafe impl Send for FrameBufferAllocatorInstance {}
 
 impl Drop for FrameBufferAllocatorInstance {
     fn drop(&mut self) {
         // Free allocated streams
-        let mut streams = self.allocated_streams.lock().unwrap();
-        for stream in streams.drain(..) {
+        for stream in self.allocated_streams.drain(..) {
             unsafe {
                 libcamera_framebuffer_allocator_free(self.ptr.as_ptr(), stream.as_ptr());
             }
@@ -32,30 +33,31 @@ impl Drop for FrameBufferAllocatorInstance {
 }
 
 pub struct FrameBufferAllocator {
-    inner: Arc<FrameBufferAllocatorInstance>,
+    inner: Arc<Mutex<FrameBufferAllocatorInstance>>,
 }
 
 impl FrameBufferAllocator {
     pub fn new(cam: &Camera<'_>) -> Self {
         Self {
-            inner: Arc::new(FrameBufferAllocatorInstance {
+            inner: Arc::new(Mutex::new(FrameBufferAllocatorInstance {
                 ptr: NonNull::new(unsafe { libcamera_framebuffer_allocator_create(cam.ptr.as_ptr()) }).unwrap(),
-                allocated_streams: Mutex::new(Vec::new()),
-            }),
+                allocated_streams: Vec::new(),
+            })),
         }
     }
 
     /// Allocate N buffers for a given stream, where N is equal to
     /// [StreamConfigurationRef::get_buffer_count()](crate::stream::StreamConfigurationRef::get_buffer_count).
     pub fn alloc(&mut self, stream: &Stream) -> io::Result<Vec<FrameBuffer>> {
-        let ret = unsafe { libcamera_framebuffer_allocator_allocate(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        let mut inner = self.inner.lock().unwrap();
+
+        let ret = unsafe { libcamera_framebuffer_allocator_allocate(inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
-            self.inner.allocated_streams.lock().unwrap().push(stream.ptr);
+            inner.allocated_streams.push(stream.ptr);
 
-            let buffers =
-                unsafe { libcamera_framebuffer_allocator_buffers(self.inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+            let buffers = unsafe { libcamera_framebuffer_allocator_buffers(inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
 
             let len = unsafe { libcamera_framebuffer_list_size(buffers) };
 
@@ -86,7 +88,7 @@ impl FrameBufferAllocator {
 
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
-    _alloc: Arc<FrameBufferAllocatorInstance>,
+    _alloc: Arc<Mutex<FrameBufferAllocatorInstance>>,
 }
 
 impl core::fmt::Debug for FrameBuffer {
