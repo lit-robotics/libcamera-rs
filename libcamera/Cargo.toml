@@ -11,7 +11,10 @@ categories = ["api-bindings", "computer-vision", "multimedia"]
 readme = "../README.md"
 
 [features]
-default = ["vendor_draft"]
+default = ["vendor_draft", "libcamera_semver_versioning"]
+
+libcamera_semver_versioning = []
+
 vendor_draft = []
 vendor_rpi = []
 
@@ -26,3 +29,4 @@ thiserror = "1.0"
 
 [build-dependencies]
 libcamera-sys = { path = "../libcamera-sys", version = "0.2.3" }
+semver = "1.0.22"
