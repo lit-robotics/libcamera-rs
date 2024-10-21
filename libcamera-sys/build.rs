@@ -16,7 +16,7 @@ fn main() {
 
     let libcamera_include_path = libcamera
         .include_paths
-        .get(0)
+        .first()
         .expect("Unable to get libcamera include path");
 
     println!("cargo:rustc-link-lib=camera");

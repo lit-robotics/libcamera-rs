@@ -38,7 +38,7 @@ fn main() {
     if let Some(mut remote) = repo.remotes().ok().and_then(|remote_names| {
         remote_names
             .iter()
-            .filter_map(|r| r)
+            .flatten()
             .filter_map(|name| repo.find_remote(name).ok())
             .next()
     }) {
@@ -120,7 +120,7 @@ fn main() {
     fn parse_control_files(files: &BTreeMap<String, String>) -> Vec<Control> {
         let control_yamls = files
             .iter()
-            .flat_map(|(_, contents)| YamlLoader::load_from_str(&contents).unwrap());
+            .flat_map(|(_, contents)| YamlLoader::load_from_str(contents).unwrap());
 
         let mut controls = Vec::new();
 
@@ -188,7 +188,7 @@ fn main() {
         std::fs::create_dir_all(output_dir.as_path()).unwrap();
 
         for (name, contents) in data.controls.iter().chain(data.properties.iter()) {
-            std::fs::write(output_dir.join(&name), &contents).unwrap();
+            std::fs::write(output_dir.join(name), contents).unwrap();
         }
 
         println!("Parsing controls for version {version}");
@@ -436,9 +436,7 @@ mod generate_rust {
                 "#;
 
         let file = format!("{header}\n{}", generate_controls(controls, ty));
-        let file = prettyplease::unparse(&syn::parse_file(&file).unwrap());
-
-        file
+        prettyplease::unparse(&syn::parse_file(&file).unwrap())
     }
 }
 
