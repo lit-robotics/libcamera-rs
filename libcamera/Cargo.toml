@@ -13,9 +13,12 @@ readme = "../README.md"
 [features]
 default = ["vendor_draft", "libcamera_semver_versioning"]
 
+# Fallback to semver compatible libcamera control/property bindings when exact version is unavailable
 libcamera_semver_versioning = []
 
+# Enables draft vendor control/property extensions
 vendor_draft = []
+# Enables Raspbbery Pi control/property extensions
 vendor_rpi = []
 
 [dependencies]
