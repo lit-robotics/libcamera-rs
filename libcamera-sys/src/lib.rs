@@ -7,3 +7,4 @@
 #![allow(rustdoc::invalid_rust_codeblocks)]
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+include!(concat!(env!("OUT_DIR"), "/bindings_cpp.rs"));

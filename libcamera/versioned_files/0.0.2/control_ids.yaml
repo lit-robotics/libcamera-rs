@@ -1,0 +1,944 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2019, Google Inc.
+#
+%YAML 1.1
+---
+# Unless otherwise stated, all controls are bi-directional, i.e. they can be
+# set through Request::controls() and returned out through Request::metadata().
+controls:
+  - AeEnable:
+      type: bool
+      description: |
+        Enable or disable the AE.
+
+        \sa ExposureTime AnalogueGain
+
+  - AeLocked:
+      type: bool
+      description: |
+        Report the lock status of a running AE algorithm.
+
+        If the AE algorithm is locked the value shall be set to true, if it's
+        converging it shall be set to false. If the AE algorithm is not
+        running the control shall not be present in the metadata control list.
+
+        \sa AeEnable
+
+  # AeMeteringMode needs further attention:
+  # - Auto-generate max enum value.
+  # - Better handling of custom types.
+  - AeMeteringMode:
+      type: int32_t
+      description: |
+        Specify a metering mode for the AE algorithm to use. The metering
+        modes determine which parts of the image are used to determine the
+        scene brightness. Metering modes may be platform specific and not
+        all metering modes may be supported.
+      enum:
+        - name: MeteringCentreWeighted
+          value: 0
+          description: Centre-weighted metering mode.
+        - name: MeteringSpot
+          value: 1
+          description: Spot metering mode.
+        - name: MeteringMatrix
+          value: 2
+          description: Matrix metering mode.
+        - name: MeteringCustom
+          value: 3
+          description: Custom metering mode.
+
+  # AeConstraintMode needs further attention:
+  # - Auto-generate max enum value.
+  # - Better handling of custom types.
+  - AeConstraintMode:
+      type: int32_t
+      description: |
+        Specify a constraint mode for the AE algorithm to use. These determine
+        how the measured scene brightness is adjusted to reach the desired
+        target exposure. Constraint modes may be platform specific, and not
+        all constraint modes may be supported.
+      enum:
+        - name: ConstraintNormal
+          value: 0
+          description: Default constraint mode.
+            This mode aims to balance the exposure of different parts of the
+            image so as to reach a reasonable average level. However, highlights
+            in the image may appear over-exposed and lowlights may appear
+            under-exposed.
+        - name: ConstraintHighlight
+          value: 1
+          description: Highlight constraint mode.
+            This mode adjusts the exposure levels in order to try and avoid
+            over-exposing the brightest parts (highlights) of an image.
+            Other non-highlight parts of the image may appear under-exposed.
+        - name: ConstraintShadows
+          value: 2
+          description: Shadows constraint mode.
+            This mode adjusts the exposure levels in order to try and avoid
+            under-exposing the dark parts (shadows) of an image. Other normally
+            exposed parts of the image may appear over-exposed.
+        - name: ConstraintCustom
+          value: 3
+          description: Custom constraint mode.
+
+  # AeExposureMode needs further attention:
+  # - Auto-generate max enum value.
+  # - Better handling of custom types.
+  - AeExposureMode:
+      type: int32_t
+      description: |
+        Specify an exposure mode for the AE algorithm to use. These specify
+        how the desired total exposure is divided between the shutter time
+        and the sensor's analogue gain. The exposure modes are platform
+        specific, and not all exposure modes may be supported.
+      enum:
+        - name: ExposureNormal
+          value: 0
+          description: Default exposure mode.
+        - name: ExposureShort
+          value: 1
+          description: Exposure mode allowing only short exposure times.
+        - name: ExposureLong
+          value: 2
+          description: Exposure mode allowing long exposure times.
+        - name: ExposureCustom
+          value: 3
+          description: Custom exposure mode.
+
+  - ExposureValue:
+      type: float
+      description: |
+        Specify an Exposure Value (EV) parameter. The EV parameter will only be
+        applied if the AE algorithm is currently enabled.
+
+        By convention EV adjusts the exposure as log2. For example
+        EV = [-2, -1, 0.5, 0, 0.5, 1, 2] results in an exposure adjustment
+        of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
+
+        \sa AeEnable
+
+  - ExposureTime:
+      type: int32_t
+      description: |
+        Exposure time (shutter speed) for the frame applied in the sensor
+        device. This value is specified in micro-seconds.
+
+        Setting this value means that it is now fixed and the AE algorithm may
+        not change it. Setting it back to zero returns it to the control of the
+        AE algorithm.
+
+        \sa AnalogueGain AeEnable
+
+        \todo Document the interactions between AeEnable and setting a fixed
+        value for this control. Consider interactions with other AE features,
+        such as aperture and aperture/shutter priority mode, and decide if
+        control of which features should be automatically adjusted shouldn't
+        better be handled through a separate AE mode control.
+
+  - AnalogueGain:
+      type: float
+      description: |
+        Analogue gain value applied in the sensor device.
+        The value of the control specifies the gain multiplier applied to all
+        colour channels. This value cannot be lower than 1.0.
+
+        Setting this value means that it is now fixed and the AE algorithm may
+        not change it. Setting it back to zero returns it to the control of the
+        AE algorithm.
+
+        \sa ExposureTime AeEnable
+
+        \todo Document the interactions between AeEnable and setting a fixed
+        value for this control. Consider interactions with other AE features,
+        such as aperture and aperture/shutter priority mode, and decide if
+        control of which features should be automatically adjusted shouldn't
+        better be handled through a separate AE mode control.
+
+  - Brightness:
+      type: float
+      description: |
+        Specify a fixed brightness parameter. Positive values (up to 1.0)
+        produce brighter images; negative values (up to -1.0) produce darker
+        images and 0.0 leaves pixels unchanged.
+
+  - Contrast:
+      type: float
+      description:  |
+        Specify a fixed contrast parameter. Normal contrast is given by the
+        value 1.0; larger values produce images with more contrast.
+
+  - Lux:
+      type: float
+      description: |
+        Report an estimate of the current illuminance level in lux. The Lux
+        control can only be returned in metadata.
+
+  - AwbEnable:
+      type: bool
+      description: |
+        Enable or disable the AWB.
+
+        \sa ColourGains
+
+  # AwbMode needs further attention:
+  # - Auto-generate max enum value.
+  # - Better handling of custom types.
+  - AwbMode:
+      type: int32_t
+      description: |
+        Specify the range of illuminants to use for the AWB algorithm. The modes
+        supported are platform specific, and not all modes may be supported.
+      enum:
+        - name: AwbAuto
+          value: 0
+          description: Search over the whole colour temperature range.
+        - name: AwbIncandescent
+          value: 1
+          description: Incandescent AWB lamp mode.
+        - name: AwbTungsten
+          value: 2
+          description: Tungsten AWB lamp mode.
+        - name: AwbFluorescent
+          value: 3
+          description: Fluorescent AWB lamp mode.
+        - name: AwbIndoor
+          value: 4
+          description: Indoor AWB lighting mode.
+        - name: AwbDaylight
+          value: 5
+          description: Daylight AWB lighting mode.
+        - name: AwbCloudy
+          value: 6
+          description: Cloudy AWB lighting mode.
+        - name: AwbCustom
+          value: 7
+          description: Custom AWB mode.
+
+  - AwbLocked:
+      type: bool
+      description: |
+        Report the lock status of a running AWB algorithm.
+
+        If the AWB algorithm is locked the value shall be set to true, if it's
+        converging it shall be set to false. If the AWB algorithm is not
+        running the control shall not be present in the metadata control list.
+
+        \sa AwbEnable
+
+  - ColourGains:
+      type: float
+      description: |
+        Pair of gain values for the Red and Blue colour channels, in that
+        order. ColourGains can only be applied in a Request when the AWB is
+        disabled.
+
+        \sa AwbEnable
+      size: [2]
+
+  - ColourTemperature:
+      type: int32_t
+      description: Report the current estimate of the colour temperature, in
+        kelvin, for this frame. The ColourTemperature control can only be
+        returned in metadata.
+
+  - Saturation:
+      type: float
+      description:  |
+        Specify a fixed saturation parameter. Normal saturation is given by
+        the value 1.0; larger values produce more saturated colours; 0.0
+        produces a greyscale image.
+
+  - SensorBlackLevels:
+      type: int32_t
+      description: |
+        Reports the sensor black levels used for processing a frame, in the
+        order R, Gr, Gb, B. These values are returned as numbers out of a 16-bit
+        pixel range (as if pixels ranged from 0 to 65535). The SensorBlackLevels
+        control can only be returned in metadata.
+      size: [4]
+
+  - Sharpness:
+      type: float
+      description:  |
+        A value of 0.0 means no sharpening. The minimum value means
+        minimal sharpening, and shall be 0.0 unless the camera can't
+        disable sharpening completely. The default value shall give a
+        "reasonable" level of sharpening, suitable for most use cases.
+        The maximum value may apply extremely high levels of sharpening,
+        higher than anyone could reasonably want. Negative values are
+        not allowed. Note also that sharpening is not applied to raw
+        streams.
+
+  - FocusFoM:
+      type: int32_t
+      description: |
+        Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
+        A larger FocusFoM value indicates a more in-focus frame. This control
+        depends on the IPA to gather ISP statistics from the defined focus
+        region, and combine them in a suitable way to generate a FocusFoM value.
+        In this respect, it is not necessarily aimed at providing a way to
+        implement a focus algorithm by the application, rather an indication of
+        how in-focus a frame is.
+
+  - ColourCorrectionMatrix:
+      type: float
+      description: |
+        The 3x3 matrix that converts camera RGB to sRGB within the
+        imaging pipeline. This should describe the matrix that is used
+        after pixels have been white-balanced, but before any gamma
+        transformation. The 3x3 matrix is stored in conventional reading
+        order in an array of 9 floating point values.
+
+      size: [3,3]
+
+  - ScalerCrop:
+      type: Rectangle
+      description: |
+        Sets the image portion that will be scaled to form the whole of
+        the final output image. The (x,y) location of this rectangle is
+        relative to the PixelArrayActiveAreas that is being used. The units
+        remain native sensor pixels, even if the sensor is being used in
+        a binning or skipping mode.
+
+        This control is only present when the pipeline supports scaling. Its
+        maximum valid value is given by the properties::ScalerCropMaximum
+        property, and the two can be used to implement digital zoom.
+
+  - DigitalGain:
+      type: float
+      description: |
+        Digital gain value applied during the processing steps applied
+        to the image as captured from the sensor.
+
+        The global digital gain factor is applied to all the colour channels
+        of the RAW image. Different pipeline models are free to
+        specify how the global gain factor applies to each separate
+        channel.
+
+        If an imaging pipeline applies digital gain in distinct
+        processing steps, this value indicates their total sum.
+        Pipelines are free to decide how to adjust each processing
+        step to respect the received gain factor and shall report
+        their total value in the request metadata.
+
+  - FrameDuration:
+      type: int64_t
+      description: |
+        The instantaneous frame duration from start of frame exposure to start
+        of next exposure, expressed in microseconds. This control is meant to
+        be returned in metadata.
+
+  - FrameDurationLimits:
+      type: int64_t
+      description: |
+        The minimum and maximum (in that order) frame duration,
+        expressed in microseconds.
+
+        When provided by applications, the control specifies the sensor frame
+        duration interval the pipeline has to use. This limits the largest
+        exposure time the sensor can use. For example, if a maximum frame
+        duration of 33ms is requested (corresponding to 30 frames per second),
+        the sensor will not be able to raise the exposure time above 33ms.
+        A fixed frame duration is achieved by setting the minimum and maximum
+        values to be the same. Setting both values to 0 reverts to using the
+        IPA provided defaults.
+
+        The maximum frame duration provides the absolute limit to the shutter
+        speed computed by the AE algorithm and it overrides any exposure mode
+        setting specified with controls::AeExposureMode. Similarly, when a
+        manual exposure time is set through controls::ExposureTime, it also
+        gets clipped to the limits set by this control. When reported in
+        metadata, the control expresses the minimum and maximum frame
+        durations used after being clipped to the sensor provided frame
+        duration limits.
+
+        \sa AeExposureMode
+        \sa ExposureTime
+
+        \todo Define how to calculate the capture frame rate by
+        defining controls to report additional delays introduced by
+        the capture pipeline or post-processing stages (ie JPEG
+        conversion, frame scaling).
+
+        \todo Provide an explicit definition of default control values, for
+        this and all other controls.
+
+      size: [2]
+
+  - SensorTemperature:
+      type: float
+      description: |
+        Temperature measure from the camera sensor in Celsius. This is typically
+        obtained by a thermal sensor present on-die or in the camera module. The
+        range of reported temperatures is device dependent.
+
+        The SensorTemperature control will only be returned in metadata if a
+        themal sensor is present.
+
+  - SensorTimestamp:
+      type: int64_t
+      description: |
+        The time when the first row of the image sensor active array is exposed.
+
+        The timestamp, expressed in nanoseconds, represents a monotonically
+        increasing counter since the system boot time, as defined by the
+        Linux-specific CLOCK_BOOTTIME clock id.
+
+        The SensorTimestamp control can only be returned in metadata.
+
+        \todo Define how the sensor timestamp has to be used in the reprocessing
+        use case.
+
+  - AfMode:
+      type: int32_t
+      description: |
+        Control to set the mode of the AF (autofocus) algorithm.
+
+        An implementation may choose not to implement all the modes.
+
+      enum:
+        - name: AfModeManual
+          value: 0
+          description: |
+            The AF algorithm is in manual mode. In this mode it will never
+            perform any action nor move the lens of its own accord, but an
+            application can specify the desired lens position using the
+            LensPosition control.
+
+            In this mode the AfState will always report AfStateIdle.
+        - name: AfModeAuto
+          value: 1
+          description: |
+            The AF algorithm is in auto mode. This means that the algorithm
+            will never move the lens or change state unless the AfTrigger
+            control is used. The AfTrigger control can be used to initiate a
+            focus scan, the results of which will be reported by AfState.
+
+            If the autofocus algorithm is moved from AfModeAuto to another
+            mode while a scan is in progress, the scan is cancelled
+            immediately, without waiting for the scan to finish.
+
+            When first entering this mode the AfState will report
+            AfStateIdle. When a trigger control is sent, AfState will
+            report AfStateScanning for a period before spontaneously
+            changing to AfStateFocused or AfStateFailed, depending on
+            the outcome of the scan. It will remain in this state until
+            another scan is initiated by the AfTrigger control. If a scan is
+            cancelled (without changing to another mode), AfState will return
+            to AfStateIdle.
+        - name: AfModeContinuous
+          value: 2
+          description: |
+            The AF algorithm is in continuous mode. This means that the lens can
+            re-start a scan spontaneously at any moment, without any user
+            intervention. The AfState still reports whether the algorithm is
+            currently scanning or not, though the application has no ability to
+            initiate or cancel scans, nor to move the lens for itself.
+
+            However, applications can pause the AF algorithm from continuously
+            scanning by using the AfPause control. This allows video or still
+            images to be captured whilst guaranteeing that the focus is fixed.
+
+            When set to AfModeContinuous, the system will immediately initiate a
+            scan so AfState will report AfStateScanning, and will settle on one
+            of AfStateFocused or AfStateFailed, depending on the scan result.
+
+  - AfRange:
+      type: int32_t
+      description: |
+        Control to set the range of focus distances that is scanned. An
+        implementation may choose not to implement all the options here.
+      enum:
+        - name: AfRangeNormal
+          value: 0
+          description: |
+            A wide range of focus distances is scanned, all the way from
+            infinity down to close distances, though depending on the
+            implementation, possibly not including the very closest macro
+            positions.
+        - name: AfRangeMacro
+          value: 1
+          description: Only close distances are scanned.
+        - name: AfRangeFull
+          value: 2
+          description: |
+            The full range of focus distances is scanned just as with
+            AfRangeNormal but this time including the very closest macro
+            positions.
+
+  - AfSpeed:
+      type: int32_t
+      description: |
+        Control that determines whether the AF algorithm is to move the lens
+        as quickly as possible or more steadily. For example, during video
+        recording it may be desirable not to move the lens too abruptly, but
+        when in a preview mode (waiting for a still capture) it may be
+        helpful to move the lens as quickly as is reasonably possible.
+      enum:
+        - name: AfSpeedNormal
+          value: 0
+          description: Move the lens at its usual speed.
+        - name: AfSpeedFast
+          value: 1
+          description: Move the lens more quickly.
+
+  - AfMetering:
+      type: int32_t
+      description: |
+        Instruct the AF algorithm how it should decide which parts of the image
+        should be used to measure focus.
+      enum:
+        - name: AfMeteringAuto
+          value: 0
+          description: The AF algorithm should decide for itself where it will
+            measure focus.
+        - name: AfMeteringWindows
+          value: 1
+          description: The AF algorithm should use the rectangles defined by
+            the AfWindows control to measure focus. If no windows are specified
+            the behaviour is platform dependent.
+
+  - AfWindows:
+      type: Rectangle
+      description: |
+        Sets the focus windows used by the AF algorithm when AfMetering is set
+        to AfMeteringWindows. The units used are pixels within the rectangle
+        returned by the ScalerCropMaximum property.
+
+        In order to be activated, a rectangle must be programmed with non-zero
+        width and height. Internally, these rectangles are intersected with the
+        ScalerCropMaximum rectangle. If the window becomes empty after this
+        operation, then the window is ignored. If all the windows end up being
+        ignored, then the behaviour is platform dependent.
+
+        On platforms that support the ScalerCrop control (for implementing
+        digital zoom, for example), no automatic recalculation or adjustment of
+        AF windows is performed internally if the ScalerCrop is changed. If any
+        window lies outside the output image after the scaler crop has been
+        applied, it is up to the application to recalculate them.
+
+        The details of how the windows are used are platform dependent. We note
+        that when there is more than one AF window, a typical implementation
+        might find the optimal focus position for each one and finally select
+        the window where the focal distance for the objects shown in that part
+        of the image are closest to the camera.
+
+      size: [n]
+
+  - AfTrigger:
+      type: int32_t
+      description: |
+        This control starts an autofocus scan when AfMode is set to AfModeAuto,
+        and can also be used to terminate a scan early.
+
+        It is ignored if AfMode is set to AfModeManual or AfModeContinuous.
+
+      enum:
+        - name: AfTriggerStart
+          value: 0
+          description: Start an AF scan. Ignored if a scan is in progress.
+        - name: AfTriggerCancel
+          value: 1
+          description: Cancel an AF scan. This does not cause the lens to move
+            anywhere else. Ignored if no scan is in progress.
+
+  - AfPause:
+      type: int32_t
+      description: |
+        This control has no effect except when in continuous autofocus mode
+        (AfModeContinuous). It can be used to pause any lens movements while
+        (for example) images are captured. The algorithm remains inactive
+        until it is instructed to resume.
+
+      enum:
+        - name: AfPauseImmediate
+          value: 0
+          description: |
+            Pause the continuous autofocus algorithm immediately, whether or not
+            any kind of scan is underway. AfPauseState will subsequently report
+            AfPauseStatePaused. AfState may report any of AfStateScanning,
+            AfStateFocused or AfStateFailed, depending on the algorithm's state
+            when it received this control.
+        - name: AfPauseDeferred
+          value: 1
+          description: |
+            This is similar to AfPauseImmediate, and if the AfState is currently
+            reporting AfStateFocused or AfStateFailed it will remain in that
+            state and AfPauseState will report AfPauseStatePaused.
+
+            However, if the algorithm is scanning (AfStateScanning),
+            AfPauseState will report AfPauseStatePausing until the scan is
+            finished, at which point AfState will report one of AfStateFocused
+            or AfStateFailed, and AfPauseState will change to
+            AfPauseStatePaused.
+
+        - name: AfPauseResume
+          value: 2
+          description: |
+            Resume continuous autofocus operation. The algorithm starts again
+            from exactly where it left off, and AfPauseState will report
+            AfPauseStateRunning.
+
+  - LensPosition:
+      type: float
+      description: |
+        Acts as a control to instruct the lens to move to a particular position
+        and also reports back the position of the lens for each frame.
+
+        The LensPosition control is ignored unless the AfMode is set to
+        AfModeManual, though the value is reported back unconditionally in all
+        modes.
+
+        The units are a reciprocal distance scale like dioptres but normalised
+        for the hyperfocal distance. That is, for a lens with hyperfocal
+        distance H, and setting it to a focal distance D, the lens position LP,
+        which is generally a non-integer, is given by
+
+        \f$LP = \frac{H}{D}\f$
+
+        For example:
+
+        0 moves the lens to infinity.
+        0.5 moves the lens to twice the hyperfocal distance.
+        1 moves the lens to the hyperfocal position.
+        And larger values will focus the lens ever closer.
+
+        \todo Define a property to report the Hyperforcal distance of calibrated
+        lenses.
+
+        \todo Define a property to report the maximum and minimum positions of
+        this lens. The minimum value will often be zero (meaning infinity).
+
+  - AfState:
+      type: int32_t
+      description: |
+        Reports the current state of the AF algorithm in conjunction with the
+        reported AfMode value and (in continuous AF mode) the AfPauseState
+        value. The possible state changes are described below, though we note
+        the following state transitions that occur when the AfMode is changed.
+
+        If the AfMode is set to AfModeManual, then the AfState will always
+        report AfStateIdle (even if the lens is subsequently moved). Changing to
+        the AfModeManual state does not initiate any lens movement.
+
+        If the AfMode is set to AfModeAuto then the AfState will report
+        AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent together
+        then AfState will omit AfStateIdle and move straight to AfStateScanning
+        (and start a scan).
+
+        If the AfMode is set to AfModeContinuous then the AfState will initially
+        report AfStateScanning.
+
+      enum:
+        - name: AfStateIdle
+          value: 0
+          description: |
+            The AF algorithm is in manual mode (AfModeManual) or in auto mode
+            (AfModeAuto) and a scan has not yet been triggered, or an
+            in-progress scan was cancelled.
+        - name: AfStateScanning
+          value: 1
+          description: |
+            The AF algorithm is in auto mode (AfModeAuto), and a scan has been
+            started using the AfTrigger control. The scan can be cancelled by
+            sending AfTriggerCancel at which point the algorithm will either
+            move back to AfStateIdle or, if the scan actually completes before
+            the cancel request is processed, to one of AfStateFocused or
+            AfStateFailed.
+
+            Alternatively the AF algorithm could be in continuous mode
+            (AfModeContinuous) at which point it may enter this state
+            spontaneously whenever it determines that a rescan is needed.
+        - name: AfStateFocused
+          value: 2
+          description: |
+            The AF algorithm is in auto (AfModeAuto) or continuous
+            (AfModeContinuous) mode and a scan has completed with the result
+            that the algorithm believes the image is now in focus.
+        - name: AfStateFailed
+          value: 3
+          description: |
+            The AF algorithm is in auto (AfModeAuto) or continuous
+            (AfModeContinuous) mode and a scan has completed with the result
+            that the algorithm did not find a good focus position.
+
+  - AfPauseState:
+      type: int32_t
+      description: |
+        Only applicable in continuous (AfModeContinuous) mode, this reports
+        whether the algorithm is currently running, paused or pausing (that is,
+        will pause as soon as any in-progress scan completes).
+
+        Any change to AfMode will cause AfPauseStateRunning to be reported.
+
+      enum:
+        - name: AfPauseStateRunning
+          value: 0
+          description: |
+            Continuous AF is running and the algorithm may restart a scan
+            spontaneously.
+        - name: AfPauseStatePausing
+          value: 1
+          description: |
+            Continuous AF has been sent an AfPauseDeferred control, and will
+            pause as soon as any in-progress scan completes (and then report
+            AfPauseStatePaused). No new scans will be start spontaneously until
+            the AfPauseResume control is sent.
+        - name: AfPauseStatePaused
+          value: 2
+          description: |
+            Continuous AF is paused. No further state changes or lens movements
+            will occur until the AfPauseResume control is sent.
+
+  # ----------------------------------------------------------------------------
+  # Draft controls section
+
+  - AePrecaptureTrigger:
+      type: int32_t
+      draft: true
+      description: |
+        Control for AE metering trigger. Currently identical to
+        ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
+
+        Whether the camera device will trigger a precapture metering sequence
+        when it processes this request.
+      enum:
+        - name: AePrecaptureTriggerIdle
+          value: 0
+          description: The trigger is idle.
+        - name: AePrecaptureTriggerStart
+          value: 1
+          description: The pre-capture AE metering is started by the camera.
+        - name: AePrecaptureTriggerCancel
+          value: 2
+          description: |
+            The camera will cancel any active or completed metering sequence.
+            The AE algorithm is reset to its initial state.
+
+  - NoiseReductionMode:
+      type: int32_t
+      draft: true
+      description: |
+       Control to select the noise reduction algorithm mode. Currently
+       identical to ANDROID_NOISE_REDUCTION_MODE.
+
+        Mode of operation for the noise reduction algorithm.
+      enum:
+        - name: NoiseReductionModeOff
+          value: 0
+          description: No noise reduction is applied
+        - name: NoiseReductionModeFast
+          value: 1
+          description: |
+            Noise reduction is applied without reducing the frame rate.
+        - name: NoiseReductionModeHighQuality
+          value: 2
+          description: |
+            High quality noise reduction at the expense of frame rate.
+        - name: NoiseReductionModeMinimal
+          value: 3
+          description: |
+            Minimal noise reduction is applied without reducing the frame rate.
+        - name: NoiseReductionModeZSL
+          value: 4
+          description: |
+            Noise reduction is applied at different levels to different streams.
+
+  - ColorCorrectionAberrationMode:
+      type: int32_t
+      draft: true
+      description: |
+       Control to select the color correction aberration mode. Currently
+       identical to ANDROID_COLOR_CORRECTION_ABERRATION_MODE.
+
+        Mode of operation for the chromatic aberration correction algorithm.
+      enum:
+        - name: ColorCorrectionAberrationOff
+          value: 0
+          description: No aberration correction is applied.
+        - name: ColorCorrectionAberrationFast
+          value: 1
+          description: Aberration correction will not slow down the frame rate.
+        - name: ColorCorrectionAberrationHighQuality
+          value: 2
+          description: |
+            High quality aberration correction which might reduce the frame
+            rate.
+
+  - AeState:
+      type: int32_t
+      draft: true
+      description: |
+       Control to report the current AE algorithm state. Currently identical to
+       ANDROID_CONTROL_AE_STATE.
+
+        Current state of the AE algorithm.
+      enum:
+        - name: AeStateInactive
+          value: 0
+          description: The AE algorithm is inactive.
+        - name: AeStateSearching
+          value: 1
+          description: The AE algorithm has not converged yet.
+        - name: AeStateConverged
+          value: 2
+          description: The AE algorithm has converged.
+        - name: AeStateLocked
+          value: 3
+          description: The AE algorithm is locked.
+        - name: AeStateFlashRequired
+          value: 4
+          description: The AE algorithm would need a flash for good results
+        - name: AeStatePrecapture
+          value: 5
+          description: |
+            The AE algorithm has started a pre-capture metering session.
+            \sa AePrecaptureTrigger
+
+  - AwbState:
+      type: int32_t
+      draft: true
+      description: |
+       Control to report the current AWB algorithm state. Currently identical
+       to ANDROID_CONTROL_AWB_STATE.
+
+        Current state of the AWB algorithm.
+      enum:
+        - name: AwbStateInactive
+          value: 0
+          description: The AWB algorithm is inactive.
+        - name: AwbStateSearching
+          value: 1
+          description: The AWB algorithm has not converged yet.
+        - name: AwbConverged
+          value: 2
+          description: The AWB algorithm has converged.
+        - name: AwbLocked
+          value: 3
+          description: The AWB algorithm is locked.
+
+  - SensorRollingShutterSkew:
+      type: int64_t
+      draft: true
+      description: |
+       Control to report the time between the start of exposure of the first
+       row and the start of exposure of the last row. Currently identical to
+       ANDROID_SENSOR_ROLLING_SHUTTER_SKEW
+
+  - LensShadingMapMode:
+      type: int32_t
+      draft: true
+      description: |
+       Control to report if the lens shading map is available. Currently
+       identical to ANDROID_STATISTICS_LENS_SHADING_MAP_MODE.
+      enum:
+        - name: LensShadingMapModeOff
+          value: 0
+          description: No lens shading map mode is available.
+        - name: LensShadingMapModeOn
+          value: 1
+          description: The lens shading map mode is available.
+
+  - SceneFlicker:
+      type: int32_t
+      draft: true
+      description: |
+       Control to report the detected scene light frequency. Currently
+       identical to ANDROID_STATISTICS_SCENE_FLICKER.
+      enum:
+        - name: SceneFickerOff
+          value: 0
+          description: No flickering detected.
+        - name: SceneFicker50Hz
+          value: 1
+          description: 50Hz flickering detected.
+        - name: SceneFicker60Hz
+          value: 2
+          description: 60Hz flickering detected.
+
+  - PipelineDepth:
+      type: int32_t
+      draft: true
+      description: |
+        Specifies the number of pipeline stages the frame went through from when
+        it was exposed to when the final completed result was available to the
+        framework. Always less than or equal to PipelineMaxDepth. Currently
+        identical to ANDROID_REQUEST_PIPELINE_DEPTH.
+
+        The typical value for this control is 3 as a frame is first exposed,
+        captured and then processed in a single pass through the ISP. Any
+        additional processing step performed after the ISP pass (in example face
+        detection, additional format conversions etc) count as an additional
+        pipeline stage.
+
+  - MaxLatency:
+      type: int32_t
+      draft: true
+      description: |
+        The maximum number of frames that can occur after a request (different
+        than the previous) has been submitted, and before the result's state
+        becomes synchronized. A value of -1 indicates unknown latency, and 0
+        indicates per-frame control. Currently identical to
+        ANDROID_SYNC_MAX_LATENCY.
+
+  - TestPatternMode:
+      type: int32_t
+      draft: true
+      description: |
+        Control to select the test pattern mode. Currently identical to
+        ANDROID_SENSOR_TEST_PATTERN_MODE.
+      enum:
+        - name: TestPatternModeOff
+          value: 0
+          description: |
+            No test pattern mode is used. The camera device returns frames from
+            the image sensor.
+        - name: TestPatternModeSolidColor
+          value: 1
+          description: |
+            Each pixel in [R, G_even, G_odd, B] is replaced by its respective
+            color channel provided in test pattern data.
+            \todo Add control for test pattern data.
+        - name: TestPatternModeColorBars
+          value: 2
+          description: |
+            All pixel data is replaced with an 8-bar color pattern. The vertical
+            bars (left-to-right) are as follows; white, yellow, cyan, green,
+            magenta, red, blue and black. Each bar should take up 1/8 of the
+            sensor pixel array width. When this is not possible, the bar size
+            should be rounded down to the nearest integer and the pattern can
+            repeat on the right side. Each bar's height must always take up the
+            full sensor pixel array height.
+        - name: TestPatternModeColorBarsFadeToGray
+          value: 3
+          description: |
+            The test pattern is similar to TestPatternModeColorBars,
+            except that each bar should start at its specified color at the top
+            and fade to gray at the bottom. Furthermore each bar is further
+            subdevided into a left and right half. The left half should have a
+            smooth gradient, and the right half should have a quantized
+            gradient. In particular, the right half's should consist of blocks
+            of the same color for 1/16th active sensor pixel array width. The
+            least significant bits in the quantized gradient should be copied
+            from the most significant bits of the smooth gradient. The height of
+            each bar should always be a multiple of 128. When this is not the
+            case, the pattern should repeat at the bottom of the image.
+        - name: TestPatternModePn9
+          value: 4
+          description: |
+            All pixel data is replaced by a pseudo-random sequence generated
+            from a PN9 512-bit sequence (typically implemented in hardware with
+            a linear feedback shift register). The generator should be reset at
+            the beginning of each frame, and thus each subsequent raw frame with
+            this test pattern should be exactly the same as the last.
+        - name: TestPatternModeCustom1
+          value: 256
+          description: |
+            The first custom test pattern. All custom patterns that are
+            available only on this camera device are at least this numeric
+            value. All of the custom test patterns will be static (that is the
+            raw image must not vary from frame to frame).
+
+...

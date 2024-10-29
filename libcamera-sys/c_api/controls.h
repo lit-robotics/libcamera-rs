@@ -1,8 +1,6 @@
 #ifndef __LIBCAMERA_C_CONTROLS__
 #define __LIBCAMERA_C_CONTROLS__
 
-#include "controls_generated.h"
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,6 +25,9 @@ typedef struct libcamera_control_list libcamera_control_list_t;
 typedef struct libcamera_control_list_iter libcamera_control_list_iter_t;
 typedef struct libcamera_control_info_map libcamera_control_info_map_t;
 #endif
+
+enum libcamera_control_id { libcamera_control_id_DUMMY };
+enum libcamera_property_id { libcamera_property_id_DUMMY };
 
 enum libcamera_control_type {
 	LIBCAMERA_CONTROL_TYPE_NONE,
