@@ -31,5 +31,4 @@ smallvec = "1.10"
 thiserror = "1.0"
 
 [build-dependencies]
-libcamera-sys = { path = "../libcamera-sys", version = "0.3.0" }
 semver = "1.0.22"
