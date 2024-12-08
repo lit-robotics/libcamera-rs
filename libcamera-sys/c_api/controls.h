@@ -96,6 +96,7 @@ void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_
 const libcamera_control_value_t *libcamera_control_info_max(libcamera_control_info_t *val);
 const libcamera_control_value_t *libcamera_control_info_min(libcamera_control_info_t *val);
 const libcamera_control_value_t *libcamera_control_info_def(libcamera_control_info_t *val);
+const libcamera_control_value_t* libcamera_control_info_values(const libcamera_control_info_t* info, size_t* size);
 
 // --- libcamera_control_id_map ---
 bool libcamera_control_id_map_add(libcamera_control_id_map_t *idmap, unsigned int key, const libcamera_control_id_t *control_id);
