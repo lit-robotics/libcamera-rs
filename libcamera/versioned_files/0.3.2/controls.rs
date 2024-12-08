@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::{ffi::CStr, ops::{Deref, DerefMut}};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
@@ -527,6 +527,20 @@ pub enum ControlId {
     /// \sa StatsOutputEnable
     #[cfg(feature = "vendor_rpi")]
     Bcm2835StatsOutput = BCM2835_STATS_OUTPUT,
+}
+impl ControlId {
+    fn id(&self) -> u32 {
+        *self as u32
+    }
+    pub fn name(&self) -> String {
+        unsafe {
+            let c_str = libcamera_control_name_from_id(self.id());
+            if c_str.is_null() {
+                return "".into();
+            }
+            CStr::from_ptr(c_str).to_str().unwrap().into()
+        }
+    }
 }
 /// Enable or disable the AE.
 ///

@@ -41,7 +41,7 @@ enum libcamera_control_type libcamera_control_type_from_id(enum libcamera_contro
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
 
-const char *libcamera_property_name(enum libcamera_property_id id) {
+const char *libcamera_property_name_by_id(enum libcamera_property_id id) {
     auto it = libcamera::properties::properties.find(id);
     if (it != libcamera::properties::properties.end())
         return it->second->name().c_str();
@@ -49,7 +49,7 @@ const char *libcamera_property_name(enum libcamera_property_id id) {
         return nullptr;
 }
 
-enum libcamera_control_type libcamera_property_type(enum libcamera_property_id id) {
+enum libcamera_control_type libcamera_property_type_by_id(enum libcamera_property_id id) {
     auto it = libcamera::properties::properties.find(id);
     if (it != libcamera::properties::properties.end())
         return (enum libcamera_control_type)it->second->type();
