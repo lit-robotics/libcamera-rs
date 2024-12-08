@@ -58,28 +58,26 @@ impl ControlInfo {
     }
 
     pub fn min(&self) -> ControlValue {
-
         unsafe {
-            ControlValue::read(NonNull::new(libcamera_control_info_min(self.ptr().cast_mut()).cast_mut()).unwrap()).unwrap()
+            ControlValue::read(NonNull::new(libcamera_control_info_min(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
         }
     }
 
     pub fn max(&self) -> ControlValue {
-
         unsafe {
-            ControlValue::read(NonNull::new(libcamera_control_info_max(self.ptr().cast_mut()).cast_mut()).unwrap()).unwrap()
+            ControlValue::read(NonNull::new(libcamera_control_info_max(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
         }
     }
 
     pub fn def(&self) -> ControlValue {
-
         unsafe {
-            ControlValue::read(NonNull::new(libcamera_control_info_def(self.ptr().cast_mut()).cast_mut()).unwrap()).unwrap()
+            ControlValue::read(NonNull::new(libcamera_control_info_def(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
         }
     }
-    
 }
-
 
 #[repr(transparent)]
 pub struct ControlInfoMap(libcamera_control_info_map_t);
@@ -89,7 +87,7 @@ impl ControlInfoMap {
         // Safety: we can cast it because of `#[repr(transparent)]`
         &mut *(ptr.as_ptr() as *mut Self)
     }
-    
+
     pub(crate) fn ptr(&self) -> *const libcamera_control_info_map_t {
         // Safety: we can cast it because of `#[repr(transparent)]`
         &self.0 as *const libcamera_control_info_map_t
@@ -97,32 +95,27 @@ impl ControlInfoMap {
 
     pub fn at(&self, key: u32) -> &ControlInfo {
         unsafe {
-
             let ptr = libcamera_control_info_map_at(self.ptr().cast_mut(), key);
             println!("ptr {:?}", ptr);
-           ControlInfo::from_ptr(NonNull::new(ptr.cast_mut()).unwrap())
+            ControlInfo::from_ptr(NonNull::new(ptr.cast_mut()).unwrap())
         }
     }
 
     pub fn count(&self, key: u32) -> usize {
-        unsafe {
-           libcamera_control_info_map_count(self.ptr().cast_mut(), key)
-        }
+        unsafe { libcamera_control_info_map_count(self.ptr().cast_mut(), key) }
     }
 
     pub fn find(&self, key: u32) -> &ControlInfo {
         unsafe {
-           ControlInfo::from_ptr(NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut()).unwrap())
+            ControlInfo::from_ptr(
+                NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut()).unwrap(),
+            )
         }
     }
 
     pub fn size(&self) -> usize {
-        unsafe {
-           libcamera_control_info_map_size(self.ptr().cast_mut())
-        }
+        unsafe { libcamera_control_info_map_size(self.ptr().cast_mut()) }
     }
-
-
 }
 
 impl<'a> IntoIterator for &'a ControlInfoMap {
@@ -320,14 +313,12 @@ impl<'d> Drop for ControlListRefIterator<'d> {
     }
 }
 
-
 pub struct ControlInfoMapIter<'a> {
     iter: *mut libcamera_control_info_map_iter_t,
     marker: PhantomData<&'a libcamera_control_info_map_t>,
 }
 
 impl<'a> ControlInfoMapIter<'a> {
-    
     pub fn new(map: &'a ControlInfoMap) -> Option<Self> {
         unsafe {
             let iter = libcamera_control_info_map_iter_create(map.ptr());

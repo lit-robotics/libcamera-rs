@@ -113,7 +113,6 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
             })
             .collect()
     }
-
 }
 
 impl<T: AsFrameBuffer> AsFrameBuffer for MemoryMappedFrameBuffer<T> {
