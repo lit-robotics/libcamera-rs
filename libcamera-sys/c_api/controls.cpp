@@ -140,6 +140,10 @@ void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_
     memcpy(storage.data(), data, storage.size());
 }
 
+size_t libcamera_control_value_size() {
+     return sizeof(libcamera::ControlValue);
+}
+
 const libcamera_control_value_t *libcamera_control_info_max(libcamera_control_info_t *val){
     return &val->max();
 }

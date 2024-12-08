@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::NonNull, slice};
+use std::{marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
 use thiserror::Error;
@@ -82,26 +82,38 @@ impl ControlInfo {
         unsafe {
             let mut size: usize = 0;
             let values_ptr = libcamera_control_info_values(self.ptr(), &mut size as *mut usize);
-
+    
             if values_ptr.is_null() || size == 0 {
                 return Vec::new();
             }
-
-            let raw_slice = slice::from_raw_parts(values_ptr, size);
-
+    
+            // Determine the size of libcamera_control_value_t
+            let control_value_size = libcamera_control_value_size();
+            println!("libcamera::ControlValue size: {}", control_value_size);
+    
+            // Cast the pointer to *const u8 for byte-wise pointer arithmetic
+            let base_ptr = values_ptr as *const u8;
+    
             let mut control_values = Vec::with_capacity(size);
-            for raw_val in raw_slice {
-                let val_ptr = NonNull::new(raw_val as *const libcamera_control_value_t as *mut libcamera_control_value_t)
-                    .expect("Received a null pointer in raw_slice");
-
-                match ControlValue::read(val_ptr) {
+            for i in 0..size {
+                // Calculate the pointer to the i-th ControlValue
+                let offset = i * control_value_size;
+                let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
+    
+                if val_ptr.is_null() {
+                    eprintln!("ControlValue at index {} is null", i);
+                    continue;
+                }
+    
+                // Read and convert the ControlValue
+                match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
                     Ok(control_val) => control_values.push(control_val),
                     Err(e) => {
-                        eprintln!("Failed to read ControlValue: {:?}", e);
+                        eprintln!("Failed to read ControlValue at index {}: {:?}", i, e);
                     }
                 }
             }
-
+    
             control_values
         }
     }

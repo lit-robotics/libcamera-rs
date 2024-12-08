@@ -91,13 +91,12 @@ bool libcamera_control_value_is_array(const libcamera_control_value_t *val);
 size_t libcamera_control_value_num_elements(const libcamera_control_value_t *val);
 const void *libcamera_control_value_get(const libcamera_control_value_t *val);
 void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_control_type type, const void *data, bool is_array, size_t num_elements);
-
+size_t libcamera_control_value_size();
 // --- libcamera_control_info_t ---
 const libcamera_control_value_t *libcamera_control_info_max(libcamera_control_info_t *val);
 const libcamera_control_value_t *libcamera_control_info_min(libcamera_control_info_t *val);
 const libcamera_control_value_t *libcamera_control_info_def(libcamera_control_info_t *val);
 const libcamera_control_value_t* libcamera_control_info_values(const libcamera_control_info_t* info, size_t* size);
-
 // --- libcamera_control_id_map ---
 bool libcamera_control_id_map_add(libcamera_control_id_map_t *idmap, unsigned int key, const libcamera_control_id_t *control_id);
 const libcamera_control_id_t *libcamera_control_id_map_get(libcamera_control_id_map_t *idmap, unsigned int key);
