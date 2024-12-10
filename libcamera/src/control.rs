@@ -82,29 +82,29 @@ impl ControlInfo {
         unsafe {
             let mut size: usize = 0;
             let values_ptr = libcamera_control_info_values(self.ptr(), &mut size as *mut usize);
-    
+
             if values_ptr.is_null() || size == 0 {
                 return Vec::new();
             }
-    
+
             // Determine the size of libcamera_control_value_t
             let control_value_size = libcamera_control_value_size();
             println!("libcamera::ControlValue size: {}", control_value_size);
-    
+
             // Cast the pointer to *const u8 for byte-wise pointer arithmetic
             let base_ptr = values_ptr as *const u8;
-    
+
             let mut control_values = Vec::with_capacity(size);
             for i in 0..size {
                 // Calculate the pointer to the i-th ControlValue
                 let offset = i * control_value_size;
                 let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
-    
+
                 if val_ptr.is_null() {
                     eprintln!("ControlValue at index {} is null", i);
                     continue;
                 }
-    
+
                 // Read and convert the ControlValue
                 match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
                     Ok(control_val) => control_values.push(control_val),
@@ -113,11 +113,10 @@ impl ControlInfo {
                     }
                 }
             }
-    
+
             control_values
         }
     }
-
 }
 
 #[repr(transparent)]
@@ -134,11 +133,13 @@ impl ControlInfoMap {
         &self.0 as *const libcamera_control_info_map_t
     }
 
-    pub fn at(&self, key: u32) -> &ControlInfo {
+    pub fn at(&self, key: u32) -> Result<&ControlInfo, ControlError> {
         unsafe {
-            let ptr = libcamera_control_info_map_at(self.ptr().cast_mut(), key);
-            println!("ptr {:?}", ptr);
-            ControlInfo::from_ptr(NonNull::new(ptr.cast_mut()).unwrap())
+            let ptr = NonNull::new(libcamera_control_info_map_at(self.ptr().cast_mut(), key).cast_mut());
+            match ptr {
+                Some(ptr) => Ok(ControlInfo::from_ptr(ptr)),
+                None => Err(ControlError::NotFound(key)),
+            }
         }
     }
 
@@ -146,11 +147,15 @@ impl ControlInfoMap {
         unsafe { libcamera_control_info_map_count(self.ptr().cast_mut(), key) }
     }
 
-    pub fn find(&self, key: u32) -> &ControlInfo {
+    pub fn find(&self, key: u32) -> Result<&ControlInfo, ControlError> {
         unsafe {
-            ControlInfo::from_ptr(
-                NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut()).unwrap(),
-            )
+
+            let ptr = NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut());
+
+            match ptr {
+                Some(ptr) => Ok(ControlInfo::from_ptr(ptr)),
+                None => Err(ControlError::NotFound(key)),
+            }
         }
     }
 
