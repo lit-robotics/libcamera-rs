@@ -149,7 +149,6 @@ impl ControlInfoMap {
 
     pub fn find(&self, key: u32) -> Result<&ControlInfo, ControlError> {
         unsafe {
-
             let ptr = NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut());
 
             match ptr {
