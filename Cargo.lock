@@ -327,6 +327,7 @@ dependencies = [
  "libc",
  "libcamera-sys",
  "num_enum",
+ "pkg-config",
  "semver",
  "smallvec",
  "thiserror",
