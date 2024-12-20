@@ -138,7 +138,7 @@ pub struct PixelFormatsIterator<'d> {
     index: usize,
 }
 
-impl<'d> Iterator for PixelFormatsIterator<'d> {
+impl Iterator for PixelFormatsIterator<'_> {
     type Item = PixelFormat;
 
     fn next(&mut self) -> Option<Self::Item> {

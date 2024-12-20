@@ -35,11 +35,11 @@ pub enum LoggingLevel {
 impl From<LoggingLevel> for &'static CStr {
     fn from(value: LoggingLevel) -> Self {
         match value {
-            LoggingLevel::Debug => CStr::from_bytes_with_nul(b"DEBUG\0").expect("Static null-terminated string"),
-            LoggingLevel::Info => CStr::from_bytes_with_nul(b"INFO\0").expect("Static null-terminated string"),
-            LoggingLevel::Warn => CStr::from_bytes_with_nul(b"WARN\0").expect("Static null-terminated string"),
-            LoggingLevel::Error => CStr::from_bytes_with_nul(b"ERROR\0").expect("Static null-terminated string"),
-            LoggingLevel::Fatal => CStr::from_bytes_with_nul(b"FATAL\0").expect("Static null-terminated string"),
+            LoggingLevel::Debug => c"DEBUG",
+            LoggingLevel::Info => c"INFO",
+            LoggingLevel::Warn => c"WARN",
+            LoggingLevel::Error => c"ERROR",
+            LoggingLevel::Fatal => c"FATAL",
         }
     }
 }
