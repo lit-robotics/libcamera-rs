@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -6,11 +7,25 @@ use std::{
 use semver::{Comparator, Op, Version};
 
 fn main() {
-    let libcamera_version = Version::new(
-        libcamera_sys::LIBCAMERA_VERSION_MAJOR as _,
-        libcamera_sys::LIBCAMERA_VERSION_MINOR as _,
-        libcamera_sys::LIBCAMERA_VERSION_PATCH as _,
-    );
+    let libcamera = match pkg_config::probe_library("libcamera") {
+        Ok(lib) => Ok(lib),
+        Err(e) => {
+            // Older libcamera versions use camera name instead of libcamera, try that instead
+            match pkg_config::probe_library("camera") {
+                Ok(lib) => Ok(lib),
+                // Return original error
+                Err(_) => Err(e),
+            }
+        }
+    }
+    .unwrap();
+
+    let libcamera_version = match Version::parse(&libcamera.version) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!("bad version from pkgconfig, {e:?}")
+        }
+    };
 
     let versioned_files = Path::new("versioned_files");
     let mut candidates = std::fs::read_dir(versioned_files)
