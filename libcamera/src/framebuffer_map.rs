@@ -24,7 +24,6 @@ struct MappedPlane {
     len: usize,
 }
 
-
 /// FrameBuffer wrapper, which exposes internal file descriptors as memory mapped [&[u8]] plane slices.
 #[derive(Clone)]
 pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
