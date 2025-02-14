@@ -86,6 +86,7 @@ impl FrameBufferAllocator {
     }
 }
 
+#[derive(Clone)]
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
     _alloc: Arc<Mutex<FrameBufferAllocatorInstance>>,

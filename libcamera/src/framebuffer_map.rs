@@ -17,13 +17,16 @@ pub enum MemoryMappedFrameBufferError {
     MemoryMapError(std::io::Error),
 }
 
+#[derive(Clone)]
 struct MappedPlane {
     fd: i32,
     offset: usize,
     len: usize,
 }
 
+
 /// FrameBuffer wrapper, which exposes internal file descriptors as memory mapped [&[u8]] plane slices.
+#[derive(Clone)]
 pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
     fb: T,
     mmaps: HashMap<i32, (*const core::ffi::c_void, usize)>,
