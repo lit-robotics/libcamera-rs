@@ -243,6 +243,7 @@ mod generate_rust {
             ControlType::String => "String",
             ControlType::Rectangle => "Rectangle",
             ControlType::Size => "Size",
+            ControlType::Point => "Point",
         };
 
         match size {

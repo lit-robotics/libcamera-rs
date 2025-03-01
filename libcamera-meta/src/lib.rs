@@ -10,22 +10,24 @@ pub enum ControlType {
     String,
     Rectangle,
     Size,
+    Point,
 }
 
 impl TryFrom<&str> for ControlType {
     type Error = String;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "bool" => Ok(ControlType::Bool),
-            "uint8_t" => Ok(ControlType::Byte),
-            "int32_t" => Ok(ControlType::Int32),
-            "int64_t" => Ok(ControlType::Int64),
-            "float" => Ok(ControlType::Float),
-            "string" => Ok(ControlType::String),
-            "Rectangle" => Ok(ControlType::Rectangle),
-            "Size" => Ok(ControlType::Size),
-            _ => Err(format!("Unknown control type {}", value)),
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "bool" => Ok(Self::Bool),
+            "byte" | "uint8" | "uint8_t" | "u8" => Ok(Self::Byte),
+            "int32" | "int32_t" => Ok(Self::Int32),
+            "int64" | "int64_t" => Ok(Self::Int64),
+            "float" => Ok(Self::Float),
+            "string" => Ok(Self::String),
+            "rectangle" => Ok(Self::Rectangle),
+            "size" => Ok(Self::Size),
+            "point" => Ok(Self::Point),
+            _ => Err(format!("Unknown control type {s}")),
         }
     }
 }
