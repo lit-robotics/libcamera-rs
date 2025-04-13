@@ -243,6 +243,7 @@ mod generate_rust {
             ControlType::String => "String",
             ControlType::Rectangle => "Rectangle",
             ControlType::Size => "Size",
+            ControlType::Point => "Point",
         };
 
         match size {
@@ -457,7 +458,7 @@ mod generate_rust {
                 use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
                 use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
-                use crate::geometry::{{Rectangle, Size}};
+                use crate::geometry::{{Rectangle, Size, Point}};
                 #[allow(unused_imports)]
                 use libcamera_sys::*;
                 "#;

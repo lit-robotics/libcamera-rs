@@ -89,7 +89,6 @@ impl ControlInfo {
 
             // Determine the size of libcamera_control_value_t
             let control_value_size = libcamera_control_value_size();
-            println!("libcamera::ControlValue size: {}", control_value_size);
 
             // Cast the pointer to *const u8 for byte-wise pointer arithmetic
             let base_ptr = values_ptr as *const u8;
@@ -224,6 +223,29 @@ impl ControlList {
 
         Ok(())
     }
+
+    /// Sets control value.
+    ///
+    /// This can fail if control is not supported by the camera, but due to libcamera API limitations an error will not
+    /// be returned. Use [ControlList::get] if you need to ensure that value was set.
+    pub fn set_raw(&mut self, id: u32, val: ControlValue) -> Result<(), ControlError> {
+        unsafe {
+            let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
+            val.write(val_ptr);
+            libcamera_control_list_set(self.ptr().cast_mut(), id as _, val_ptr.as_ptr());
+            libcamera_control_value_destroy(val_ptr.as_ptr());
+        }
+
+        Ok(())
+    }
+
+    pub fn get_raw(&mut self, id: u32) -> Result<ControlValue, ControlError> {
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr().cast_mut(), id as _).cast_mut() })
+            .ok_or(ControlError::NotFound(id))?;
+
+        let val = unsafe { ControlValue::read(val_ptr) }?;
+        Ok(val)
+    }
 }
 
 impl<'d> IntoIterator for &'d ControlList {
@@ -276,6 +298,7 @@ impl PropertyList {
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
+
         Ok(C::try_from(val)?)
     }
 
