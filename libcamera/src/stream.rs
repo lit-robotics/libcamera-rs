@@ -50,7 +50,7 @@ pub struct StreamFormatsRef<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> StreamFormatsRef<'d> {
+impl StreamFormatsRef<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_formats_t>) -> Self {
         Self {
             ptr,
@@ -81,7 +81,7 @@ impl<'d> StreamFormatsRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for StreamFormatsRef<'d> {
+impl core::fmt::Debug for StreamFormatsRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
         for pixel_format in self.pixel_formats().into_iter() {
@@ -96,7 +96,7 @@ pub struct StreamConfigurationRef<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> StreamConfigurationRef<'d> {
+impl StreamConfigurationRef<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_configuration_t>) -> Self {
         Self {
             ptr,
@@ -166,7 +166,7 @@ impl<'d> StreamConfigurationRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for StreamConfigurationRef<'d> {
+impl core::fmt::Debug for StreamConfigurationRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StreamConfigurationRef")
             .field("pixel_format", &self.get_pixel_format())
