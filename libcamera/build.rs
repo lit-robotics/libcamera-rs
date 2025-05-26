@@ -75,5 +75,9 @@ fn main() {
 
     for file in ["controls.rs", "properties.rs"] {
         std::fs::copy(selected_version.join(file), out_path.join(file)).unwrap();
+        print!(
+            "cargo:rerun-if-changed={}",
+            selected_version.join(file).to_string_lossy()
+        );
     }
 }
