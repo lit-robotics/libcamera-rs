@@ -33,7 +33,7 @@ jobs:
       - name: Test
         run: cargo test
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --no-deps -- -D warnings
       - name: Generate docs
         env:
           RUSTDOCFLAGS: "-Dwarnings"
