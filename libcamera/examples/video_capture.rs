@@ -123,7 +123,7 @@ fn main() {
         // Actual encoded data will be smalled than framebuffer size, its length can be obtained from metadata.
         let bytes_used = framebuffer.metadata().unwrap().planes().get(0).unwrap().bytes_used as usize;
 
-        file.write(&frame_data[..bytes_used]).unwrap();
+        file.write_all(&frame_data[..bytes_used]).unwrap();
         println!("Written {} bytes to {}", bytes_used, &filename);
 
         // Recycle the request back to the camera for execution

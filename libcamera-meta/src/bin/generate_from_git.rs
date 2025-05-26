@@ -56,7 +56,7 @@ fn main() {
         let name = std::str::from_utf8(name).unwrap();
         println!("Found tag {name}");
 
-        let version = name.split('/').last().unwrap();
+        let version = name.split('/').next_back().unwrap();
         if !version.starts_with('v') {
             return true;
         }
