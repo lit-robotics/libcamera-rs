@@ -4,24 +4,48 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
-use crate::geometry::{Rectangle, Size};
+use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ControlId {
-    /// Enable or disable the AE.
+    /// Enable or disable the AEGC algorithm. When this control is set to true,
+    /// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
+    /// control is set to false then both are set to manual.
     ///
-    /// \sa ExposureTime AnalogueGain
+    /// If ExposureTimeMode or AnalogueGainMode are also set in the same
+    /// request as AeEnable, then the modes supplied by ExposureTimeMode or
+    /// AnalogueGainMode will take precedence.
+    ///
+    /// \sa ExposureTimeMode AnalogueGainMode
     AeEnable = AE_ENABLE,
-    /// Report the lock status of a running AE algorithm.
+    /// Report the AEGC algorithm state.
     ///
-    /// If the AE algorithm is locked the value shall be set to true, if it's
-    /// converging it shall be set to false. If the AE algorithm is not
-    /// running the control shall not be present in the metadata control list.
+    /// The AEGC algorithm computes the exposure time and the analogue gain
+    /// to be applied to the image sensor.
     ///
-    /// \sa AeEnable
-    AeLocked = AE_LOCKED,
+    /// The AEGC algorithm behaviour is controlled by the ExposureTimeMode and
+    /// AnalogueGainMode controls, which allow applications to decide how
+    /// the exposure time and gain are computed, in Auto or Manual mode,
+    /// independently from one another.
+    ///
+    /// The AeState control reports the AEGC algorithm state through a single
+    /// value and describes it as a single computation block which computes
+    /// both the exposure time and the analogue gain values.
+    ///
+    /// When both the exposure time and analogue gain values are configured to
+    /// be in Manual mode, the AEGC algorithm is quiescent and does not actively
+    /// compute any value and the AeState control will report AeStateIdle.
+    ///
+    /// When at least the exposure time or analogue gain are configured to be
+    /// computed by the AEGC algorithm, the AeState control will report if the
+    /// algorithm has converged to stable values for all of the controls set
+    /// to be computed in Auto mode.
+    ///
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
+    AeState = AE_STATE,
     /// Specify a metering mode for the AE algorithm to use.
     ///
     /// The metering modes determine which parts of the image are used to
@@ -37,54 +61,160 @@ pub enum ControlId {
     /// Specify an exposure mode for the AE algorithm to use.
     ///
     /// The exposure modes specify how the desired total exposure is divided
-    /// between the shutter time and the sensor's analogue gain. They are
+    /// between the exposure time and the sensor's analogue gain. They are
     /// platform specific, and not all exposure modes may be supported.
+    ///
+    /// When one of AnalogueGainMode or ExposureTimeMode is set to Manual,
+    /// the fixed values will override any choices made by AeExposureMode.
+    ///
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
     AeExposureMode = AE_EXPOSURE_MODE,
     /// Specify an Exposure Value (EV) parameter.
     ///
     /// The EV parameter will only be applied if the AE algorithm is currently
-    /// enabled.
+    /// enabled, that is, at least one of AnalogueGainMode and ExposureTimeMode
+    /// are in Auto mode.
     ///
     /// By convention EV adjusts the exposure as log2. For example
     /// EV = [-2, -1, -0.5, 0, 0.5, 1, 2] results in an exposure adjustment
     /// of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
     ///
-    /// \sa AeEnable
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
     ExposureValue = EXPOSURE_VALUE,
-    /// Exposure time (shutter speed) for the frame applied in the sensor
-    /// device.
+    /// Exposure time for the frame applied in the sensor device.
     ///
     /// This value is specified in micro-seconds.
     ///
-    /// Setting this value means that it is now fixed and the AE algorithm may
-    /// not change it. Setting it back to zero returns it to the control of the
-    /// AE algorithm.
+    /// This control will only take effect if ExposureTimeMode is Manual. If
+    /// this control is set when ExposureTimeMode is Auto, the value will be
+    /// ignored and will not be retained.
     ///
-    /// \sa AnalogueGain AeEnable
+    /// When reported in metadata, this control indicates what exposure time
+    /// was used for the current frame, regardless of ExposureTimeMode.
+    /// ExposureTimeMode will indicate the source of the exposure time value,
+    /// whether it came from the AE algorithm or not.
     ///
-    /// \todo Document the interactions between AeEnable and setting a fixed
-    /// value for this control. Consider interactions with other AE features,
-    /// such as aperture and aperture/shutter priority mode, and decide if
-    /// control of which features should be automatically adjusted shouldn't
-    /// better be handled through a separate AE mode control.
+    /// \sa AnalogueGain
+    /// \sa ExposureTimeMode
     ExposureTime = EXPOSURE_TIME,
+    /// Controls the source of the exposure time that is applied to the image
+    /// sensor.
+    ///
+    /// When set to Auto, the AE algorithm computes the exposure time and
+    /// configures the image sensor accordingly. When set to Manual, the value
+    /// of the ExposureTime control is used.
+    ///
+    /// When transitioning from Auto to Manual mode and no ExposureTime control
+    /// is provided by the application, the last value computed by the AE
+    /// algorithm when the mode was Auto will be used. If the ExposureTimeMode
+    /// was never set to Auto (either because the camera started in Manual mode,
+    /// or Auto is not supported by the camera), the camera should use a
+    /// best-effort default value.
+    ///
+    /// If ExposureTimeModeManual is supported, the ExposureTime control must
+    /// also be supported.
+    ///
+    /// Cameras that support manual control of the sensor shall support manual
+    /// mode for both ExposureTimeMode and AnalogueGainMode, and shall expose
+    /// the ExposureTime and AnalogueGain controls. If the camera also has an
+    /// AEGC implementation, both ExposureTimeMode and AnalogueGainMode shall
+    /// support both manual and auto mode. If auto mode is available, it shall
+    /// be the default mode. These rules do not apply to black box cameras
+    /// such as UVC cameras, where the available gain and exposure modes are
+    /// completely dependent on what the device exposes.
+    ///
+    /// \par Flickerless exposure mode transitions
+    ///
+    /// Applications that wish to transition from ExposureTimeModeAuto to direct
+    /// control of the exposure time without causing extra flicker can do so by
+    /// selecting an ExposureTime value as close as possible to the last value
+    /// computed by the auto exposure algorithm in order to avoid any visible
+    /// flickering.
+    ///
+    /// To select the correct value to use as ExposureTime value, applications
+    /// should accommodate the natural delay in applying controls caused by the
+    /// capture pipeline frame depth.
+    ///
+    /// When switching to manual exposure mode, applications should not
+    /// immediately specify an ExposureTime value in the same request where
+    /// ExposureTimeMode is set to Manual. They should instead wait for the
+    /// first Request where ExposureTimeMode is reported as
+    /// ExposureTimeModeManual in the Request metadata, and use the reported
+    /// ExposureTime to populate the control value in the next Request to be
+    /// queued to the Camera.
+    ///
+    /// The implementation of the auto-exposure algorithm should equally try to
+    /// minimize flickering and when transitioning from manual exposure mode to
+    /// auto exposure use the last value provided by the application as starting
+    /// point.
+    ///
+    /// 1. Start with ExposureTimeMode set to Auto
+    ///
+    /// 2. Set ExposureTimeMode to Manual
+    ///
+    /// 3. Wait for the first completed request that has ExposureTimeMode
+    /// set to Manual
+    ///
+    /// 4. Copy the value reported in ExposureTime into a new request, and
+    /// submit it
+    ///
+    /// 5. Proceed to run manual exposure time as desired
+    ///
+    /// \sa ExposureTime
+    ExposureTimeMode = EXPOSURE_TIME_MODE,
     /// Analogue gain value applied in the sensor device.
     ///
     /// The value of the control specifies the gain multiplier applied to all
     /// colour channels. This value cannot be lower than 1.0.
     ///
-    /// Setting this value means that it is now fixed and the AE algorithm may
-    /// not change it. Setting it back to zero returns it to the control of the
-    /// AE algorithm.
+    /// This control will only take effect if AnalogueGainMode is Manual. If
+    /// this control is set when AnalogueGainMode is Auto, the value will be
+    /// ignored and will not be retained.
     ///
-    /// \sa ExposureTime AeEnable
+    /// When reported in metadata, this control indicates what analogue gain
+    /// was used for the current request, regardless of AnalogueGainMode.
+    /// AnalogueGainMode will indicate the source of the analogue gain value,
+    /// whether it came from the AEGC algorithm or not.
     ///
-    /// \todo Document the interactions between AeEnable and setting a fixed
-    /// value for this control. Consider interactions with other AE features,
-    /// such as aperture and aperture/shutter priority mode, and decide if
-    /// control of which features should be automatically adjusted shouldn't
-    /// better be handled through a separate AE mode control.
+    /// \sa ExposureTime
+    /// \sa AnalogueGainMode
     AnalogueGain = ANALOGUE_GAIN,
+    /// Controls the source of the analogue gain that is applied to the image
+    /// sensor.
+    ///
+    /// When set to Auto, the AEGC algorithm computes the analogue gain and
+    /// configures the image sensor accordingly. When set to Manual, the value
+    /// of the AnalogueGain control is used.
+    ///
+    /// When transitioning from Auto to Manual mode and no AnalogueGain control
+    /// is provided by the application, the last value computed by the AEGC
+    /// algorithm when the mode was Auto will be used. If the AnalogueGainMode
+    /// was never set to Auto (either because the camera started in Manual mode,
+    /// or Auto is not supported by the camera), the camera should use a
+    /// best-effort default value.
+    ///
+    /// If AnalogueGainModeManual is supported, the AnalogueGain control must
+    /// also be supported.
+    ///
+    /// For cameras where we have control over the ISP, both ExposureTimeMode
+    /// and AnalogueGainMode are expected to support manual mode, and both
+    /// controls (as well as ExposureTimeMode and AnalogueGain) are expected to
+    /// be present. If the camera also has an AEGC implementation, both
+    /// ExposureTimeMode and AnalogueGainMode shall support both manual and
+    /// auto mode. If auto mode is available, it shall be the default mode.
+    /// These rules do not apply to black box cameras such as UVC cameras,
+    /// where the available gain and exposure modes are completely dependent on
+    /// what the hardware exposes.
+    ///
+    /// The same procedure described for performing flickerless transitions in
+    /// the ExposureTimeMode control documentation can be applied to analogue
+    /// gain.
+    ///
+    /// \sa ExposureTimeMode
+    /// \sa AnalogueGain
+    AnalogueGainMode = ANALOGUE_GAIN_MODE,
     /// Set the flicker avoidance mode for AGC/AEC.
     ///
     /// The flicker mode determines whether, and how, the AGC/AEC algorithm
@@ -152,7 +282,19 @@ pub enum ControlId {
     Lux = LUX,
     /// Enable or disable the AWB.
     ///
+    /// When AWB is enabled, the algorithm estimates the colour temperature of
+    /// the scene and computes colour gains and the colour correction matrix
+    /// automatically. The computed colour temperature, gains and correction
+    /// matrix are reported in metadata. The corresponding controls are ignored
+    /// if set in a request.
+    ///
+    /// When AWB is disabled, the colour temperature, gains and correction
+    /// matrix are not updated automatically and can be set manually in
+    /// requests.
+    ///
+    /// \sa ColourCorrectionMatrix
     /// \sa ColourGains
+    /// \sa ColourTemperature
     AwbEnable = AWB_ENABLE,
     /// Specify the range of illuminants to use for the AWB algorithm.
     ///
@@ -171,12 +313,29 @@ pub enum ControlId {
     /// order.
     ///
     /// ColourGains can only be applied in a Request when the AWB is disabled.
+    /// If ColourGains is set in a request but ColourTemperature is not, the
+    /// implementation shall calculate and set the ColourTemperature based on
+    /// the ColourGains.
     ///
     /// \sa AwbEnable
+    /// \sa ColourTemperature
     ColourGains = COLOUR_GAINS,
-    /// Report the estimate of the colour temperature for the frame, in kelvin.
+    /// ColourTemperature of the frame, in kelvin.
     ///
-    /// The ColourTemperature control can only be returned in metadata.
+    /// ColourTemperature can only be applied in a Request when the AWB is
+    /// disabled.
+    ///
+    /// If ColourTemperature is set in a request but ColourGains is not, the
+    /// implementation shall calculate and set the ColourGains based on the
+    /// given ColourTemperature. If ColourTemperature is set (either directly,
+    /// or indirectly by setting ColourGains) but ColourCorrectionMatrix is not,
+    /// the ColourCorrectionMatrix is updated based on the ColourTemperature.
+    ///
+    /// The ColourTemperature used to process the frame is reported in metadata.
+    ///
+    /// \sa AwbEnable
+    /// \sa ColourCorrectionMatrix
+    /// \sa ColourGains
     ColourTemperature = COLOUR_TEMPERATURE,
     /// Specify a fixed saturation parameter.
     ///
@@ -216,6 +375,12 @@ pub enum ControlId {
     /// white-balanced, but before any gamma transformation. The 3x3 matrix is
     /// stored in conventional reading order in an array of 9 floating point
     /// values.
+    ///
+    /// ColourCorrectionMatrix can only be applied in a Request when the AWB is
+    /// disabled.
+    ///
+    /// \sa AwbEnable
+    /// \sa ColourTemperature
     ColourCorrectionMatrix = COLOUR_CORRECTION_MATRIX,
     /// Sets the image portion that will be scaled to form the whole of
     /// the final output image.
@@ -260,14 +425,13 @@ pub enum ControlId {
     /// values to be the same. Setting both values to 0 reverts to using the
     /// camera defaults.
     ///
-    /// The maximum frame duration provides the absolute limit to the shutter
-    /// speed computed by the AE algorithm and it overrides any exposure mode
+    /// The maximum frame duration provides the absolute limit to the exposure
+    /// time computed by the AE algorithm and it overrides any exposure mode
     /// setting specified with controls::AeExposureMode. Similarly, when a
     /// manual exposure time is set through controls::ExposureTime, it also
     /// gets clipped to the limits set by this control. When reported in
-    /// metadata, the control expresses the minimum and maximum frame
-    /// durations used after being clipped to the sensor provided frame
-    /// duration limits.
+    /// metadata, the control expresses the minimum and maximum frame durations
+    /// used after being clipped to the sensor provided frame duration limits.
     ///
     /// \sa AeExposureMode
     /// \sa ExposureTime
@@ -446,6 +610,8 @@ pub enum ControlId {
     /// The default gamma value must be 2.2 which closely mimics sRGB gamma.
     /// Note that this is camera gamma, so it is applied as 1.0/gamma.
     Gamma = GAMMA,
+    /// Enable or disable the debug metadata.
+    DebugMetadataEnable = DEBUG_METADATA_ENABLE,
     /// Control for AE metering trigger. Currently identical to
     /// ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
     ///
@@ -465,12 +631,6 @@ pub enum ControlId {
     ///  Mode of operation for the chromatic aberration correction algorithm.
     #[cfg(feature = "vendor_draft")]
     ColorCorrectionAberrationMode = COLOR_CORRECTION_ABERRATION_MODE,
-    /// Control to report the current AE algorithm state. Currently identical to
-    /// ANDROID_CONTROL_AE_STATE.
-    ///
-    ///  Current state of the AE algorithm.
-    #[cfg(feature = "vendor_draft")]
-    AeState = AE_STATE,
     /// Control to report the current AWB algorithm state. Currently identical
     /// to ANDROID_CONTROL_AWB_STATE.
     ///
@@ -509,6 +669,53 @@ pub enum ControlId {
     /// ANDROID_SENSOR_TEST_PATTERN_MODE.
     #[cfg(feature = "vendor_draft")]
     TestPatternMode = TEST_PATTERN_MODE,
+    /// Control to select the face detection mode used by the pipeline.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+    ///
+    /// \sa FaceDetectFaceRectangles
+    /// \sa FaceDetectFaceScores
+    /// \sa FaceDetectFaceLandmarks
+    /// \sa FaceDetectFaceIds
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectMode = FACE_DETECT_MODE,
+    /// Boundary rectangles of the detected faces. The number of values is
+    /// the number of detected faces.
+    ///
+    /// The FaceDetectFaceRectangles control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceRectangles = FACE_DETECT_FACE_RECTANGLES,
+    /// Confidence score of each of the detected faces. The range of score is
+    /// [0, 100]. The number of values should be the number of faces reported
+    /// in FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceScores control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceScores = FACE_DETECT_FACE_SCORES,
+    /// Array of human face landmark coordinates in format [..., left_eye_i,
+    /// right_eye_i, mouth_i, left_eye_i+1, ...], with i = index of face. The
+    /// number of values should be 3 * the number of faces reported in
+    /// FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceLandmarks control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceLandmarks = FACE_DETECT_FACE_LANDMARKS,
+    /// Each detected face is given a unique ID that is valid for as long as the
+    /// face is visible to the camera device. A face that leaves the field of
+    /// view and later returns may be assigned a new ID. The number of values
+    /// should be the number of faces reported in FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceIds control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_IDS.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceIds = FACE_DETECT_FACE_IDS,
     /// Toggles the Raspberry Pi IPA to output the hardware generated statistics.
     ///
     /// When this control is set to true, the IPA outputs a binary dump of the
@@ -527,10 +734,47 @@ pub enum ControlId {
     /// \sa StatsOutputEnable
     #[cfg(feature = "vendor_rpi")]
     Bcm2835StatsOutput = BCM2835_STATS_OUTPUT,
+    /// An array of rectangles, where each singular value has identical
+    /// functionality to the ScalerCrop control. This control allows the
+    /// Raspberry Pi pipeline handler to control individual scaler crops per
+    /// output stream.
+    ///
+    /// The order of rectangles passed into the control must match the order of
+    /// streams configured by the application. The pipeline handler will only
+    /// configure crop retangles up-to the number of output streams configured.
+    /// All subsequent rectangles passed into this control are ignored by the
+    /// pipeline handler.
+    ///
+    /// If both rpi::ScalerCrops and ScalerCrop controls are present in a
+    /// ControlList, the latter is discarded, and crops are obtained from this
+    /// control.
+    ///
+    /// Note that using different crop rectangles for each output stream with
+    /// this control is only applicable on the Pi5/PiSP platform. This control
+    /// should also be considered temporary/draft and will be replaced with
+    /// official libcamera API support for per-stream controls in the future.
+    ///
+    /// \sa ScalerCrop
+    #[cfg(feature = "vendor_rpi")]
+    ScalerCrops = SCALER_CROPS,
+    /// Span of the PiSP Frontend ISP generated statistics for the current
+    /// frame. This is sent in the Request metadata if the StatsOutputEnable is
+    /// set to true. The statistics struct definition can be found in
+    /// https://github.com/raspberrypi/libpisp/blob/main/src/libpisp/frontend/pisp_statistics.h
+    ///
+    /// \sa StatsOutputEnable
+    #[cfg(feature = "vendor_rpi")]
+    PispStatsOutput = PISP_STATS_OUTPUT,
 }
-/// Enable or disable the AE.
+/// Enable or disable the AEGC algorithm. When this control is set to true,
+/// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
+/// control is set to false then both are set to manual.
 ///
-/// \sa ExposureTime AnalogueGain
+/// If ExposureTimeMode or AnalogueGainMode are also set in the same
+/// request as AeEnable, then the modes supplied by ExposureTimeMode or
+/// AnalogueGainMode will take precedence.
+///
+/// \sa ExposureTimeMode AnalogueGainMode
 #[derive(Debug, Clone)]
 pub struct AeEnable(pub bool);
 impl Deref for AeEnable {
@@ -559,41 +803,78 @@ impl ControlEntry for AeEnable {
     const ID: u32 = ControlId::AeEnable as _;
 }
 impl Control for AeEnable {}
-/// Report the lock status of a running AE algorithm.
+/// Report the AEGC algorithm state.
 ///
-/// If the AE algorithm is locked the value shall be set to true, if it's
-/// converging it shall be set to false. If the AE algorithm is not
-/// running the control shall not be present in the metadata control list.
+/// The AEGC algorithm computes the exposure time and the analogue gain
+/// to be applied to the image sensor.
 ///
-/// \sa AeEnable
-#[derive(Debug, Clone)]
-pub struct AeLocked(pub bool);
-impl Deref for AeLocked {
-    type Target = bool;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+/// The AEGC algorithm behaviour is controlled by the ExposureTimeMode and
+/// AnalogueGainMode controls, which allow applications to decide how
+/// the exposure time and gain are computed, in Auto or Manual mode,
+/// independently from one another.
+///
+/// The AeState control reports the AEGC algorithm state through a single
+/// value and describes it as a single computation block which computes
+/// both the exposure time and the analogue gain values.
+///
+/// When both the exposure time and analogue gain values are configured to
+/// be in Manual mode, the AEGC algorithm is quiescent and does not actively
+/// compute any value and the AeState control will report AeStateIdle.
+///
+/// When at least the exposure time or analogue gain are configured to be
+/// computed by the AEGC algorithm, the AeState control will report if the
+/// algorithm has converged to stable values for all of the controls set
+/// to be computed in Auto mode.
+///
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum AeState {
+    /// The AEGC algorithm is inactive.
+    ///
+    /// This state is returned when both AnalogueGainMode and
+    /// ExposureTimeMode are set to Manual and the algorithm is not
+    /// actively computing any value.
+    Idle = 0,
+    /// The AEGC algorithm is actively computing new values, for either the
+    /// exposure time or the analogue gain, but has not converged to a
+    /// stable result yet.
+    ///
+    /// This state is returned if at least one of AnalogueGainMode or
+    /// ExposureTimeMode is auto and the algorithm hasn't converged yet.
+    ///
+    /// The AEGC algorithm converges once stable values are computed for
+    /// all of the controls set to be computed in Auto mode. Once the
+    /// algorithm converges the state is moved to AeStateConverged.
+    Searching = 1,
+    /// The AEGC algorithm has converged.
+    ///
+    /// This state is returned if at least one of AnalogueGainMode or
+    /// ExposureTimeMode is Auto, and the AEGC algorithm has converged to a
+    /// stable value.
+    ///
+    /// If the measurements move too far away from the convergence point
+    /// then the AEGC algorithm might start adjusting again, in which case
+    /// the state is moved to AeStateSearching.
+    Converged = 2,
 }
-impl DerefMut for AeLocked {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl TryFrom<ControlValue> for AeLocked {
+impl TryFrom<ControlValue> for AeState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(<bool>::try_from(value)?))
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
-impl From<AeLocked> for ControlValue {
-    fn from(val: AeLocked) -> Self {
-        ControlValue::from(val.0)
+impl From<AeState> for ControlValue {
+    fn from(val: AeState) -> Self {
+        ControlValue::from(<i32>::from(val))
     }
 }
-impl ControlEntry for AeLocked {
-    const ID: u32 = ControlId::AeLocked as _;
+impl ControlEntry for AeState {
+    const ID: u32 = ControlId::AeState as _;
 }
-impl Control for AeLocked {}
+impl Control for AeState {}
 /// Specify a metering mode for the AE algorithm to use.
 ///
 /// The metering modes determine which parts of the image are used to
@@ -676,8 +957,14 @@ impl Control for AeConstraintMode {}
 /// Specify an exposure mode for the AE algorithm to use.
 ///
 /// The exposure modes specify how the desired total exposure is divided
-/// between the shutter time and the sensor's analogue gain. They are
+/// between the exposure time and the sensor's analogue gain. They are
 /// platform specific, and not all exposure modes may be supported.
+///
+/// When one of AnalogueGainMode or ExposureTimeMode is set to Manual,
+/// the fixed values will override any choices made by AeExposureMode.
+///
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AeExposureMode {
@@ -709,13 +996,15 @@ impl Control for AeExposureMode {}
 /// Specify an Exposure Value (EV) parameter.
 ///
 /// The EV parameter will only be applied if the AE algorithm is currently
-/// enabled.
+/// enabled, that is, at least one of AnalogueGainMode and ExposureTimeMode
+/// are in Auto mode.
 ///
 /// By convention EV adjusts the exposure as log2. For example
 /// EV = [-2, -1, -0.5, 0, 0.5, 1, 2] results in an exposure adjustment
 /// of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
 ///
-/// \sa AeEnable
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone)]
 pub struct ExposureValue(pub f32);
 impl Deref for ExposureValue {
@@ -744,22 +1033,21 @@ impl ControlEntry for ExposureValue {
     const ID: u32 = ControlId::ExposureValue as _;
 }
 impl Control for ExposureValue {}
-/// Exposure time (shutter speed) for the frame applied in the sensor
-/// device.
+/// Exposure time for the frame applied in the sensor device.
 ///
 /// This value is specified in micro-seconds.
 ///
-/// Setting this value means that it is now fixed and the AE algorithm may
-/// not change it. Setting it back to zero returns it to the control of the
-/// AE algorithm.
+/// This control will only take effect if ExposureTimeMode is Manual. If
+/// this control is set when ExposureTimeMode is Auto, the value will be
+/// ignored and will not be retained.
 ///
-/// \sa AnalogueGain AeEnable
+/// When reported in metadata, this control indicates what exposure time
+/// was used for the current frame, regardless of ExposureTimeMode.
+/// ExposureTimeMode will indicate the source of the exposure time value,
+/// whether it came from the AE algorithm or not.
 ///
-/// \todo Document the interactions between AeEnable and setting a fixed
-/// value for this control. Consider interactions with other AE features,
-/// such as aperture and aperture/shutter priority mode, and decide if
-/// control of which features should be automatically adjusted shouldn't
-/// better be handled through a separate AE mode control.
+/// \sa AnalogueGain
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone)]
 pub struct ExposureTime(pub i32);
 impl Deref for ExposureTime {
@@ -788,22 +1076,123 @@ impl ControlEntry for ExposureTime {
     const ID: u32 = ControlId::ExposureTime as _;
 }
 impl Control for ExposureTime {}
+/// Controls the source of the exposure time that is applied to the image
+/// sensor.
+///
+/// When set to Auto, the AE algorithm computes the exposure time and
+/// configures the image sensor accordingly. When set to Manual, the value
+/// of the ExposureTime control is used.
+///
+/// When transitioning from Auto to Manual mode and no ExposureTime control
+/// is provided by the application, the last value computed by the AE
+/// algorithm when the mode was Auto will be used. If the ExposureTimeMode
+/// was never set to Auto (either because the camera started in Manual mode,
+/// or Auto is not supported by the camera), the camera should use a
+/// best-effort default value.
+///
+/// If ExposureTimeModeManual is supported, the ExposureTime control must
+/// also be supported.
+///
+/// Cameras that support manual control of the sensor shall support manual
+/// mode for both ExposureTimeMode and AnalogueGainMode, and shall expose
+/// the ExposureTime and AnalogueGain controls. If the camera also has an
+/// AEGC implementation, both ExposureTimeMode and AnalogueGainMode shall
+/// support both manual and auto mode. If auto mode is available, it shall
+/// be the default mode. These rules do not apply to black box cameras
+/// such as UVC cameras, where the available gain and exposure modes are
+/// completely dependent on what the device exposes.
+///
+/// \par Flickerless exposure mode transitions
+///
+/// Applications that wish to transition from ExposureTimeModeAuto to direct
+/// control of the exposure time without causing extra flicker can do so by
+/// selecting an ExposureTime value as close as possible to the last value
+/// computed by the auto exposure algorithm in order to avoid any visible
+/// flickering.
+///
+/// To select the correct value to use as ExposureTime value, applications
+/// should accommodate the natural delay in applying controls caused by the
+/// capture pipeline frame depth.
+///
+/// When switching to manual exposure mode, applications should not
+/// immediately specify an ExposureTime value in the same request where
+/// ExposureTimeMode is set to Manual. They should instead wait for the
+/// first Request where ExposureTimeMode is reported as
+/// ExposureTimeModeManual in the Request metadata, and use the reported
+/// ExposureTime to populate the control value in the next Request to be
+/// queued to the Camera.
+///
+/// The implementation of the auto-exposure algorithm should equally try to
+/// minimize flickering and when transitioning from manual exposure mode to
+/// auto exposure use the last value provided by the application as starting
+/// point.
+///
+/// 1. Start with ExposureTimeMode set to Auto
+///
+/// 2. Set ExposureTimeMode to Manual
+///
+/// 3. Wait for the first completed request that has ExposureTimeMode
+/// set to Manual
+///
+/// 4. Copy the value reported in ExposureTime into a new request, and
+/// submit it
+///
+/// 5. Proceed to run manual exposure time as desired
+///
+/// \sa ExposureTime
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum ExposureTimeMode {
+    /// The exposure time will be calculated automatically and set by the
+    /// AE algorithm.
+    ///
+    /// If ExposureTime is set while this mode is active, it will be
+    /// ignored, and its value will not be retained.
+    ///
+    /// When transitioning from Manual to Auto mode, the AEGC should start
+    /// its adjustments based on the last set manual ExposureTime value.
+    Auto = 0,
+    /// The exposure time will not be updated by the AE algorithm.
+    ///
+    /// When transitioning from Auto to Manual mode, the last computed
+    /// exposure value is used until a new value is specified through the
+    /// ExposureTime control. If an ExposureTime value is specified in the
+    /// same request where the ExposureTimeMode is changed from Auto to
+    /// Manual, the provided ExposureTime is applied immediately.
+    Manual = 1,
+}
+impl TryFrom<ControlValue> for ExposureTimeMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+impl From<ExposureTimeMode> for ControlValue {
+    fn from(val: ExposureTimeMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+impl ControlEntry for ExposureTimeMode {
+    const ID: u32 = ControlId::ExposureTimeMode as _;
+}
+impl Control for ExposureTimeMode {}
 /// Analogue gain value applied in the sensor device.
 ///
 /// The value of the control specifies the gain multiplier applied to all
 /// colour channels. This value cannot be lower than 1.0.
 ///
-/// Setting this value means that it is now fixed and the AE algorithm may
-/// not change it. Setting it back to zero returns it to the control of the
-/// AE algorithm.
+/// This control will only take effect if AnalogueGainMode is Manual. If
+/// this control is set when AnalogueGainMode is Auto, the value will be
+/// ignored and will not be retained.
 ///
-/// \sa ExposureTime AeEnable
+/// When reported in metadata, this control indicates what analogue gain
+/// was used for the current request, regardless of AnalogueGainMode.
+/// AnalogueGainMode will indicate the source of the analogue gain value,
+/// whether it came from the AEGC algorithm or not.
 ///
-/// \todo Document the interactions between AeEnable and setting a fixed
-/// value for this control. Consider interactions with other AE features,
-/// such as aperture and aperture/shutter priority mode, and decide if
-/// control of which features should be automatically adjusted shouldn't
-/// better be handled through a separate AE mode control.
+/// \sa ExposureTime
+/// \sa AnalogueGainMode
 #[derive(Debug, Clone)]
 pub struct AnalogueGain(pub f32);
 impl Deref for AnalogueGain {
@@ -832,6 +1221,76 @@ impl ControlEntry for AnalogueGain {
     const ID: u32 = ControlId::AnalogueGain as _;
 }
 impl Control for AnalogueGain {}
+/// Controls the source of the analogue gain that is applied to the image
+/// sensor.
+///
+/// When set to Auto, the AEGC algorithm computes the analogue gain and
+/// configures the image sensor accordingly. When set to Manual, the value
+/// of the AnalogueGain control is used.
+///
+/// When transitioning from Auto to Manual mode and no AnalogueGain control
+/// is provided by the application, the last value computed by the AEGC
+/// algorithm when the mode was Auto will be used. If the AnalogueGainMode
+/// was never set to Auto (either because the camera started in Manual mode,
+/// or Auto is not supported by the camera), the camera should use a
+/// best-effort default value.
+///
+/// If AnalogueGainModeManual is supported, the AnalogueGain control must
+/// also be supported.
+///
+/// For cameras where we have control over the ISP, both ExposureTimeMode
+/// and AnalogueGainMode are expected to support manual mode, and both
+/// controls (as well as ExposureTimeMode and AnalogueGain) are expected to
+/// be present. If the camera also has an AEGC implementation, both
+/// ExposureTimeMode and AnalogueGainMode shall support both manual and
+/// auto mode. If auto mode is available, it shall be the default mode.
+/// These rules do not apply to black box cameras such as UVC cameras,
+/// where the available gain and exposure modes are completely dependent on
+/// what the hardware exposes.
+///
+/// The same procedure described for performing flickerless transitions in
+/// the ExposureTimeMode control documentation can be applied to analogue
+/// gain.
+///
+/// \sa ExposureTimeMode
+/// \sa AnalogueGain
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum AnalogueGainMode {
+    /// The analogue gain will be calculated automatically and set by the
+    /// AEGC algorithm.
+    ///
+    /// If AnalogueGain is set while this mode is active, it will be
+    /// ignored, and it will also not be retained.
+    ///
+    /// When transitioning from Manual to Auto mode, the AEGC should start
+    /// its adjustments based on the last set manual AnalogueGain value.
+    Auto = 0,
+    /// The analogue gain will not be updated by the AEGC algorithm.
+    ///
+    /// When transitioning from Auto to Manual mode, the last computed
+    /// gain value is used until a new value is specified through the
+    /// AnalogueGain control. If an AnalogueGain value is specified in the
+    /// same request where the AnalogueGainMode is changed from Auto to
+    /// Manual, the provided AnalogueGain is applied immediately.
+    Manual = 1,
+}
+impl TryFrom<ControlValue> for AnalogueGainMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+impl From<AnalogueGainMode> for ControlValue {
+    fn from(val: AnalogueGainMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+impl ControlEntry for AnalogueGainMode {
+    const ID: u32 = ControlId::AnalogueGainMode as _;
+}
+impl Control for AnalogueGainMode {}
 /// Set the flicker avoidance mode for AGC/AEC.
 ///
 /// The flicker mode determines whether, and how, the AGC/AEC algorithm
@@ -1069,7 +1528,19 @@ impl ControlEntry for Lux {
 impl Control for Lux {}
 /// Enable or disable the AWB.
 ///
+/// When AWB is enabled, the algorithm estimates the colour temperature of
+/// the scene and computes colour gains and the colour correction matrix
+/// automatically. The computed colour temperature, gains and correction
+/// matrix are reported in metadata. The corresponding controls are ignored
+/// if set in a request.
+///
+/// When AWB is disabled, the colour temperature, gains and correction
+/// matrix are not updated automatically and can be set manually in
+/// requests.
+///
+/// \sa ColourCorrectionMatrix
 /// \sa ColourGains
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct AwbEnable(pub bool);
 impl Deref for AwbEnable {
@@ -1177,8 +1648,12 @@ impl Control for AwbLocked {}
 /// order.
 ///
 /// ColourGains can only be applied in a Request when the AWB is disabled.
+/// If ColourGains is set in a request but ColourTemperature is not, the
+/// implementation shall calculate and set the ColourTemperature based on
+/// the ColourGains.
 ///
 /// \sa AwbEnable
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct ColourGains(pub [f32; 2]);
 impl Deref for ColourGains {
@@ -1207,9 +1682,22 @@ impl ControlEntry for ColourGains {
     const ID: u32 = ControlId::ColourGains as _;
 }
 impl Control for ColourGains {}
-/// Report the estimate of the colour temperature for the frame, in kelvin.
+/// ColourTemperature of the frame, in kelvin.
 ///
-/// The ColourTemperature control can only be returned in metadata.
+/// ColourTemperature can only be applied in a Request when the AWB is
+/// disabled.
+///
+/// If ColourTemperature is set in a request but ColourGains is not, the
+/// implementation shall calculate and set the ColourGains based on the
+/// given ColourTemperature. If ColourTemperature is set (either directly,
+/// or indirectly by setting ColourGains) but ColourCorrectionMatrix is not,
+/// the ColourCorrectionMatrix is updated based on the ColourTemperature.
+///
+/// The ColourTemperature used to process the frame is reported in metadata.
+///
+/// \sa AwbEnable
+/// \sa ColourCorrectionMatrix
+/// \sa ColourGains
 #[derive(Debug, Clone)]
 pub struct ColourTemperature(pub i32);
 impl Deref for ColourTemperature {
@@ -1384,6 +1872,12 @@ impl Control for FocusFoM {}
 /// white-balanced, but before any gamma transformation. The 3x3 matrix is
 /// stored in conventional reading order in an array of 9 floating point
 /// values.
+///
+/// ColourCorrectionMatrix can only be applied in a Request when the AWB is
+/// disabled.
+///
+/// \sa AwbEnable
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct ColourCorrectionMatrix(pub [[f32; 3]; 3]);
 impl Deref for ColourCorrectionMatrix {
@@ -1536,14 +2030,13 @@ impl Control for FrameDuration {}
 /// values to be the same. Setting both values to 0 reverts to using the
 /// camera defaults.
 ///
-/// The maximum frame duration provides the absolute limit to the shutter
-/// speed computed by the AE algorithm and it overrides any exposure mode
+/// The maximum frame duration provides the absolute limit to the exposure
+/// time computed by the AE algorithm and it overrides any exposure mode
 /// setting specified with controls::AeExposureMode. Similarly, when a
 /// manual exposure time is set through controls::ExposureTime, it also
 /// gets clipped to the limits set by this control. When reported in
-/// metadata, the control expresses the minimum and maximum frame
-/// durations used after being clipped to the sensor provided frame
-/// duration limits.
+/// metadata, the control expresses the minimum and maximum frame durations
+/// used after being clipped to the sensor provided frame duration limits.
 ///
 /// \sa AeExposureMode
 /// \sa ExposureTime
@@ -2266,6 +2759,35 @@ impl ControlEntry for Gamma {
     const ID: u32 = ControlId::Gamma as _;
 }
 impl Control for Gamma {}
+/// Enable or disable the debug metadata.
+#[derive(Debug, Clone)]
+pub struct DebugMetadataEnable(pub bool);
+impl Deref for DebugMetadataEnable {
+    type Target = bool;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for DebugMetadataEnable {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl TryFrom<ControlValue> for DebugMetadataEnable {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<bool>::try_from(value)?))
+    }
+}
+impl From<DebugMetadataEnable> for ControlValue {
+    fn from(val: DebugMetadataEnable) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+impl ControlEntry for DebugMetadataEnable {
+    const ID: u32 = ControlId::DebugMetadataEnable as _;
+}
+impl Control for DebugMetadataEnable {}
 /// Control for AE metering trigger. Currently identical to
 /// ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
 ///
@@ -2378,48 +2900,6 @@ impl ControlEntry for ColorCorrectionAberrationMode {
 }
 #[cfg(feature = "vendor_draft")]
 impl Control for ColorCorrectionAberrationMode {}
-/// Control to report the current AE algorithm state. Currently identical to
-/// ANDROID_CONTROL_AE_STATE.
-///
-///  Current state of the AE algorithm.
-#[cfg(feature = "vendor_draft")]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(i32)]
-pub enum AeState {
-    /// The AE algorithm is inactive.
-    Inactive = 0,
-    /// The AE algorithm has not converged yet.
-    Searching = 1,
-    /// The AE algorithm has converged.
-    Converged = 2,
-    /// The AE algorithm is locked.
-    Locked = 3,
-    /// The AE algorithm would need a flash for good results
-    FlashRequired = 4,
-    /// The AE algorithm has started a pre-capture metering session.
-    /// \sa AePrecaptureTrigger
-    Precapture = 5,
-}
-#[cfg(feature = "vendor_draft")]
-impl TryFrom<ControlValue> for AeState {
-    type Error = ControlValueError;
-    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
-    }
-}
-#[cfg(feature = "vendor_draft")]
-impl From<AeState> for ControlValue {
-    fn from(val: AeState) -> Self {
-        ControlValue::from(<i32>::from(val))
-    }
-}
-#[cfg(feature = "vendor_draft")]
-impl ControlEntry for AeState {
-    const ID: u32 = ControlId::AeState as _;
-}
-#[cfg(feature = "vendor_draft")]
-impl Control for AeState {}
 /// Control to report the current AWB algorithm state. Currently identical
 /// to ANDROID_CONTROL_AWB_STATE.
 ///
@@ -2676,6 +3156,221 @@ impl ControlEntry for TestPatternMode {
 }
 #[cfg(feature = "vendor_draft")]
 impl Control for TestPatternMode {}
+/// Control to select the face detection mode used by the pipeline.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+///
+/// \sa FaceDetectFaceRectangles
+/// \sa FaceDetectFaceScores
+/// \sa FaceDetectFaceLandmarks
+/// \sa FaceDetectFaceIds
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum FaceDetectMode {
+    /// Pipeline doesn't perform face detection and doesn't report any
+    /// control related to face detection.
+    Off = 0,
+    /// Pipeline performs face detection and reports the
+    /// FaceDetectFaceRectangles and FaceDetectFaceScores controls for each
+    /// detected face. FaceDetectFaceLandmarks and FaceDetectFaceIds are
+    /// optional.
+    Simple = 1,
+    /// Pipeline performs face detection and reports all the controls
+    /// related to face detection including FaceDetectFaceRectangles,
+    /// FaceDetectFaceScores, FaceDetectFaceLandmarks, and
+    /// FaceDeteceFaceIds for each detected face.
+    Full = 2,
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectMode> for ControlValue {
+    fn from(val: FaceDetectMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectMode {
+    const ID: u32 = ControlId::FaceDetectMode as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectMode {}
+/// Boundary rectangles of the detected faces. The number of values is
+/// the number of detected faces.
+///
+/// The FaceDetectFaceRectangles control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceRectangles(pub Vec<Rectangle>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceRectangles {
+    type Target = Vec<Rectangle>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceRectangles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceRectangles {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceRectangles> for ControlValue {
+    fn from(val: FaceDetectFaceRectangles) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceRectangles {
+    const ID: u32 = ControlId::FaceDetectFaceRectangles as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceRectangles {}
+/// Confidence score of each of the detected faces. The range of score is
+/// [0, 100]. The number of values should be the number of faces reported
+/// in FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceScores control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceScores(pub Vec<u8>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceScores {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceScores {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceScores {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<u8>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceScores> for ControlValue {
+    fn from(val: FaceDetectFaceScores) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceScores {
+    const ID: u32 = ControlId::FaceDetectFaceScores as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceScores {}
+/// Array of human face landmark coordinates in format [..., left_eye_i,
+/// right_eye_i, mouth_i, left_eye_i+1, ...], with i = index of face. The
+/// number of values should be 3 * the number of faces reported in
+/// FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceLandmarks control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceLandmarks(pub Vec<Point>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceLandmarks {
+    type Target = Vec<Point>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceLandmarks {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceLandmarks {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Point>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceLandmarks> for ControlValue {
+    fn from(val: FaceDetectFaceLandmarks) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceLandmarks {
+    const ID: u32 = ControlId::FaceDetectFaceLandmarks as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceLandmarks {}
+/// Each detected face is given a unique ID that is valid for as long as the
+/// face is visible to the camera device. A face that leaves the field of
+/// view and later returns may be assigned a new ID. The number of values
+/// should be the number of faces reported in FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceIds control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_IDS.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceIds(pub Vec<i32>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceIds {
+    type Target = Vec<i32>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceIds {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceIds {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<i32>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceIds> for ControlValue {
+    fn from(val: FaceDetectFaceIds) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceIds {
+    const ID: u32 = ControlId::FaceDetectFaceIds as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceIds {}
 /// Toggles the Raspberry Pi IPA to output the hardware generated statistics.
 ///
 /// When this control is set to true, the IPA outputs a binary dump of the
@@ -2760,19 +3455,118 @@ impl ControlEntry for Bcm2835StatsOutput {
 }
 #[cfg(feature = "vendor_rpi")]
 impl Control for Bcm2835StatsOutput {}
+/// An array of rectangles, where each singular value has identical
+/// functionality to the ScalerCrop control. This control allows the
+/// Raspberry Pi pipeline handler to control individual scaler crops per
+/// output stream.
+///
+/// The order of rectangles passed into the control must match the order of
+/// streams configured by the application. The pipeline handler will only
+/// configure crop retangles up-to the number of output streams configured.
+/// All subsequent rectangles passed into this control are ignored by the
+/// pipeline handler.
+///
+/// If both rpi::ScalerCrops and ScalerCrop controls are present in a
+/// ControlList, the latter is discarded, and crops are obtained from this
+/// control.
+///
+/// Note that using different crop rectangles for each output stream with
+/// this control is only applicable on the Pi5/PiSP platform. This control
+/// should also be considered temporary/draft and will be replaced with
+/// official libcamera API support for per-stream controls in the future.
+///
+/// \sa ScalerCrop
+#[cfg(feature = "vendor_rpi")]
+#[derive(Debug, Clone)]
+pub struct ScalerCrops(pub Vec<Rectangle>);
+#[cfg(feature = "vendor_rpi")]
+impl Deref for ScalerCrops {
+    type Target = Vec<Rectangle>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl DerefMut for ScalerCrops {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl TryFrom<ControlValue> for ScalerCrops {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl From<ScalerCrops> for ControlValue {
+    fn from(val: ScalerCrops) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl ControlEntry for ScalerCrops {
+    const ID: u32 = ControlId::ScalerCrops as _;
+}
+#[cfg(feature = "vendor_rpi")]
+impl Control for ScalerCrops {}
+/// Span of the PiSP Frontend ISP generated statistics for the current
+/// frame. This is sent in the Request metadata if the StatsOutputEnable is
+/// set to true. The statistics struct definition can be found in
+/// https://github.com/raspberrypi/libpisp/blob/main/src/libpisp/frontend/pisp_statistics.h
+///
+/// \sa StatsOutputEnable
+#[cfg(feature = "vendor_rpi")]
+#[derive(Debug, Clone)]
+pub struct PispStatsOutput(pub Vec<u8>);
+#[cfg(feature = "vendor_rpi")]
+impl Deref for PispStatsOutput {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl DerefMut for PispStatsOutput {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl TryFrom<ControlValue> for PispStatsOutput {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<u8>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl From<PispStatsOutput> for ControlValue {
+    fn from(val: PispStatsOutput) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl ControlEntry for PispStatsOutput {
+    const ID: u32 = ControlId::PispStatsOutput as _;
+}
+#[cfg(feature = "vendor_rpi")]
+impl Control for PispStatsOutput {}
 pub fn make_dyn(
     id: ControlId,
     val: ControlValue,
 ) -> Result<Box<dyn DynControlEntry>, ControlValueError> {
     match id {
         ControlId::AeEnable => Ok(Box::new(AeEnable::try_from(val)?)),
-        ControlId::AeLocked => Ok(Box::new(AeLocked::try_from(val)?)),
+        ControlId::AeState => Ok(Box::new(AeState::try_from(val)?)),
         ControlId::AeMeteringMode => Ok(Box::new(AeMeteringMode::try_from(val)?)),
         ControlId::AeConstraintMode => Ok(Box::new(AeConstraintMode::try_from(val)?)),
         ControlId::AeExposureMode => Ok(Box::new(AeExposureMode::try_from(val)?)),
         ControlId::ExposureValue => Ok(Box::new(ExposureValue::try_from(val)?)),
         ControlId::ExposureTime => Ok(Box::new(ExposureTime::try_from(val)?)),
+        ControlId::ExposureTimeMode => Ok(Box::new(ExposureTimeMode::try_from(val)?)),
         ControlId::AnalogueGain => Ok(Box::new(AnalogueGain::try_from(val)?)),
+        ControlId::AnalogueGainMode => Ok(Box::new(AnalogueGainMode::try_from(val)?)),
         ControlId::AeFlickerMode => Ok(Box::new(AeFlickerMode::try_from(val)?)),
         ControlId::AeFlickerPeriod => Ok(Box::new(AeFlickerPeriod::try_from(val)?)),
         ControlId::AeFlickerDetected => Ok(Box::new(AeFlickerDetected::try_from(val)?)),
@@ -2812,6 +3606,9 @@ pub fn make_dyn(
         ControlId::HdrMode => Ok(Box::new(HdrMode::try_from(val)?)),
         ControlId::HdrChannel => Ok(Box::new(HdrChannel::try_from(val)?)),
         ControlId::Gamma => Ok(Box::new(Gamma::try_from(val)?)),
+        ControlId::DebugMetadataEnable => {
+            Ok(Box::new(DebugMetadataEnable::try_from(val)?))
+        }
         #[cfg(feature = "vendor_draft")]
         ControlId::AePrecaptureTrigger => {
             Ok(Box::new(AePrecaptureTrigger::try_from(val)?))
@@ -2822,8 +3619,6 @@ pub fn make_dyn(
         ControlId::ColorCorrectionAberrationMode => {
             Ok(Box::new(ColorCorrectionAberrationMode::try_from(val)?))
         }
-        #[cfg(feature = "vendor_draft")]
-        ControlId::AeState => Ok(Box::new(AeState::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::AwbState => Ok(Box::new(AwbState::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
@@ -2838,9 +3633,29 @@ pub fn make_dyn(
         ControlId::MaxLatency => Ok(Box::new(MaxLatency::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::TestPatternMode => Ok(Box::new(TestPatternMode::try_from(val)?)),
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectMode => Ok(Box::new(FaceDetectMode::try_from(val)?)),
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceRectangles => {
+            Ok(Box::new(FaceDetectFaceRectangles::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceScores => {
+            Ok(Box::new(FaceDetectFaceScores::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceLandmarks => {
+            Ok(Box::new(FaceDetectFaceLandmarks::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceIds => Ok(Box::new(FaceDetectFaceIds::try_from(val)?)),
         #[cfg(feature = "vendor_rpi")]
         ControlId::StatsOutputEnable => Ok(Box::new(StatsOutputEnable::try_from(val)?)),
         #[cfg(feature = "vendor_rpi")]
         ControlId::Bcm2835StatsOutput => Ok(Box::new(Bcm2835StatsOutput::try_from(val)?)),
+        #[cfg(feature = "vendor_rpi")]
+        ControlId::ScalerCrops => Ok(Box::new(ScalerCrops::try_from(val)?)),
+        #[cfg(feature = "vendor_rpi")]
+        ControlId::PispStatsOutput => Ok(Box::new(PispStatsOutput::try_from(val)?)),
     }
 }

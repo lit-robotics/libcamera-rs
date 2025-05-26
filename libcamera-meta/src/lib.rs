@@ -10,6 +10,7 @@ pub enum ControlType {
     String,
     Rectangle,
     Size,
+    Point,
 }
 
 impl TryFrom<&str> for ControlType {
@@ -24,6 +25,7 @@ impl TryFrom<&str> for ControlType {
             "float" => Ok(ControlType::Float),
             "string" => Ok(ControlType::String),
             "Rectangle" => Ok(ControlType::Rectangle),
+            "Point" => Ok(ControlType::Point),
             "Size" => Ok(ControlType::Size),
             _ => Err(format!("Unknown control type {}", value)),
         }

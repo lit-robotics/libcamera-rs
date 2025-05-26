@@ -4,7 +4,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
-use crate::geometry::{Rectangle, Size};
+use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -12,10 +12,10 @@ use libcamera_sys::*;
 pub enum PropertyId {
     /// Camera mounting location
     Location = LOCATION,
-    /// The camera rotation is expressed as the angular difference in degrees
-    /// between two reference systems, one relative to the camera module, and
-    /// one defined on the external world scene to be captured when projected
-    /// on the image sensor pixel array.
+    /// The camera physical mounting rotation. It is expressed as the angular
+    /// difference in degrees between two reference systems, one relative to the
+    /// camera module, and one defined on the external world scene to be
+    /// captured when projected on the image sensor pixel array.
     ///
     /// A camera sensor has a 2-dimensional reference system 'Rc' defined by
     /// its pixel array read-out order. The origin is set to the first pixel
@@ -750,10 +750,10 @@ impl ControlEntry for Location {
     const ID: u32 = PropertyId::Location as _;
 }
 impl Property for Location {}
-/// The camera rotation is expressed as the angular difference in degrees
-/// between two reference systems, one relative to the camera module, and
-/// one defined on the external world scene to be captured when projected
-/// on the image sensor pixel array.
+/// The camera physical mounting rotation. It is expressed as the angular
+/// difference in degrees between two reference systems, one relative to the
+/// camera module, and one defined on the external world scene to be
+/// captured when projected on the image sensor pixel array.
 ///
 /// A camera sensor has a 2-dimensional reference system 'Rc' defined by
 /// its pixel array read-out order. The origin is set to the first pixel

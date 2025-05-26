@@ -72,6 +72,12 @@ fn main() {
             return true;
         }
 
+        if version.major == 0 && version.minor < 4 {
+            // Versions bellow v0.4.0 are incompatible with newer control values
+            println!("Skipping unsupported version {version}");
+            return true;
+        }
+
         println!("Extracting files for version {version}");
 
         let object = repo.find_object(id, Some(ObjectType::Tag)).unwrap();
@@ -243,6 +249,7 @@ mod generate_rust {
             ControlType::String => "String",
             ControlType::Rectangle => "Rectangle",
             ControlType::Size => "Size",
+            ControlType::Point => "Point",
         };
 
         match size {
@@ -428,7 +435,7 @@ mod generate_rust {
                 use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
                 use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
-                use crate::geometry::{{Rectangle, Size}};
+                use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]
                 use libcamera_sys::*;
 

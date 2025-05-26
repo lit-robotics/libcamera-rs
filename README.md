@@ -16,7 +16,7 @@ Unreleased documentation for `main`: [here](https://lit-robotics.github.io/libca
 
 ## Building
 
-`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that we don't have a release schedule tied to libcamera yet so breaking changes are likely. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera  `v0.1.0`.
+`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that we don't have a release schedule tied to libcamera yet so breaking changes are likely. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera `v0.4.0` and up.
 
 No other special dependencies are needed. All crates can be built from the root workspace dir with `cargo build`.
 
