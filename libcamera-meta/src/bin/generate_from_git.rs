@@ -72,6 +72,12 @@ fn main() {
             return true;
         }
 
+        if version.major == 0 && version.minor < 4 {
+            // Versions bellow v0.4.0 are incompatible with newer control values
+            println!("Skipping unsupported version {version}");
+            return true;
+        }
+
         println!("Extracting files for version {version}");
 
         let object = repo.find_object(id, Some(ObjectType::Tag)).unwrap();
