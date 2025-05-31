@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -6,7 +7,25 @@ use std::{
 use semver::{Comparator, Op, Version};
 
 fn main() {
-    let libcamera_version = Version::new(0, 3, 2);
+    let libcamera = match pkg_config::probe_library("libcamera") {
+        Ok(lib) => Ok(lib),
+        Err(e) => {
+            // Older libcamera versions use camera name instead of libcamera, try that instead
+            match pkg_config::probe_library("camera") {
+                Ok(lib) => Ok(lib),
+                // Return original error
+                Err(_) => Err(e),
+            }
+        }
+    }
+    .unwrap();
+
+    let libcamera_version = match Version::parse(&libcamera.version) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!("bad version from pkgconfig, {e:?}")
+        }
+    };
 
     let versioned_files = Path::new("versioned_files");
     let mut candidates = std::fs::read_dir(versioned_files)
@@ -56,5 +75,9 @@ fn main() {
 
     for file in ["controls.rs", "properties.rs"] {
         std::fs::copy(selected_version.join(file), out_path.join(file)).unwrap();
+        print!(
+            "cargo:rerun-if-changed={}",
+            selected_version.join(file).to_string_lossy()
+        );
     }
 }

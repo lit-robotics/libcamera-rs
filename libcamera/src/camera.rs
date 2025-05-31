@@ -130,7 +130,7 @@ pub struct Camera<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> Camera<'d> {
+impl Camera<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
         Self {
             ptr,
@@ -188,7 +188,7 @@ impl<'d> Camera<'d> {
     }
 }
 
-impl<'d> Drop for Camera<'d> {
+impl Drop for Camera<'_> {
     fn drop(&mut self) {
         unsafe { libcamera_camera_destroy(self.ptr.as_ptr()) }
     }
@@ -336,13 +336,13 @@ impl<'d> Deref for ActiveCamera<'d> {
     }
 }
 
-impl<'d> DerefMut for ActiveCamera<'d> {
+impl DerefMut for ActiveCamera<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.cam
     }
 }
 
-impl<'d> Drop for ActiveCamera<'d> {
+impl Drop for ActiveCamera<'_> {
     fn drop(&mut self) {
         unsafe {
             libcamera_camera_request_completed_disconnect(self.ptr.as_ptr(), self.request_completed_handle);

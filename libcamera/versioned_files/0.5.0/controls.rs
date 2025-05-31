@@ -1,85 +1,225 @@
-use std::{ffi::CStr, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
-use crate::geometry::{Rectangle, Size};
+use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ControlId {
-    /// Enable or disable the AE.
+    /// Enable or disable the AEGC algorithm. When this control is set to true,
+    /// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
+    /// control is set to false then both are set to manual.
     ///
-    /// \sa ExposureTime AnalogueGain
+    /// If ExposureTimeMode or AnalogueGainMode are also set in the same
+    /// request as AeEnable, then the modes supplied by ExposureTimeMode or
+    /// AnalogueGainMode will take precedence.
+    ///
+    /// \sa ExposureTimeMode AnalogueGainMode
     AeEnable = AE_ENABLE,
-    /// Report the lock status of a running AE algorithm.
+    /// Report the AEGC algorithm state.
     ///
-    /// If the AE algorithm is locked the value shall be set to true, if it's
-    /// converging it shall be set to false. If the AE algorithm is not
-    /// running the control shall not be present in the metadata control list.
+    /// The AEGC algorithm computes the exposure time and the analogue gain
+    /// to be applied to the image sensor.
     ///
-    /// \sa AeEnable
-    AeLocked = AE_LOCKED,
-    /// Specify a metering mode for the AE algorithm to use. The metering
-    /// modes determine which parts of the image are used to determine the
-    /// scene brightness. Metering modes may be platform specific and not
-    /// all metering modes may be supported.
+    /// The AEGC algorithm behaviour is controlled by the ExposureTimeMode and
+    /// AnalogueGainMode controls, which allow applications to decide how
+    /// the exposure time and gain are computed, in Auto or Manual mode,
+    /// independently from one another.
+    ///
+    /// The AeState control reports the AEGC algorithm state through a single
+    /// value and describes it as a single computation block which computes
+    /// both the exposure time and the analogue gain values.
+    ///
+    /// When both the exposure time and analogue gain values are configured to
+    /// be in Manual mode, the AEGC algorithm is quiescent and does not actively
+    /// compute any value and the AeState control will report AeStateIdle.
+    ///
+    /// When at least the exposure time or analogue gain are configured to be
+    /// computed by the AEGC algorithm, the AeState control will report if the
+    /// algorithm has converged to stable values for all of the controls set
+    /// to be computed in Auto mode.
+    ///
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
+    AeState = AE_STATE,
+    /// Specify a metering mode for the AE algorithm to use.
+    ///
+    /// The metering modes determine which parts of the image are used to
+    /// determine the scene brightness. Metering modes may be platform specific
+    /// and not all metering modes may be supported.
     AeMeteringMode = AE_METERING_MODE,
-    /// Specify a constraint mode for the AE algorithm to use. These determine
-    /// how the measured scene brightness is adjusted to reach the desired
-    /// target exposure. Constraint modes may be platform specific, and not
-    /// all constraint modes may be supported.
+    /// Specify a constraint mode for the AE algorithm to use.
+    ///
+    /// The constraint modes determine how the measured scene brightness is
+    /// adjusted to reach the desired target exposure. Constraint modes may be
+    /// platform specific, and not all constraint modes may be supported.
     AeConstraintMode = AE_CONSTRAINT_MODE,
-    /// Specify an exposure mode for the AE algorithm to use. These specify
-    /// how the desired total exposure is divided between the shutter time
-    /// and the sensor's analogue gain. The exposure modes are platform
-    /// specific, and not all exposure modes may be supported.
+    /// Specify an exposure mode for the AE algorithm to use.
+    ///
+    /// The exposure modes specify how the desired total exposure is divided
+    /// between the exposure time and the sensor's analogue gain. They are
+    /// platform specific, and not all exposure modes may be supported.
+    ///
+    /// When one of AnalogueGainMode or ExposureTimeMode is set to Manual,
+    /// the fixed values will override any choices made by AeExposureMode.
+    ///
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
     AeExposureMode = AE_EXPOSURE_MODE,
-    /// Specify an Exposure Value (EV) parameter. The EV parameter will only be
-    /// applied if the AE algorithm is currently enabled.
+    /// Specify an Exposure Value (EV) parameter.
+    ///
+    /// The EV parameter will only be applied if the AE algorithm is currently
+    /// enabled, that is, at least one of AnalogueGainMode and ExposureTimeMode
+    /// are in Auto mode.
     ///
     /// By convention EV adjusts the exposure as log2. For example
-    /// EV = [-2, -1, 0.5, 0, 0.5, 1, 2] results in an exposure adjustment
+    /// EV = [-2, -1, -0.5, 0, 0.5, 1, 2] results in an exposure adjustment
     /// of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
     ///
-    /// \sa AeEnable
+    /// \sa AnalogueGainMode
+    /// \sa ExposureTimeMode
     ExposureValue = EXPOSURE_VALUE,
-    /// Exposure time (shutter speed) for the frame applied in the sensor
-    /// device. This value is specified in micro-seconds.
+    /// Exposure time for the frame applied in the sensor device.
     ///
-    /// Setting this value means that it is now fixed and the AE algorithm may
-    /// not change it. Setting it back to zero returns it to the control of the
-    /// AE algorithm.
+    /// This value is specified in micro-seconds.
     ///
-    /// \sa AnalogueGain AeEnable
+    /// This control will only take effect if ExposureTimeMode is Manual. If
+    /// this control is set when ExposureTimeMode is Auto, the value will be
+    /// ignored and will not be retained.
     ///
-    /// \todo Document the interactions between AeEnable and setting a fixed
-    /// value for this control. Consider interactions with other AE features,
-    /// such as aperture and aperture/shutter priority mode, and decide if
-    /// control of which features should be automatically adjusted shouldn't
-    /// better be handled through a separate AE mode control.
+    /// When reported in metadata, this control indicates what exposure time
+    /// was used for the current frame, regardless of ExposureTimeMode.
+    /// ExposureTimeMode will indicate the source of the exposure time value,
+    /// whether it came from the AE algorithm or not.
+    ///
+    /// \sa AnalogueGain
+    /// \sa ExposureTimeMode
     ExposureTime = EXPOSURE_TIME,
+    /// Controls the source of the exposure time that is applied to the image
+    /// sensor.
+    ///
+    /// When set to Auto, the AE algorithm computes the exposure time and
+    /// configures the image sensor accordingly. When set to Manual, the value
+    /// of the ExposureTime control is used.
+    ///
+    /// When transitioning from Auto to Manual mode and no ExposureTime control
+    /// is provided by the application, the last value computed by the AE
+    /// algorithm when the mode was Auto will be used. If the ExposureTimeMode
+    /// was never set to Auto (either because the camera started in Manual mode,
+    /// or Auto is not supported by the camera), the camera should use a
+    /// best-effort default value.
+    ///
+    /// If ExposureTimeModeManual is supported, the ExposureTime control must
+    /// also be supported.
+    ///
+    /// Cameras that support manual control of the sensor shall support manual
+    /// mode for both ExposureTimeMode and AnalogueGainMode, and shall expose
+    /// the ExposureTime and AnalogueGain controls. If the camera also has an
+    /// AEGC implementation, both ExposureTimeMode and AnalogueGainMode shall
+    /// support both manual and auto mode. If auto mode is available, it shall
+    /// be the default mode. These rules do not apply to black box cameras
+    /// such as UVC cameras, where the available gain and exposure modes are
+    /// completely dependent on what the device exposes.
+    ///
+    /// \par Flickerless exposure mode transitions
+    ///
+    /// Applications that wish to transition from ExposureTimeModeAuto to direct
+    /// control of the exposure time without causing extra flicker can do so by
+    /// selecting an ExposureTime value as close as possible to the last value
+    /// computed by the auto exposure algorithm in order to avoid any visible
+    /// flickering.
+    ///
+    /// To select the correct value to use as ExposureTime value, applications
+    /// should accommodate the natural delay in applying controls caused by the
+    /// capture pipeline frame depth.
+    ///
+    /// When switching to manual exposure mode, applications should not
+    /// immediately specify an ExposureTime value in the same request where
+    /// ExposureTimeMode is set to Manual. They should instead wait for the
+    /// first Request where ExposureTimeMode is reported as
+    /// ExposureTimeModeManual in the Request metadata, and use the reported
+    /// ExposureTime to populate the control value in the next Request to be
+    /// queued to the Camera.
+    ///
+    /// The implementation of the auto-exposure algorithm should equally try to
+    /// minimize flickering and when transitioning from manual exposure mode to
+    /// auto exposure use the last value provided by the application as starting
+    /// point.
+    ///
+    /// 1. Start with ExposureTimeMode set to Auto
+    ///
+    /// 2. Set ExposureTimeMode to Manual
+    ///
+    /// 3. Wait for the first completed request that has ExposureTimeMode
+    /// set to Manual
+    ///
+    /// 4. Copy the value reported in ExposureTime into a new request, and
+    /// submit it
+    ///
+    /// 5. Proceed to run manual exposure time as desired
+    ///
+    /// \sa ExposureTime
+    ExposureTimeMode = EXPOSURE_TIME_MODE,
     /// Analogue gain value applied in the sensor device.
+    ///
     /// The value of the control specifies the gain multiplier applied to all
     /// colour channels. This value cannot be lower than 1.0.
     ///
-    /// Setting this value means that it is now fixed and the AE algorithm may
-    /// not change it. Setting it back to zero returns it to the control of the
-    /// AE algorithm.
+    /// This control will only take effect if AnalogueGainMode is Manual. If
+    /// this control is set when AnalogueGainMode is Auto, the value will be
+    /// ignored and will not be retained.
     ///
-    /// \sa ExposureTime AeEnable
+    /// When reported in metadata, this control indicates what analogue gain
+    /// was used for the current request, regardless of AnalogueGainMode.
+    /// AnalogueGainMode will indicate the source of the analogue gain value,
+    /// whether it came from the AEGC algorithm or not.
     ///
-    /// \todo Document the interactions between AeEnable and setting a fixed
-    /// value for this control. Consider interactions with other AE features,
-    /// such as aperture and aperture/shutter priority mode, and decide if
-    /// control of which features should be automatically adjusted shouldn't
-    /// better be handled through a separate AE mode control.
+    /// \sa ExposureTime
+    /// \sa AnalogueGainMode
     AnalogueGain = ANALOGUE_GAIN,
-    /// Set the flicker mode, which determines whether, and how, the AGC/AEC
-    /// algorithm attempts to hide flicker effects caused by the duty cycle of
-    /// artificial lighting.
+    /// Controls the source of the analogue gain that is applied to the image
+    /// sensor.
+    ///
+    /// When set to Auto, the AEGC algorithm computes the analogue gain and
+    /// configures the image sensor accordingly. When set to Manual, the value
+    /// of the AnalogueGain control is used.
+    ///
+    /// When transitioning from Auto to Manual mode and no AnalogueGain control
+    /// is provided by the application, the last value computed by the AEGC
+    /// algorithm when the mode was Auto will be used. If the AnalogueGainMode
+    /// was never set to Auto (either because the camera started in Manual mode,
+    /// or Auto is not supported by the camera), the camera should use a
+    /// best-effort default value.
+    ///
+    /// If AnalogueGainModeManual is supported, the AnalogueGain control must
+    /// also be supported.
+    ///
+    /// For cameras where we have control over the ISP, both ExposureTimeMode
+    /// and AnalogueGainMode are expected to support manual mode, and both
+    /// controls (as well as ExposureTimeMode and AnalogueGain) are expected to
+    /// be present. If the camera also has an AEGC implementation, both
+    /// ExposureTimeMode and AnalogueGainMode shall support both manual and
+    /// auto mode. If auto mode is available, it shall be the default mode.
+    /// These rules do not apply to black box cameras such as UVC cameras,
+    /// where the available gain and exposure modes are completely dependent on
+    /// what the hardware exposes.
+    ///
+    /// The same procedure described for performing flickerless transitions in
+    /// the ExposureTimeMode control documentation can be applied to analogue
+    /// gain.
+    ///
+    /// \sa ExposureTimeMode
+    /// \sa AnalogueGain
+    AnalogueGainMode = ANALOGUE_GAIN_MODE,
+    /// Set the flicker avoidance mode for AGC/AEC.
+    ///
+    /// The flicker mode determines whether, and how, the AGC/AEC algorithm
+    /// attempts to hide flicker effects caused by the duty cycle of artificial
+    /// lighting.
     ///
     /// Although implementation dependent, many algorithms for "flicker
     /// avoidance" work by restricting this exposure time to integer multiples
@@ -90,34 +230,76 @@ pub enum ControlId {
     /// By default the system will start in FlickerAuto mode if this is
     /// supported, otherwise the flicker mode will be set to FlickerOff.
     AeFlickerMode = AE_FLICKER_MODE,
-    /// Manual flicker period in microseconds. This value sets the current flicker period to avoid. It is used when AeFlickerMode is set to FlickerManual.
-    /// To cancel 50Hz mains flicker, this should be set to 10000 (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains.
-    /// Setting the mode to FlickerManual when no AeFlickerPeriod has ever been set means that no flicker cancellation occurs (until the value of this control is updated).
-    /// Switching to modes other than FlickerManual has no effect on the value of the AeFlickerPeriod control.
+    /// Manual flicker period in microseconds.
+    ///
+    /// This value sets the current flicker period to avoid. It is used when
+    /// AeFlickerMode is set to FlickerManual.
+    ///
+    /// To cancel 50Hz mains flicker, this should be set to 10000 (corresponding
+    /// to 100Hz), or 8333 (120Hz) for 60Hz mains.
+    ///
+    /// Setting the mode to FlickerManual when no AeFlickerPeriod has ever been
+    /// set means that no flicker cancellation occurs (until the value of this
+    /// control is updated).
+    ///
+    /// Switching to modes other than FlickerManual has no effect on the
+    /// value of the AeFlickerPeriod control.
+    ///
     /// \sa AeFlickerMode
     AeFlickerPeriod = AE_FLICKER_PERIOD,
-    /// Flicker period detected in microseconds. The value reported here indicates the currently detected flicker period, or zero if no flicker at all is detected.
-    /// When AeFlickerMode is set to FlickerAuto, there may be a period during which the value reported here remains zero. Once a non-zero value is reported, then this is the flicker period that has been detected and is now being cancelled.
-    /// In the case of 50Hz mains flicker, the value would be 10000 (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains flicker.
-    /// It is implementation dependent whether the system can continue to detect flicker of different periods when another frequency is already being cancelled.
+    /// Flicker period detected in microseconds.
+    ///
+    /// The value reported here indicates the currently detected flicker
+    /// period, or zero if no flicker at all is detected.
+    ///
+    /// When AeFlickerMode is set to FlickerAuto, there may be a period during
+    /// which the value reported here remains zero. Once a non-zero value is
+    /// reported, then this is the flicker period that has been detected and is
+    /// now being cancelled.
+    ///
+    /// In the case of 50Hz mains flicker, the value would be 10000
+    /// (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains flicker.
+    ///
+    /// It is implementation dependent whether the system can continue to detect
+    /// flicker of different periods when another frequency is already being
+    /// cancelled.
+    ///
     /// \sa AeFlickerMode
     AeFlickerDetected = AE_FLICKER_DETECTED,
-    /// Specify a fixed brightness parameter. Positive values (up to 1.0)
-    /// produce brighter images; negative values (up to -1.0) produce darker
-    /// images and 0.0 leaves pixels unchanged.
+    /// Specify a fixed brightness parameter.
+    ///
+    /// Positive values (up to 1.0) produce brighter images; negative values
+    /// (up to -1.0) produce darker images and 0.0 leaves pixels unchanged.
     Brightness = BRIGHTNESS,
-    /// Specify a fixed contrast parameter. Normal contrast is given by the
-    /// value 1.0; larger values produce images with more contrast.
+    /// Specify a fixed contrast parameter.
+    ///
+    /// Normal contrast is given by the value 1.0; larger values produce images
+    /// with more contrast.
     Contrast = CONTRAST,
-    /// Report an estimate of the current illuminance level in lux. The Lux
-    /// control can only be returned in metadata.
+    /// Report an estimate of the current illuminance level in lux.
+    ///
+    /// The Lux control can only be returned in metadata.
     Lux = LUX,
     /// Enable or disable the AWB.
     ///
+    /// When AWB is enabled, the algorithm estimates the colour temperature of
+    /// the scene and computes colour gains and the colour correction matrix
+    /// automatically. The computed colour temperature, gains and correction
+    /// matrix are reported in metadata. The corresponding controls are ignored
+    /// if set in a request.
+    ///
+    /// When AWB is disabled, the colour temperature, gains and correction
+    /// matrix are not updated automatically and can be set manually in
+    /// requests.
+    ///
+    /// \sa ColourCorrectionMatrix
     /// \sa ColourGains
+    /// \sa ColourTemperature
     AwbEnable = AWB_ENABLE,
-    /// Specify the range of illuminants to use for the AWB algorithm. The modes
-    /// supported are platform specific, and not all modes may be supported.
+    /// Specify the range of illuminants to use for the AWB algorithm.
+    ///
+    /// The modes supported are platform specific, and not all modes may be
+    /// supported.
     AwbMode = AWB_MODE,
     /// Report the lock status of a running AWB algorithm.
     ///
@@ -128,22 +310,46 @@ pub enum ControlId {
     /// \sa AwbEnable
     AwbLocked = AWB_LOCKED,
     /// Pair of gain values for the Red and Blue colour channels, in that
-    /// order. ColourGains can only be applied in a Request when the AWB is
-    /// disabled.
+    /// order.
+    ///
+    /// ColourGains can only be applied in a Request when the AWB is disabled.
+    /// If ColourGains is set in a request but ColourTemperature is not, the
+    /// implementation shall calculate and set the ColourTemperature based on
+    /// the ColourGains.
     ///
     /// \sa AwbEnable
+    /// \sa ColourTemperature
     ColourGains = COLOUR_GAINS,
-    /// Report the current estimate of the colour temperature, in kelvin, for this frame. The ColourTemperature control can only be returned in metadata.
+    /// ColourTemperature of the frame, in kelvin.
+    ///
+    /// ColourTemperature can only be applied in a Request when the AWB is
+    /// disabled.
+    ///
+    /// If ColourTemperature is set in a request but ColourGains is not, the
+    /// implementation shall calculate and set the ColourGains based on the
+    /// given ColourTemperature. If ColourTemperature is set (either directly,
+    /// or indirectly by setting ColourGains) but ColourCorrectionMatrix is not,
+    /// the ColourCorrectionMatrix is updated based on the ColourTemperature.
+    ///
+    /// The ColourTemperature used to process the frame is reported in metadata.
+    ///
+    /// \sa AwbEnable
+    /// \sa ColourCorrectionMatrix
+    /// \sa ColourGains
     ColourTemperature = COLOUR_TEMPERATURE,
-    /// Specify a fixed saturation parameter. Normal saturation is given by
-    /// the value 1.0; larger values produce more saturated colours; 0.0
-    /// produces a greyscale image.
+    /// Specify a fixed saturation parameter.
+    ///
+    /// Normal saturation is given by the value 1.0; larger values produce more
+    /// saturated colours; 0.0 produces a greyscale image.
     Saturation = SATURATION,
-    /// Reports the sensor black levels used for processing a frame, in the
-    /// order R, Gr, Gb, B. These values are returned as numbers out of a 16-bit
-    /// pixel range (as if pixels ranged from 0 to 65535). The SensorBlackLevels
-    /// control can only be returned in metadata.
+    /// Reports the sensor black levels used for processing a frame.
+    ///
+    /// The values are in the order R, Gr, Gb, B. They are returned as numbers
+    /// out of a 16-bit pixel range (as if pixels ranged from 0 to 65535). The
+    /// SensorBlackLevels control can only be returned in metadata.
     SensorBlackLevels = SENSOR_BLACK_LEVELS,
+    /// Intensity of the sharpening applied to the image.
+    ///
     /// A value of 0.0 means no sharpening. The minimum value means
     /// minimal sharpening, and shall be 0.0 unless the camera can't
     /// disable sharpening completely. The default value shall give a
@@ -154,6 +360,7 @@ pub enum ControlId {
     /// streams.
     Sharpness = SHARPNESS,
     /// Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
+    ///
     /// A larger FocusFoM value indicates a more in-focus frame. This singular
     /// value may be based on a combination of statistics gathered from
     /// multiple focus regions within an image. The number of focus regions and
@@ -161,17 +368,27 @@ pub enum ControlId {
     /// necessarily aimed at providing a way to implement a focus algorithm by
     /// the application, rather an indication of how in-focus a frame is.
     FocusFoM = FOCUS_FO_M,
-    /// The 3x3 matrix that converts camera RGB to sRGB within the
-    /// imaging pipeline. This should describe the matrix that is used
-    /// after pixels have been white-balanced, but before any gamma
-    /// transformation. The 3x3 matrix is stored in conventional reading
-    /// order in an array of 9 floating point values.
+    /// The 3x3 matrix that converts camera RGB to sRGB within the imaging
+    /// pipeline.
+    ///
+    /// This should describe the matrix that is used after pixels have been
+    /// white-balanced, but before any gamma transformation. The 3x3 matrix is
+    /// stored in conventional reading order in an array of 9 floating point
+    /// values.
+    ///
+    /// ColourCorrectionMatrix can only be applied in a Request when the AWB is
+    /// disabled.
+    ///
+    /// \sa AwbEnable
+    /// \sa ColourTemperature
     ColourCorrectionMatrix = COLOUR_CORRECTION_MATRIX,
     /// Sets the image portion that will be scaled to form the whole of
-    /// the final output image. The (x,y) location of this rectangle is
-    /// relative to the PixelArrayActiveAreas that is being used. The units
-    /// remain native sensor pixels, even if the sensor is being used in
-    /// a binning or skipping mode.
+    /// the final output image.
+    ///
+    /// The (x,y) location of this rectangle is relative to the
+    /// PixelArrayActiveAreas that is being used. The units remain native
+    /// sensor pixels, even if the sensor is being used in a binning or
+    /// skipping mode.
     ///
     /// This control is only present when the pipeline supports scaling. Its
     /// maximum valid value is given by the properties::ScalerCropMaximum
@@ -192,8 +409,9 @@ pub enum ControlId {
     /// their total value in the request metadata.
     DigitalGain = DIGITAL_GAIN,
     /// The instantaneous frame duration from start of frame exposure to start
-    /// of next exposure, expressed in microseconds. This control is meant to
-    /// be returned in metadata.
+    /// of next exposure, expressed in microseconds.
+    ///
+    /// This control is meant to be returned in metadata.
     FrameDuration = FRAME_DURATION,
     /// The minimum and maximum (in that order) frame duration, expressed in
     /// microseconds.
@@ -207,14 +425,13 @@ pub enum ControlId {
     /// values to be the same. Setting both values to 0 reverts to using the
     /// camera defaults.
     ///
-    /// The maximum frame duration provides the absolute limit to the shutter
-    /// speed computed by the AE algorithm and it overrides any exposure mode
+    /// The maximum frame duration provides the absolute limit to the exposure
+    /// time computed by the AE algorithm and it overrides any exposure mode
     /// setting specified with controls::AeExposureMode. Similarly, when a
     /// manual exposure time is set through controls::ExposureTime, it also
     /// gets clipped to the limits set by this control. When reported in
-    /// metadata, the control expresses the minimum and maximum frame
-    /// durations used after being clipped to the sensor provided frame
-    /// duration limits.
+    /// metadata, the control expresses the minimum and maximum frame durations
+    /// used after being clipped to the sensor provided frame duration limits.
     ///
     /// \sa AeExposureMode
     /// \sa ExposureTime
@@ -227,9 +444,11 @@ pub enum ControlId {
     /// \todo Provide an explicit definition of default control values, for
     /// this and all other controls.
     FrameDurationLimits = FRAME_DURATION_LIMITS,
-    /// Temperature measure from the camera sensor in Celsius. This is typically
-    /// obtained by a thermal sensor present on-die or in the camera module. The
-    /// range of reported temperatures is device dependent.
+    /// Temperature measure from the camera sensor in Celsius.
+    ///
+    /// This value is typically obtained by a thermal sensor present on-die or
+    /// in the camera module. The range of reported temperatures is device
+    /// dependent.
     ///
     /// The SensorTemperature control will only be returned in metadata if a
     /// thermal sensor is present.
@@ -245,25 +464,29 @@ pub enum ControlId {
     /// \todo Define how the sensor timestamp has to be used in the reprocessing
     /// use case.
     SensorTimestamp = SENSOR_TIMESTAMP,
-    /// Control to set the mode of the AF (autofocus) algorithm.
+    /// The mode of the AF (autofocus) algorithm.
     ///
     /// An implementation may choose not to implement all the modes.
     AfMode = AF_MODE,
-    /// Control to set the range of focus distances that is scanned. An
-    /// implementation may choose not to implement all the options here.
+    /// The range of focus distances that is scanned.
+    ///
+    /// An implementation may choose not to implement all the options here.
     AfRange = AF_RANGE,
-    /// Control that determines whether the AF algorithm is to move the lens
-    /// as quickly as possible or more steadily. For example, during video
-    /// recording it may be desirable not to move the lens too abruptly, but
-    /// when in a preview mode (waiting for a still capture) it may be
-    /// helpful to move the lens as quickly as is reasonably possible.
+    /// Determine whether the AF is to move the lens as quickly as possible or
+    /// more steadily.
+    ///
+    /// For example, during video recording it may be desirable not to move the
+    /// lens too abruptly, but when in a preview mode (waiting for a still
+    /// capture) it may be helpful to move the lens as quickly as is reasonably
+    /// possible.
     AfSpeed = AF_SPEED,
-    /// Instruct the AF algorithm how it should decide which parts of the image
-    /// should be used to measure focus.
+    /// The parts of the image used by the AF algorithm to measure focus.
     AfMetering = AF_METERING,
-    /// Sets the focus windows used by the AF algorithm when AfMetering is set
-    /// to AfMeteringWindows. The units used are pixels within the rectangle
-    /// returned by the ScalerCropMaximum property.
+    /// The focus windows used by the AF algorithm when AfMetering is set to
+    /// AfMeteringWindows.
+    ///
+    /// The units used are pixels within the rectangle returned by the
+    /// ScalerCropMaximum property.
     ///
     /// In order to be activated, a rectangle must be programmed with non-zero
     /// width and height. Internally, these rectangles are intersected with the
@@ -283,18 +506,23 @@ pub enum ControlId {
     /// the window where the focal distance for the objects shown in that part
     /// of the image are closest to the camera.
     AfWindows = AF_WINDOWS,
-    /// This control starts an autofocus scan when AfMode is set to AfModeAuto,
-    /// and can also be used to terminate a scan early.
+    /// Start an autofocus scan.
     ///
-    /// It is ignored if AfMode is set to AfModeManual or AfModeContinuous.
+    /// This control starts an autofocus scan when AfMode is set to AfModeAuto,
+    /// and is ignored if AfMode is set to AfModeManual or AfModeContinuous. It
+    /// can also be used to terminate a scan early.
     AfTrigger = AF_TRIGGER,
+    /// Pause lens movements when in continuous autofocus mode.
+    ///
     /// This control has no effect except when in continuous autofocus mode
     /// (AfModeContinuous). It can be used to pause any lens movements while
     /// (for example) images are captured. The algorithm remains inactive
     /// until it is instructed to resume.
     AfPause = AF_PAUSE,
-    /// Acts as a control to instruct the lens to move to a particular position
-    /// and also reports back the position of the lens for each frame.
+    /// Set and report the focus lens position.
+    ///
+    /// This control instructs the lens to move to a particular position and
+    /// also reports back the position of the lens for each frame.
     ///
     /// The LensPosition control is ignored unless the AfMode is set to
     /// AfModeManual, though the value is reported back unconditionally in all
@@ -308,47 +536,54 @@ pub enum ControlId {
     ///
     /// For example:
     ///
-    /// 0 moves the lens to infinity.
-    /// 0.5 moves the lens to focus on objects 2m away.
-    /// 2 moves the lens to focus on objects 50cm away.
-    /// And larger values will focus the lens closer.
+    /// - 0 moves the lens to infinity.
+    /// - 0.5 moves the lens to focus on objects 2m away.
+    /// - 2 moves the lens to focus on objects 50cm away.
+    /// - And larger values will focus the lens closer.
     ///
-    /// The default value of the control should indicate a good general position
-    /// for the lens, often corresponding to the hyperfocal distance (the
-    /// closest position for which objects at infinity are still acceptably
-    /// sharp). The minimum will often be zero (meaning infinity), and the
-    /// maximum value defines the closest focus position.
+    /// The default value of the control should indicate a good general
+    /// position for the lens, often corresponding to the hyperfocal distance
+    /// (the closest position for which objects at infinity are still
+    /// acceptably sharp). The minimum will often be zero (meaning infinity),
+    /// and the maximum value defines the closest focus position.
     ///
     /// \todo Define a property to report the Hyperfocal distance of calibrated
     /// lenses.
     LensPosition = LENS_POSITION,
-    /// Reports the current state of the AF algorithm in conjunction with the
-    /// reported AfMode value and (in continuous AF mode) the AfPauseState
-    /// value. The possible state changes are described below, though we note
-    /// the following state transitions that occur when the AfMode is changed.
+    /// The current state of the AF algorithm.
+    ///
+    /// This control reports the current state of the AF algorithm in
+    /// conjunction with the reported AfMode value and (in continuous AF mode)
+    /// the AfPauseState value. The possible state changes are described below,
+    /// though we note the following state transitions that occur when the
+    /// AfMode is changed.
     ///
     /// If the AfMode is set to AfModeManual, then the AfState will always
-    /// report AfStateIdle (even if the lens is subsequently moved). Changing to
-    /// the AfModeManual state does not initiate any lens movement.
+    /// report AfStateIdle (even if the lens is subsequently moved). Changing
+    /// to the AfModeManual state does not initiate any lens movement.
     ///
     /// If the AfMode is set to AfModeAuto then the AfState will report
-    /// AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent together
-    /// then AfState will omit AfStateIdle and move straight to AfStateScanning
-    /// (and start a scan).
+    /// AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent
+    /// together then AfState will omit AfStateIdle and move straight to
+    /// AfStateScanning (and start a scan).
     ///
-    /// If the AfMode is set to AfModeContinuous then the AfState will initially
-    /// report AfStateScanning.
+    /// If the AfMode is set to AfModeContinuous then the AfState will
+    /// initially report AfStateScanning.
     AfState = AF_STATE,
-    /// Only applicable in continuous (AfModeContinuous) mode, this reports
-    /// whether the algorithm is currently running, paused or pausing (that is,
-    /// will pause as soon as any in-progress scan completes).
+    /// Report whether the autofocus is currently running, paused or pausing.
+    ///
+    /// This control is only applicable in continuous (AfModeContinuous) mode,
+    /// and reports whether the algorithm is currently running, paused or
+    /// pausing (that is, will pause as soon as any in-progress scan
+    /// completes).
     ///
     /// Any change to AfMode will cause AfPauseStateRunning to be reported.
     AfPauseState = AF_PAUSE_STATE,
-    /// Control to set the mode to be used for High Dynamic Range (HDR)
-    /// imaging. HDR techniques typically include multiple exposure, image
-    /// fusion and tone mapping techniques to improve the dynamic range of the
-    /// resulting images.
+    /// Set the mode to be used for High Dynamic Range (HDR) imaging.
+    ///
+    /// HDR techniques typically include multiple exposure, image fusion and
+    /// tone mapping techniques to improve the dynamic range of the resulting
+    /// images.
     ///
     /// When using an HDR mode, images are captured with different sets of AGC
     /// settings called HDR channels. Channels indicate in particular the type
@@ -358,20 +593,25 @@ pub enum ControlId {
     ///
     /// \sa HdrChannel
     HdrMode = HDR_MODE,
+    /// The HDR channel used to capture the frame.
+    ///
     /// This value is reported back to the application so that it can discover
-    /// whether this capture corresponds to the short or long exposure image (or
-    /// any other image used by the HDR procedure). An application can monitor
-    /// the HDR channel to discover when the differently exposed images have
-    /// arrived.
+    /// whether this capture corresponds to the short or long exposure image
+    /// (or any other image used by the HDR procedure). An application can
+    /// monitor the HDR channel to discover when the differently exposed images
+    /// have arrived.
     ///
     /// This metadata is only available when an HDR mode has been enabled.
     ///
     /// \sa HdrMode
     HdrChannel = HDR_CHANNEL,
-    /// Specify a fixed gamma value. Default must be 2.2 which closely mimics
-    /// sRGB gamma. Note that this is camera gamma, so it is applied as
-    /// 1.0/gamma.
+    /// Specify a fixed gamma value.
+    ///
+    /// The default gamma value must be 2.2 which closely mimics sRGB gamma.
+    /// Note that this is camera gamma, so it is applied as 1.0/gamma.
     Gamma = GAMMA,
+    /// Enable or disable the debug metadata.
+    DebugMetadataEnable = DEBUG_METADATA_ENABLE,
     /// Control for AE metering trigger. Currently identical to
     /// ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
     ///
@@ -391,12 +631,6 @@ pub enum ControlId {
     ///  Mode of operation for the chromatic aberration correction algorithm.
     #[cfg(feature = "vendor_draft")]
     ColorCorrectionAberrationMode = COLOR_CORRECTION_ABERRATION_MODE,
-    /// Control to report the current AE algorithm state. Currently identical to
-    /// ANDROID_CONTROL_AE_STATE.
-    ///
-    ///  Current state of the AE algorithm.
-    #[cfg(feature = "vendor_draft")]
-    AeState = AE_STATE,
     /// Control to report the current AWB algorithm state. Currently identical
     /// to ANDROID_CONTROL_AWB_STATE.
     ///
@@ -435,38 +669,112 @@ pub enum ControlId {
     /// ANDROID_SENSOR_TEST_PATTERN_MODE.
     #[cfg(feature = "vendor_draft")]
     TestPatternMode = TEST_PATTERN_MODE,
-    /// Toggles the Raspberry Pi IPA to output a binary dump of the hardware
-    /// generated statistics through the Request metadata in the Bcm2835StatsOutput
-    /// control.
+    /// Control to select the face detection mode used by the pipeline.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+    ///
+    /// \sa FaceDetectFaceRectangles
+    /// \sa FaceDetectFaceScores
+    /// \sa FaceDetectFaceLandmarks
+    /// \sa FaceDetectFaceIds
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectMode = FACE_DETECT_MODE,
+    /// Boundary rectangles of the detected faces. The number of values is
+    /// the number of detected faces.
+    ///
+    /// The FaceDetectFaceRectangles control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceRectangles = FACE_DETECT_FACE_RECTANGLES,
+    /// Confidence score of each of the detected faces. The range of score is
+    /// [0, 100]. The number of values should be the number of faces reported
+    /// in FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceScores control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceScores = FACE_DETECT_FACE_SCORES,
+    /// Array of human face landmark coordinates in format [..., left_eye_i,
+    /// right_eye_i, mouth_i, left_eye_i+1, ...], with i = index of face. The
+    /// number of values should be 3 * the number of faces reported in
+    /// FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceLandmarks control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceLandmarks = FACE_DETECT_FACE_LANDMARKS,
+    /// Each detected face is given a unique ID that is valid for as long as the
+    /// face is visible to the camera device. A face that leaves the field of
+    /// view and later returns may be assigned a new ID. The number of values
+    /// should be the number of faces reported in FaceDetectFaceRectangles.
+    ///
+    /// The FaceDetectFaceIds control can only be returned in metadata.
+    ///
+    /// Currently identical to ANDROID_STATISTICS_FACE_IDS.
+    #[cfg(feature = "vendor_draft")]
+    FaceDetectFaceIds = FACE_DETECT_FACE_IDS,
+    /// Toggles the Raspberry Pi IPA to output the hardware generated statistics.
+    ///
+    /// When this control is set to true, the IPA outputs a binary dump of the
+    /// hardware generated statistics through the Request metadata in the
+    /// Bcm2835StatsOutput control.
     ///
     /// \sa Bcm2835StatsOutput
     #[cfg(feature = "vendor_rpi")]
     StatsOutputEnable = STATS_OUTPUT_ENABLE,
-    /// Span of the BCM2835 ISP generated statistics for the current frame. This
-    /// is sent in the Request metadata if the StatsOutputEnable is set to true.
-    /// The statistics struct definition can be found in include/linux/bcm2835-isp.h.
+    /// Span of the BCM2835 ISP generated statistics for the current frame.
+    ///
+    /// This is sent in the Request metadata if the StatsOutputEnable is set to
+    /// true.  The statistics struct definition can be found in
+    /// include/linux/bcm2835-isp.h.
     ///
     /// \sa StatsOutputEnable
     #[cfg(feature = "vendor_rpi")]
     Bcm2835StatsOutput = BCM2835_STATS_OUTPUT,
+    /// An array of rectangles, where each singular value has identical
+    /// functionality to the ScalerCrop control. This control allows the
+    /// Raspberry Pi pipeline handler to control individual scaler crops per
+    /// output stream.
+    ///
+    /// The order of rectangles passed into the control must match the order of
+    /// streams configured by the application. The pipeline handler will only
+    /// configure crop retangles up-to the number of output streams configured.
+    /// All subsequent rectangles passed into this control are ignored by the
+    /// pipeline handler.
+    ///
+    /// If both rpi::ScalerCrops and ScalerCrop controls are present in a
+    /// ControlList, the latter is discarded, and crops are obtained from this
+    /// control.
+    ///
+    /// Note that using different crop rectangles for each output stream with
+    /// this control is only applicable on the Pi5/PiSP platform. This control
+    /// should also be considered temporary/draft and will be replaced with
+    /// official libcamera API support for per-stream controls in the future.
+    ///
+    /// \sa ScalerCrop
+    #[cfg(feature = "vendor_rpi")]
+    ScalerCrops = SCALER_CROPS,
+    /// Span of the PiSP Frontend ISP generated statistics for the current
+    /// frame. This is sent in the Request metadata if the StatsOutputEnable is
+    /// set to true. The statistics struct definition can be found in
+    /// https://github.com/raspberrypi/libpisp/blob/main/src/libpisp/frontend/pisp_statistics.h
+    ///
+    /// \sa StatsOutputEnable
+    #[cfg(feature = "vendor_rpi")]
+    PispStatsOutput = PISP_STATS_OUTPUT,
 }
-impl ControlId {
-    fn id(&self) -> u32 {
-        *self as u32
-    }
-    pub fn name(&self) -> String {
-        unsafe {
-            let c_str = libcamera_control_name_from_id(self.id());
-            if c_str.is_null() {
-                return "".into();
-            }
-            CStr::from_ptr(c_str).to_str().unwrap().into()
-        }
-    }
-}
-/// Enable or disable the AE.
+/// Enable or disable the AEGC algorithm. When this control is set to true,
+/// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
+/// control is set to false then both are set to manual.
 ///
-/// \sa ExposureTime AnalogueGain
+/// If ExposureTimeMode or AnalogueGainMode are also set in the same
+/// request as AeEnable, then the modes supplied by ExposureTimeMode or
+/// AnalogueGainMode will take precedence.
+///
+/// \sa ExposureTimeMode AnalogueGainMode
 #[derive(Debug, Clone)]
 pub struct AeEnable(pub bool);
 impl Deref for AeEnable {
@@ -495,45 +803,83 @@ impl ControlEntry for AeEnable {
     const ID: u32 = ControlId::AeEnable as _;
 }
 impl Control for AeEnable {}
-/// Report the lock status of a running AE algorithm.
+/// Report the AEGC algorithm state.
 ///
-/// If the AE algorithm is locked the value shall be set to true, if it's
-/// converging it shall be set to false. If the AE algorithm is not
-/// running the control shall not be present in the metadata control list.
+/// The AEGC algorithm computes the exposure time and the analogue gain
+/// to be applied to the image sensor.
 ///
-/// \sa AeEnable
-#[derive(Debug, Clone)]
-pub struct AeLocked(pub bool);
-impl Deref for AeLocked {
-    type Target = bool;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+/// The AEGC algorithm behaviour is controlled by the ExposureTimeMode and
+/// AnalogueGainMode controls, which allow applications to decide how
+/// the exposure time and gain are computed, in Auto or Manual mode,
+/// independently from one another.
+///
+/// The AeState control reports the AEGC algorithm state through a single
+/// value and describes it as a single computation block which computes
+/// both the exposure time and the analogue gain values.
+///
+/// When both the exposure time and analogue gain values are configured to
+/// be in Manual mode, the AEGC algorithm is quiescent and does not actively
+/// compute any value and the AeState control will report AeStateIdle.
+///
+/// When at least the exposure time or analogue gain are configured to be
+/// computed by the AEGC algorithm, the AeState control will report if the
+/// algorithm has converged to stable values for all of the controls set
+/// to be computed in Auto mode.
+///
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum AeState {
+    /// The AEGC algorithm is inactive.
+    ///
+    /// This state is returned when both AnalogueGainMode and
+    /// ExposureTimeMode are set to Manual and the algorithm is not
+    /// actively computing any value.
+    Idle = 0,
+    /// The AEGC algorithm is actively computing new values, for either the
+    /// exposure time or the analogue gain, but has not converged to a
+    /// stable result yet.
+    ///
+    /// This state is returned if at least one of AnalogueGainMode or
+    /// ExposureTimeMode is auto and the algorithm hasn't converged yet.
+    ///
+    /// The AEGC algorithm converges once stable values are computed for
+    /// all of the controls set to be computed in Auto mode. Once the
+    /// algorithm converges the state is moved to AeStateConverged.
+    Searching = 1,
+    /// The AEGC algorithm has converged.
+    ///
+    /// This state is returned if at least one of AnalogueGainMode or
+    /// ExposureTimeMode is Auto, and the AEGC algorithm has converged to a
+    /// stable value.
+    ///
+    /// If the measurements move too far away from the convergence point
+    /// then the AEGC algorithm might start adjusting again, in which case
+    /// the state is moved to AeStateSearching.
+    Converged = 2,
 }
-impl DerefMut for AeLocked {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl TryFrom<ControlValue> for AeLocked {
+impl TryFrom<ControlValue> for AeState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Ok(Self(<bool>::try_from(value)?))
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
-impl From<AeLocked> for ControlValue {
-    fn from(val: AeLocked) -> Self {
-        ControlValue::from(val.0)
+impl From<AeState> for ControlValue {
+    fn from(val: AeState) -> Self {
+        ControlValue::from(<i32>::from(val))
     }
 }
-impl ControlEntry for AeLocked {
-    const ID: u32 = ControlId::AeLocked as _;
+impl ControlEntry for AeState {
+    const ID: u32 = ControlId::AeState as _;
 }
-impl Control for AeLocked {}
-/// Specify a metering mode for the AE algorithm to use. The metering
-/// modes determine which parts of the image are used to determine the
-/// scene brightness. Metering modes may be platform specific and not
-/// all metering modes may be supported.
+impl Control for AeState {}
+/// Specify a metering mode for the AE algorithm to use.
+///
+/// The metering modes determine which parts of the image are used to
+/// determine the scene brightness. Metering modes may be platform specific
+/// and not all metering modes may be supported.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AeMeteringMode {
@@ -562,18 +908,32 @@ impl ControlEntry for AeMeteringMode {
     const ID: u32 = ControlId::AeMeteringMode as _;
 }
 impl Control for AeMeteringMode {}
-/// Specify a constraint mode for the AE algorithm to use. These determine
-/// how the measured scene brightness is adjusted to reach the desired
-/// target exposure. Constraint modes may be platform specific, and not
-/// all constraint modes may be supported.
+/// Specify a constraint mode for the AE algorithm to use.
+///
+/// The constraint modes determine how the measured scene brightness is
+/// adjusted to reach the desired target exposure. Constraint modes may be
+/// platform specific, and not all constraint modes may be supported.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AeConstraintMode {
-    /// Default constraint mode. This mode aims to balance the exposure of different parts of the image so as to reach a reasonable average level. However, highlights in the image may appear over-exposed and lowlights may appear under-exposed.
+    /// Default constraint mode.
+    ///
+    /// This mode aims to balance the exposure of different parts of the
+    /// image so as to reach a reasonable average level. However, highlights
+    /// in the image may appear over-exposed and lowlights may appear
+    /// under-exposed.
     ConstraintNormal = 0,
-    /// Highlight constraint mode. This mode adjusts the exposure levels in order to try and avoid over-exposing the brightest parts (highlights) of an image. Other non-highlight parts of the image may appear under-exposed.
+    /// Highlight constraint mode.
+    ///
+    /// This mode adjusts the exposure levels in order to try and avoid
+    /// over-exposing the brightest parts (highlights) of an image.
+    /// Other non-highlight parts of the image may appear under-exposed.
     ConstraintHighlight = 1,
-    /// Shadows constraint mode. This mode adjusts the exposure levels in order to try and avoid under-exposing the dark parts (shadows) of an image. Other normally exposed parts of the image may appear over-exposed.
+    /// Shadows constraint mode.
+    ///
+    /// This mode adjusts the exposure levels in order to try and avoid
+    /// under-exposing the dark parts (shadows) of an image. Other normally
+    /// exposed parts of the image may appear over-exposed.
     ConstraintShadows = 2,
     /// Custom constraint mode.
     ConstraintCustom = 3,
@@ -594,10 +954,17 @@ impl ControlEntry for AeConstraintMode {
     const ID: u32 = ControlId::AeConstraintMode as _;
 }
 impl Control for AeConstraintMode {}
-/// Specify an exposure mode for the AE algorithm to use. These specify
-/// how the desired total exposure is divided between the shutter time
-/// and the sensor's analogue gain. The exposure modes are platform
-/// specific, and not all exposure modes may be supported.
+/// Specify an exposure mode for the AE algorithm to use.
+///
+/// The exposure modes specify how the desired total exposure is divided
+/// between the exposure time and the sensor's analogue gain. They are
+/// platform specific, and not all exposure modes may be supported.
+///
+/// When one of AnalogueGainMode or ExposureTimeMode is set to Manual,
+/// the fixed values will override any choices made by AeExposureMode.
+///
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AeExposureMode {
@@ -626,14 +993,18 @@ impl ControlEntry for AeExposureMode {
     const ID: u32 = ControlId::AeExposureMode as _;
 }
 impl Control for AeExposureMode {}
-/// Specify an Exposure Value (EV) parameter. The EV parameter will only be
-/// applied if the AE algorithm is currently enabled.
+/// Specify an Exposure Value (EV) parameter.
+///
+/// The EV parameter will only be applied if the AE algorithm is currently
+/// enabled, that is, at least one of AnalogueGainMode and ExposureTimeMode
+/// are in Auto mode.
 ///
 /// By convention EV adjusts the exposure as log2. For example
-/// EV = [-2, -1, 0.5, 0, 0.5, 1, 2] results in an exposure adjustment
+/// EV = [-2, -1, -0.5, 0, 0.5, 1, 2] results in an exposure adjustment
 /// of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
 ///
-/// \sa AeEnable
+/// \sa AnalogueGainMode
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone)]
 pub struct ExposureValue(pub f32);
 impl Deref for ExposureValue {
@@ -662,20 +1033,21 @@ impl ControlEntry for ExposureValue {
     const ID: u32 = ControlId::ExposureValue as _;
 }
 impl Control for ExposureValue {}
-/// Exposure time (shutter speed) for the frame applied in the sensor
-/// device. This value is specified in micro-seconds.
+/// Exposure time for the frame applied in the sensor device.
 ///
-/// Setting this value means that it is now fixed and the AE algorithm may
-/// not change it. Setting it back to zero returns it to the control of the
-/// AE algorithm.
+/// This value is specified in micro-seconds.
 ///
-/// \sa AnalogueGain AeEnable
+/// This control will only take effect if ExposureTimeMode is Manual. If
+/// this control is set when ExposureTimeMode is Auto, the value will be
+/// ignored and will not be retained.
 ///
-/// \todo Document the interactions between AeEnable and setting a fixed
-/// value for this control. Consider interactions with other AE features,
-/// such as aperture and aperture/shutter priority mode, and decide if
-/// control of which features should be automatically adjusted shouldn't
-/// better be handled through a separate AE mode control.
+/// When reported in metadata, this control indicates what exposure time
+/// was used for the current frame, regardless of ExposureTimeMode.
+/// ExposureTimeMode will indicate the source of the exposure time value,
+/// whether it came from the AE algorithm or not.
+///
+/// \sa AnalogueGain
+/// \sa ExposureTimeMode
 #[derive(Debug, Clone)]
 pub struct ExposureTime(pub i32);
 impl Deref for ExposureTime {
@@ -704,21 +1076,123 @@ impl ControlEntry for ExposureTime {
     const ID: u32 = ControlId::ExposureTime as _;
 }
 impl Control for ExposureTime {}
+/// Controls the source of the exposure time that is applied to the image
+/// sensor.
+///
+/// When set to Auto, the AE algorithm computes the exposure time and
+/// configures the image sensor accordingly. When set to Manual, the value
+/// of the ExposureTime control is used.
+///
+/// When transitioning from Auto to Manual mode and no ExposureTime control
+/// is provided by the application, the last value computed by the AE
+/// algorithm when the mode was Auto will be used. If the ExposureTimeMode
+/// was never set to Auto (either because the camera started in Manual mode,
+/// or Auto is not supported by the camera), the camera should use a
+/// best-effort default value.
+///
+/// If ExposureTimeModeManual is supported, the ExposureTime control must
+/// also be supported.
+///
+/// Cameras that support manual control of the sensor shall support manual
+/// mode for both ExposureTimeMode and AnalogueGainMode, and shall expose
+/// the ExposureTime and AnalogueGain controls. If the camera also has an
+/// AEGC implementation, both ExposureTimeMode and AnalogueGainMode shall
+/// support both manual and auto mode. If auto mode is available, it shall
+/// be the default mode. These rules do not apply to black box cameras
+/// such as UVC cameras, where the available gain and exposure modes are
+/// completely dependent on what the device exposes.
+///
+/// \par Flickerless exposure mode transitions
+///
+/// Applications that wish to transition from ExposureTimeModeAuto to direct
+/// control of the exposure time without causing extra flicker can do so by
+/// selecting an ExposureTime value as close as possible to the last value
+/// computed by the auto exposure algorithm in order to avoid any visible
+/// flickering.
+///
+/// To select the correct value to use as ExposureTime value, applications
+/// should accommodate the natural delay in applying controls caused by the
+/// capture pipeline frame depth.
+///
+/// When switching to manual exposure mode, applications should not
+/// immediately specify an ExposureTime value in the same request where
+/// ExposureTimeMode is set to Manual. They should instead wait for the
+/// first Request where ExposureTimeMode is reported as
+/// ExposureTimeModeManual in the Request metadata, and use the reported
+/// ExposureTime to populate the control value in the next Request to be
+/// queued to the Camera.
+///
+/// The implementation of the auto-exposure algorithm should equally try to
+/// minimize flickering and when transitioning from manual exposure mode to
+/// auto exposure use the last value provided by the application as starting
+/// point.
+///
+/// 1. Start with ExposureTimeMode set to Auto
+///
+/// 2. Set ExposureTimeMode to Manual
+///
+/// 3. Wait for the first completed request that has ExposureTimeMode
+/// set to Manual
+///
+/// 4. Copy the value reported in ExposureTime into a new request, and
+/// submit it
+///
+/// 5. Proceed to run manual exposure time as desired
+///
+/// \sa ExposureTime
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum ExposureTimeMode {
+    /// The exposure time will be calculated automatically and set by the
+    /// AE algorithm.
+    ///
+    /// If ExposureTime is set while this mode is active, it will be
+    /// ignored, and its value will not be retained.
+    ///
+    /// When transitioning from Manual to Auto mode, the AEGC should start
+    /// its adjustments based on the last set manual ExposureTime value.
+    Auto = 0,
+    /// The exposure time will not be updated by the AE algorithm.
+    ///
+    /// When transitioning from Auto to Manual mode, the last computed
+    /// exposure value is used until a new value is specified through the
+    /// ExposureTime control. If an ExposureTime value is specified in the
+    /// same request where the ExposureTimeMode is changed from Auto to
+    /// Manual, the provided ExposureTime is applied immediately.
+    Manual = 1,
+}
+impl TryFrom<ControlValue> for ExposureTimeMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+impl From<ExposureTimeMode> for ControlValue {
+    fn from(val: ExposureTimeMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+impl ControlEntry for ExposureTimeMode {
+    const ID: u32 = ControlId::ExposureTimeMode as _;
+}
+impl Control for ExposureTimeMode {}
 /// Analogue gain value applied in the sensor device.
+///
 /// The value of the control specifies the gain multiplier applied to all
 /// colour channels. This value cannot be lower than 1.0.
 ///
-/// Setting this value means that it is now fixed and the AE algorithm may
-/// not change it. Setting it back to zero returns it to the control of the
-/// AE algorithm.
+/// This control will only take effect if AnalogueGainMode is Manual. If
+/// this control is set when AnalogueGainMode is Auto, the value will be
+/// ignored and will not be retained.
 ///
-/// \sa ExposureTime AeEnable
+/// When reported in metadata, this control indicates what analogue gain
+/// was used for the current request, regardless of AnalogueGainMode.
+/// AnalogueGainMode will indicate the source of the analogue gain value,
+/// whether it came from the AEGC algorithm or not.
 ///
-/// \todo Document the interactions between AeEnable and setting a fixed
-/// value for this control. Consider interactions with other AE features,
-/// such as aperture and aperture/shutter priority mode, and decide if
-/// control of which features should be automatically adjusted shouldn't
-/// better be handled through a separate AE mode control.
+/// \sa ExposureTime
+/// \sa AnalogueGainMode
 #[derive(Debug, Clone)]
 pub struct AnalogueGain(pub f32);
 impl Deref for AnalogueGain {
@@ -747,9 +1221,81 @@ impl ControlEntry for AnalogueGain {
     const ID: u32 = ControlId::AnalogueGain as _;
 }
 impl Control for AnalogueGain {}
-/// Set the flicker mode, which determines whether, and how, the AGC/AEC
-/// algorithm attempts to hide flicker effects caused by the duty cycle of
-/// artificial lighting.
+/// Controls the source of the analogue gain that is applied to the image
+/// sensor.
+///
+/// When set to Auto, the AEGC algorithm computes the analogue gain and
+/// configures the image sensor accordingly. When set to Manual, the value
+/// of the AnalogueGain control is used.
+///
+/// When transitioning from Auto to Manual mode and no AnalogueGain control
+/// is provided by the application, the last value computed by the AEGC
+/// algorithm when the mode was Auto will be used. If the AnalogueGainMode
+/// was never set to Auto (either because the camera started in Manual mode,
+/// or Auto is not supported by the camera), the camera should use a
+/// best-effort default value.
+///
+/// If AnalogueGainModeManual is supported, the AnalogueGain control must
+/// also be supported.
+///
+/// For cameras where we have control over the ISP, both ExposureTimeMode
+/// and AnalogueGainMode are expected to support manual mode, and both
+/// controls (as well as ExposureTimeMode and AnalogueGain) are expected to
+/// be present. If the camera also has an AEGC implementation, both
+/// ExposureTimeMode and AnalogueGainMode shall support both manual and
+/// auto mode. If auto mode is available, it shall be the default mode.
+/// These rules do not apply to black box cameras such as UVC cameras,
+/// where the available gain and exposure modes are completely dependent on
+/// what the hardware exposes.
+///
+/// The same procedure described for performing flickerless transitions in
+/// the ExposureTimeMode control documentation can be applied to analogue
+/// gain.
+///
+/// \sa ExposureTimeMode
+/// \sa AnalogueGain
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum AnalogueGainMode {
+    /// The analogue gain will be calculated automatically and set by the
+    /// AEGC algorithm.
+    ///
+    /// If AnalogueGain is set while this mode is active, it will be
+    /// ignored, and it will also not be retained.
+    ///
+    /// When transitioning from Manual to Auto mode, the AEGC should start
+    /// its adjustments based on the last set manual AnalogueGain value.
+    Auto = 0,
+    /// The analogue gain will not be updated by the AEGC algorithm.
+    ///
+    /// When transitioning from Auto to Manual mode, the last computed
+    /// gain value is used until a new value is specified through the
+    /// AnalogueGain control. If an AnalogueGain value is specified in the
+    /// same request where the AnalogueGainMode is changed from Auto to
+    /// Manual, the provided AnalogueGain is applied immediately.
+    Manual = 1,
+}
+impl TryFrom<ControlValue> for AnalogueGainMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+impl From<AnalogueGainMode> for ControlValue {
+    fn from(val: AnalogueGainMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+impl ControlEntry for AnalogueGainMode {
+    const ID: u32 = ControlId::AnalogueGainMode as _;
+}
+impl Control for AnalogueGainMode {}
+/// Set the flicker avoidance mode for AGC/AEC.
+///
+/// The flicker mode determines whether, and how, the AGC/AEC algorithm
+/// attempts to hide flicker effects caused by the duty cycle of artificial
+/// lighting.
 ///
 /// Although implementation dependent, many algorithms for "flicker
 /// avoidance" work by restricting this exposure time to integer multiples
@@ -764,9 +1310,19 @@ impl Control for AnalogueGain {}
 pub enum AeFlickerMode {
     /// No flicker avoidance is performed.
     FlickerOff = 0,
-    /// Manual flicker avoidance. Suppress flicker effects caused by lighting running with a period specified by the AeFlickerPeriod control. \sa AeFlickerPeriod
+    /// Manual flicker avoidance.
+    ///
+    /// Suppress flicker effects caused by lighting running with a period
+    /// specified by the AeFlickerPeriod control.
+    /// \sa AeFlickerPeriod
     FlickerManual = 1,
-    /// Automatic flicker period detection and avoidance. The system will automatically determine the most likely value of flicker period, and avoid flicker of this frequency. Once flicker is being corrected, it is implementation dependent whether the system is still able to detect a change in the flicker period. \sa AeFlickerDetected
+    /// Automatic flicker period detection and avoidance.
+    ///
+    /// The system will automatically determine the most likely value of
+    /// flicker period, and avoid flicker of this frequency. Once flicker
+    /// is being corrected, it is implementation dependent whether the
+    /// system is still able to detect a change in the flicker period.
+    /// \sa AeFlickerDetected
     FlickerAuto = 2,
 }
 impl TryFrom<ControlValue> for AeFlickerMode {
@@ -785,10 +1341,21 @@ impl ControlEntry for AeFlickerMode {
     const ID: u32 = ControlId::AeFlickerMode as _;
 }
 impl Control for AeFlickerMode {}
-/// Manual flicker period in microseconds. This value sets the current flicker period to avoid. It is used when AeFlickerMode is set to FlickerManual.
-/// To cancel 50Hz mains flicker, this should be set to 10000 (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains.
-/// Setting the mode to FlickerManual when no AeFlickerPeriod has ever been set means that no flicker cancellation occurs (until the value of this control is updated).
-/// Switching to modes other than FlickerManual has no effect on the value of the AeFlickerPeriod control.
+/// Manual flicker period in microseconds.
+///
+/// This value sets the current flicker period to avoid. It is used when
+/// AeFlickerMode is set to FlickerManual.
+///
+/// To cancel 50Hz mains flicker, this should be set to 10000 (corresponding
+/// to 100Hz), or 8333 (120Hz) for 60Hz mains.
+///
+/// Setting the mode to FlickerManual when no AeFlickerPeriod has ever been
+/// set means that no flicker cancellation occurs (until the value of this
+/// control is updated).
+///
+/// Switching to modes other than FlickerManual has no effect on the
+/// value of the AeFlickerPeriod control.
+///
 /// \sa AeFlickerMode
 #[derive(Debug, Clone)]
 pub struct AeFlickerPeriod(pub i32);
@@ -818,10 +1385,23 @@ impl ControlEntry for AeFlickerPeriod {
     const ID: u32 = ControlId::AeFlickerPeriod as _;
 }
 impl Control for AeFlickerPeriod {}
-/// Flicker period detected in microseconds. The value reported here indicates the currently detected flicker period, or zero if no flicker at all is detected.
-/// When AeFlickerMode is set to FlickerAuto, there may be a period during which the value reported here remains zero. Once a non-zero value is reported, then this is the flicker period that has been detected and is now being cancelled.
-/// In the case of 50Hz mains flicker, the value would be 10000 (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains flicker.
-/// It is implementation dependent whether the system can continue to detect flicker of different periods when another frequency is already being cancelled.
+/// Flicker period detected in microseconds.
+///
+/// The value reported here indicates the currently detected flicker
+/// period, or zero if no flicker at all is detected.
+///
+/// When AeFlickerMode is set to FlickerAuto, there may be a period during
+/// which the value reported here remains zero. Once a non-zero value is
+/// reported, then this is the flicker period that has been detected and is
+/// now being cancelled.
+///
+/// In the case of 50Hz mains flicker, the value would be 10000
+/// (corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains flicker.
+///
+/// It is implementation dependent whether the system can continue to detect
+/// flicker of different periods when another frequency is already being
+/// cancelled.
+///
 /// \sa AeFlickerMode
 #[derive(Debug, Clone)]
 pub struct AeFlickerDetected(pub i32);
@@ -851,9 +1431,10 @@ impl ControlEntry for AeFlickerDetected {
     const ID: u32 = ControlId::AeFlickerDetected as _;
 }
 impl Control for AeFlickerDetected {}
-/// Specify a fixed brightness parameter. Positive values (up to 1.0)
-/// produce brighter images; negative values (up to -1.0) produce darker
-/// images and 0.0 leaves pixels unchanged.
+/// Specify a fixed brightness parameter.
+///
+/// Positive values (up to 1.0) produce brighter images; negative values
+/// (up to -1.0) produce darker images and 0.0 leaves pixels unchanged.
 #[derive(Debug, Clone)]
 pub struct Brightness(pub f32);
 impl Deref for Brightness {
@@ -882,8 +1463,10 @@ impl ControlEntry for Brightness {
     const ID: u32 = ControlId::Brightness as _;
 }
 impl Control for Brightness {}
-/// Specify a fixed contrast parameter. Normal contrast is given by the
-/// value 1.0; larger values produce images with more contrast.
+/// Specify a fixed contrast parameter.
+///
+/// Normal contrast is given by the value 1.0; larger values produce images
+/// with more contrast.
 #[derive(Debug, Clone)]
 pub struct Contrast(pub f32);
 impl Deref for Contrast {
@@ -912,8 +1495,9 @@ impl ControlEntry for Contrast {
     const ID: u32 = ControlId::Contrast as _;
 }
 impl Control for Contrast {}
-/// Report an estimate of the current illuminance level in lux. The Lux
-/// control can only be returned in metadata.
+/// Report an estimate of the current illuminance level in lux.
+///
+/// The Lux control can only be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct Lux(pub f32);
 impl Deref for Lux {
@@ -944,7 +1528,19 @@ impl ControlEntry for Lux {
 impl Control for Lux {}
 /// Enable or disable the AWB.
 ///
+/// When AWB is enabled, the algorithm estimates the colour temperature of
+/// the scene and computes colour gains and the colour correction matrix
+/// automatically. The computed colour temperature, gains and correction
+/// matrix are reported in metadata. The corresponding controls are ignored
+/// if set in a request.
+///
+/// When AWB is disabled, the colour temperature, gains and correction
+/// matrix are not updated automatically and can be set manually in
+/// requests.
+///
+/// \sa ColourCorrectionMatrix
 /// \sa ColourGains
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct AwbEnable(pub bool);
 impl Deref for AwbEnable {
@@ -973,8 +1569,10 @@ impl ControlEntry for AwbEnable {
     const ID: u32 = ControlId::AwbEnable as _;
 }
 impl Control for AwbEnable {}
-/// Specify the range of illuminants to use for the AWB algorithm. The modes
-/// supported are platform specific, and not all modes may be supported.
+/// Specify the range of illuminants to use for the AWB algorithm.
+///
+/// The modes supported are platform specific, and not all modes may be
+/// supported.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AwbMode {
@@ -1047,10 +1645,15 @@ impl ControlEntry for AwbLocked {
 }
 impl Control for AwbLocked {}
 /// Pair of gain values for the Red and Blue colour channels, in that
-/// order. ColourGains can only be applied in a Request when the AWB is
-/// disabled.
+/// order.
+///
+/// ColourGains can only be applied in a Request when the AWB is disabled.
+/// If ColourGains is set in a request but ColourTemperature is not, the
+/// implementation shall calculate and set the ColourTemperature based on
+/// the ColourGains.
 ///
 /// \sa AwbEnable
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct ColourGains(pub [f32; 2]);
 impl Deref for ColourGains {
@@ -1079,7 +1682,22 @@ impl ControlEntry for ColourGains {
     const ID: u32 = ControlId::ColourGains as _;
 }
 impl Control for ColourGains {}
-/// Report the current estimate of the colour temperature, in kelvin, for this frame. The ColourTemperature control can only be returned in metadata.
+/// ColourTemperature of the frame, in kelvin.
+///
+/// ColourTemperature can only be applied in a Request when the AWB is
+/// disabled.
+///
+/// If ColourTemperature is set in a request but ColourGains is not, the
+/// implementation shall calculate and set the ColourGains based on the
+/// given ColourTemperature. If ColourTemperature is set (either directly,
+/// or indirectly by setting ColourGains) but ColourCorrectionMatrix is not,
+/// the ColourCorrectionMatrix is updated based on the ColourTemperature.
+///
+/// The ColourTemperature used to process the frame is reported in metadata.
+///
+/// \sa AwbEnable
+/// \sa ColourCorrectionMatrix
+/// \sa ColourGains
 #[derive(Debug, Clone)]
 pub struct ColourTemperature(pub i32);
 impl Deref for ColourTemperature {
@@ -1108,9 +1726,10 @@ impl ControlEntry for ColourTemperature {
     const ID: u32 = ControlId::ColourTemperature as _;
 }
 impl Control for ColourTemperature {}
-/// Specify a fixed saturation parameter. Normal saturation is given by
-/// the value 1.0; larger values produce more saturated colours; 0.0
-/// produces a greyscale image.
+/// Specify a fixed saturation parameter.
+///
+/// Normal saturation is given by the value 1.0; larger values produce more
+/// saturated colours; 0.0 produces a greyscale image.
 #[derive(Debug, Clone)]
 pub struct Saturation(pub f32);
 impl Deref for Saturation {
@@ -1139,10 +1758,11 @@ impl ControlEntry for Saturation {
     const ID: u32 = ControlId::Saturation as _;
 }
 impl Control for Saturation {}
-/// Reports the sensor black levels used for processing a frame, in the
-/// order R, Gr, Gb, B. These values are returned as numbers out of a 16-bit
-/// pixel range (as if pixels ranged from 0 to 65535). The SensorBlackLevels
-/// control can only be returned in metadata.
+/// Reports the sensor black levels used for processing a frame.
+///
+/// The values are in the order R, Gr, Gb, B. They are returned as numbers
+/// out of a 16-bit pixel range (as if pixels ranged from 0 to 65535). The
+/// SensorBlackLevels control can only be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct SensorBlackLevels(pub [i32; 4]);
 impl Deref for SensorBlackLevels {
@@ -1171,6 +1791,8 @@ impl ControlEntry for SensorBlackLevels {
     const ID: u32 = ControlId::SensorBlackLevels as _;
 }
 impl Control for SensorBlackLevels {}
+/// Intensity of the sharpening applied to the image.
+///
 /// A value of 0.0 means no sharpening. The minimum value means
 /// minimal sharpening, and shall be 0.0 unless the camera can't
 /// disable sharpening completely. The default value shall give a
@@ -1208,6 +1830,7 @@ impl ControlEntry for Sharpness {
 }
 impl Control for Sharpness {}
 /// Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
+///
 /// A larger FocusFoM value indicates a more in-focus frame. This singular
 /// value may be based on a combination of statistics gathered from
 /// multiple focus regions within an image. The number of focus regions and
@@ -1242,11 +1865,19 @@ impl ControlEntry for FocusFoM {
     const ID: u32 = ControlId::FocusFoM as _;
 }
 impl Control for FocusFoM {}
-/// The 3x3 matrix that converts camera RGB to sRGB within the
-/// imaging pipeline. This should describe the matrix that is used
-/// after pixels have been white-balanced, but before any gamma
-/// transformation. The 3x3 matrix is stored in conventional reading
-/// order in an array of 9 floating point values.
+/// The 3x3 matrix that converts camera RGB to sRGB within the imaging
+/// pipeline.
+///
+/// This should describe the matrix that is used after pixels have been
+/// white-balanced, but before any gamma transformation. The 3x3 matrix is
+/// stored in conventional reading order in an array of 9 floating point
+/// values.
+///
+/// ColourCorrectionMatrix can only be applied in a Request when the AWB is
+/// disabled.
+///
+/// \sa AwbEnable
+/// \sa ColourTemperature
 #[derive(Debug, Clone)]
 pub struct ColourCorrectionMatrix(pub [[f32; 3]; 3]);
 impl Deref for ColourCorrectionMatrix {
@@ -1276,10 +1907,12 @@ impl ControlEntry for ColourCorrectionMatrix {
 }
 impl Control for ColourCorrectionMatrix {}
 /// Sets the image portion that will be scaled to form the whole of
-/// the final output image. The (x,y) location of this rectangle is
-/// relative to the PixelArrayActiveAreas that is being used. The units
-/// remain native sensor pixels, even if the sensor is being used in
-/// a binning or skipping mode.
+/// the final output image.
+///
+/// The (x,y) location of this rectangle is relative to the
+/// PixelArrayActiveAreas that is being used. The units remain native
+/// sensor pixels, even if the sensor is being used in a binning or
+/// skipping mode.
 ///
 /// This control is only present when the pipeline supports scaling. Its
 /// maximum valid value is given by the properties::ScalerCropMaximum
@@ -1354,8 +1987,9 @@ impl ControlEntry for DigitalGain {
 }
 impl Control for DigitalGain {}
 /// The instantaneous frame duration from start of frame exposure to start
-/// of next exposure, expressed in microseconds. This control is meant to
-/// be returned in metadata.
+/// of next exposure, expressed in microseconds.
+///
+/// This control is meant to be returned in metadata.
 #[derive(Debug, Clone)]
 pub struct FrameDuration(pub i64);
 impl Deref for FrameDuration {
@@ -1396,14 +2030,13 @@ impl Control for FrameDuration {}
 /// values to be the same. Setting both values to 0 reverts to using the
 /// camera defaults.
 ///
-/// The maximum frame duration provides the absolute limit to the shutter
-/// speed computed by the AE algorithm and it overrides any exposure mode
+/// The maximum frame duration provides the absolute limit to the exposure
+/// time computed by the AE algorithm and it overrides any exposure mode
 /// setting specified with controls::AeExposureMode. Similarly, when a
 /// manual exposure time is set through controls::ExposureTime, it also
 /// gets clipped to the limits set by this control. When reported in
-/// metadata, the control expresses the minimum and maximum frame
-/// durations used after being clipped to the sensor provided frame
-/// duration limits.
+/// metadata, the control expresses the minimum and maximum frame durations
+/// used after being clipped to the sensor provided frame duration limits.
 ///
 /// \sa AeExposureMode
 /// \sa ExposureTime
@@ -1443,9 +2076,11 @@ impl ControlEntry for FrameDurationLimits {
     const ID: u32 = ControlId::FrameDurationLimits as _;
 }
 impl Control for FrameDurationLimits {}
-/// Temperature measure from the camera sensor in Celsius. This is typically
-/// obtained by a thermal sensor present on-die or in the camera module. The
-/// range of reported temperatures is device dependent.
+/// Temperature measure from the camera sensor in Celsius.
+///
+/// This value is typically obtained by a thermal sensor present on-die or
+/// in the camera module. The range of reported temperatures is device
+/// dependent.
 ///
 /// The SensorTemperature control will only be returned in metadata if a
 /// thermal sensor is present.
@@ -1515,18 +2150,18 @@ impl ControlEntry for SensorTimestamp {
     const ID: u32 = ControlId::SensorTimestamp as _;
 }
 impl Control for SensorTimestamp {}
-/// Control to set the mode of the AF (autofocus) algorithm.
+/// The mode of the AF (autofocus) algorithm.
 ///
 /// An implementation may choose not to implement all the modes.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfMode {
-    /// The AF algorithm is in manual mode. In this mode it will never
-    /// perform any action nor move the lens of its own accord, but an
-    /// application can specify the desired lens position using the
-    /// LensPosition control.
+    /// The AF algorithm is in manual mode.
     ///
-    /// In this mode the AfState will always report AfStateIdle.
+    /// In this mode it will never perform any action nor move the lens of
+    /// its own accord, but an application can specify the desired lens
+    /// position using the LensPosition control. The AfState will always
+    /// report AfStateIdle.
     ///
     /// If the camera is started in AfModeManual, it will move the focus
     /// lens to the position specified by the LensPosition control.
@@ -1535,29 +2170,32 @@ pub enum AfMode {
     /// External cameras (as reported by the Location property set to
     /// CameraLocationExternal) may use a different default value.
     Manual = 0,
-    /// The AF algorithm is in auto mode. This means that the algorithm
-    /// will never move the lens or change state unless the AfTrigger
-    /// control is used. The AfTrigger control can be used to initiate a
-    /// focus scan, the results of which will be reported by AfState.
+    /// The AF algorithm is in auto mode.
     ///
-    /// If the autofocus algorithm is moved from AfModeAuto to another
-    /// mode while a scan is in progress, the scan is cancelled
-    /// immediately, without waiting for the scan to finish.
+    /// In this mode the algorithm will never move the lens or change state
+    /// unless the AfTrigger control is used. The AfTrigger control can be
+    /// used to initiate a focus scan, the results of which will be
+    /// reported by AfState.
     ///
-    /// When first entering this mode the AfState will report
-    /// AfStateIdle. When a trigger control is sent, AfState will
-    /// report AfStateScanning for a period before spontaneously
-    /// changing to AfStateFocused or AfStateFailed, depending on
-    /// the outcome of the scan. It will remain in this state until
-    /// another scan is initiated by the AfTrigger control. If a scan is
-    /// cancelled (without changing to another mode), AfState will return
-    /// to AfStateIdle.
+    /// If the autofocus algorithm is moved from AfModeAuto to another mode
+    /// while a scan is in progress, the scan is cancelled immediately,
+    /// without waiting for the scan to finish.
+    ///
+    /// When first entering this mode the AfState will report AfStateIdle.
+    /// When a trigger control is sent, AfState will report AfStateScanning
+    /// for a period before spontaneously changing to AfStateFocused or
+    /// AfStateFailed, depending on the outcome of the scan. It will remain
+    /// in this state until another scan is initiated by the AfTrigger
+    /// control. If a scan is cancelled (without changing to another mode),
+    /// AfState will return to AfStateIdle.
     Auto = 1,
-    /// The AF algorithm is in continuous mode. This means that the lens can
-    /// re-start a scan spontaneously at any moment, without any user
-    /// intervention. The AfState still reports whether the algorithm is
-    /// currently scanning or not, though the application has no ability to
-    /// initiate or cancel scans, nor to move the lens for itself.
+    /// The AF algorithm is in continuous mode.
+    ///
+    /// In this mode the lens can re-start a scan spontaneously at any
+    /// moment, without any user intervention. The AfState still reports
+    /// whether the algorithm is currently scanning or not, though the
+    /// application has no ability to initiate or cancel scans, nor to move
+    /// the lens for itself.
     ///
     /// However, applications can pause the AF algorithm from continuously
     /// scanning by using the AfPause control. This allows video or still
@@ -1584,21 +2222,24 @@ impl ControlEntry for AfMode {
     const ID: u32 = ControlId::AfMode as _;
 }
 impl Control for AfMode {}
-/// Control to set the range of focus distances that is scanned. An
-/// implementation may choose not to implement all the options here.
+/// The range of focus distances that is scanned.
+///
+/// An implementation may choose not to implement all the options here.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfRange {
-    /// A wide range of focus distances is scanned, all the way from
-    /// infinity down to close distances, though depending on the
-    /// implementation, possibly not including the very closest macro
-    /// positions.
+    /// A wide range of focus distances is scanned.
+    ///
+    /// Scanned distances cover all the way from infinity down to close
+    /// distances, though depending on the implementation, possibly not
+    /// including the very closest macro positions.
     Normal = 0,
     /// Only close distances are scanned.
     Macro = 1,
-    /// The full range of focus distances is scanned just as with
-    /// AfRangeNormal but this time including the very closest macro
-    /// positions.
+    /// The full range of focus distances is scanned.
+    ///
+    /// This range is similar to AfRangeNormal but includes the very
+    /// closest macro positions.
     Full = 2,
 }
 impl TryFrom<ControlValue> for AfRange {
@@ -1617,11 +2258,13 @@ impl ControlEntry for AfRange {
     const ID: u32 = ControlId::AfRange as _;
 }
 impl Control for AfRange {}
-/// Control that determines whether the AF algorithm is to move the lens
-/// as quickly as possible or more steadily. For example, during video
-/// recording it may be desirable not to move the lens too abruptly, but
-/// when in a preview mode (waiting for a still capture) it may be
-/// helpful to move the lens as quickly as is reasonably possible.
+/// Determine whether the AF is to move the lens as quickly as possible or
+/// more steadily.
+///
+/// For example, during video recording it may be desirable not to move the
+/// lens too abruptly, but when in a preview mode (waiting for a still
+/// capture) it may be helpful to move the lens as quickly as is reasonably
+/// possible.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfSpeed {
@@ -1646,14 +2289,15 @@ impl ControlEntry for AfSpeed {
     const ID: u32 = ControlId::AfSpeed as _;
 }
 impl Control for AfSpeed {}
-/// Instruct the AF algorithm how it should decide which parts of the image
-/// should be used to measure focus.
+/// The parts of the image used by the AF algorithm to measure focus.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfMetering {
-    /// The AF algorithm should decide for itself where it will measure focus.
+    /// Let the AF algorithm decide for itself where it will measure focus.
     Auto = 0,
-    /// The AF algorithm should use the rectangles defined by the AfWindows control to measure focus. If no windows are specified the behaviour is platform dependent.
+    /// Use the rectangles defined by the AfWindows control to measure focus.
+    ///
+    /// If no windows are specified the behaviour is platform dependent.
     Windows = 1,
 }
 impl TryFrom<ControlValue> for AfMetering {
@@ -1672,9 +2316,11 @@ impl ControlEntry for AfMetering {
     const ID: u32 = ControlId::AfMetering as _;
 }
 impl Control for AfMetering {}
-/// Sets the focus windows used by the AF algorithm when AfMetering is set
-/// to AfMeteringWindows. The units used are pixels within the rectangle
-/// returned by the ScalerCropMaximum property.
+/// The focus windows used by the AF algorithm when AfMetering is set to
+/// AfMeteringWindows.
+///
+/// The units used are pixels within the rectangle returned by the
+/// ScalerCropMaximum property.
 ///
 /// In order to be activated, a rectangle must be programmed with non-zero
 /// width and height. Internally, these rectangles are intersected with the
@@ -1721,16 +2367,23 @@ impl ControlEntry for AfWindows {
     const ID: u32 = ControlId::AfWindows as _;
 }
 impl Control for AfWindows {}
-/// This control starts an autofocus scan when AfMode is set to AfModeAuto,
-/// and can also be used to terminate a scan early.
+/// Start an autofocus scan.
 ///
-/// It is ignored if AfMode is set to AfModeManual or AfModeContinuous.
+/// This control starts an autofocus scan when AfMode is set to AfModeAuto,
+/// and is ignored if AfMode is set to AfModeManual or AfModeContinuous. It
+/// can also be used to terminate a scan early.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfTrigger {
-    /// Start an AF scan. Ignored if a scan is in progress.
+    /// Start an AF scan.
+    ///
+    /// Setting the control to AfTriggerStart is ignored if a scan is in
+    /// progress.
     Start = 0,
-    /// Cancel an AF scan. This does not cause the lens to move anywhere else. Ignored if no scan is in progress.
+    /// Cancel an AF scan.
+    ///
+    /// This does not cause the lens to move anywhere else. Ignored if no
+    /// scan is in progress.
     Cancel = 1,
 }
 impl TryFrom<ControlValue> for AfTrigger {
@@ -1749,6 +2402,8 @@ impl ControlEntry for AfTrigger {
     const ID: u32 = ControlId::AfTrigger as _;
 }
 impl Control for AfTrigger {}
+/// Pause lens movements when in continuous autofocus mode.
+///
 /// This control has no effect except when in continuous autofocus mode
 /// (AfModeContinuous). It can be used to pause any lens movements while
 /// (for example) images are captured. The algorithm remains inactive
@@ -1756,15 +2411,19 @@ impl Control for AfTrigger {}
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfPause {
-    /// Pause the continuous autofocus algorithm immediately, whether or not
-    /// any kind of scan is underway. AfPauseState will subsequently report
+    /// Pause the continuous autofocus algorithm immediately.
+    ///
+    /// The autofocus algorithm is paused whether or not any kind of scan
+    /// is underway. AfPauseState will subsequently report
     /// AfPauseStatePaused. AfState may report any of AfStateScanning,
     /// AfStateFocused or AfStateFailed, depending on the algorithm's state
     /// when it received this control.
     Immediate = 0,
-    /// This is similar to AfPauseImmediate, and if the AfState is currently
-    /// reporting AfStateFocused or AfStateFailed it will remain in that
-    /// state and AfPauseState will report AfPauseStatePaused.
+    /// Pause the continuous autofocus algorithm at the end of the scan.
+    ///
+    /// This is similar to AfPauseImmediate, and if the AfState is
+    /// currently reporting AfStateFocused or AfStateFailed it will remain
+    /// in that state and AfPauseState will report AfPauseStatePaused.
     ///
     /// However, if the algorithm is scanning (AfStateScanning),
     /// AfPauseState will report AfPauseStatePausing until the scan is
@@ -1772,9 +2431,10 @@ pub enum AfPause {
     /// or AfStateFailed, and AfPauseState will change to
     /// AfPauseStatePaused.
     Deferred = 1,
-    /// Resume continuous autofocus operation. The algorithm starts again
-    /// from exactly where it left off, and AfPauseState will report
-    /// AfPauseStateRunning.
+    /// Resume continuous autofocus operation.
+    ///
+    /// The algorithm starts again from exactly where it left off, and
+    /// AfPauseState will report AfPauseStateRunning.
     Resume = 2,
 }
 impl TryFrom<ControlValue> for AfPause {
@@ -1793,8 +2453,10 @@ impl ControlEntry for AfPause {
     const ID: u32 = ControlId::AfPause as _;
 }
 impl Control for AfPause {}
-/// Acts as a control to instruct the lens to move to a particular position
-/// and also reports back the position of the lens for each frame.
+/// Set and report the focus lens position.
+///
+/// This control instructs the lens to move to a particular position and
+/// also reports back the position of the lens for each frame.
 ///
 /// The LensPosition control is ignored unless the AfMode is set to
 /// AfModeManual, though the value is reported back unconditionally in all
@@ -1808,16 +2470,16 @@ impl Control for AfPause {}
 ///
 /// For example:
 ///
-/// 0 moves the lens to infinity.
-/// 0.5 moves the lens to focus on objects 2m away.
-/// 2 moves the lens to focus on objects 50cm away.
-/// And larger values will focus the lens closer.
+/// - 0 moves the lens to infinity.
+/// - 0.5 moves the lens to focus on objects 2m away.
+/// - 2 moves the lens to focus on objects 50cm away.
+/// - And larger values will focus the lens closer.
 ///
-/// The default value of the control should indicate a good general position
-/// for the lens, often corresponding to the hyperfocal distance (the
-/// closest position for which objects at infinity are still acceptably
-/// sharp). The minimum will often be zero (meaning infinity), and the
-/// maximum value defines the closest focus position.
+/// The default value of the control should indicate a good general
+/// position for the lens, often corresponding to the hyperfocal distance
+/// (the closest position for which objects at infinity are still
+/// acceptably sharp). The minimum will often be zero (meaning infinity),
+/// and the maximum value defines the closest focus position.
 ///
 /// \todo Define a property to report the Hyperfocal distance of calibrated
 /// lenses.
@@ -1849,22 +2511,25 @@ impl ControlEntry for LensPosition {
     const ID: u32 = ControlId::LensPosition as _;
 }
 impl Control for LensPosition {}
-/// Reports the current state of the AF algorithm in conjunction with the
-/// reported AfMode value and (in continuous AF mode) the AfPauseState
-/// value. The possible state changes are described below, though we note
-/// the following state transitions that occur when the AfMode is changed.
+/// The current state of the AF algorithm.
+///
+/// This control reports the current state of the AF algorithm in
+/// conjunction with the reported AfMode value and (in continuous AF mode)
+/// the AfPauseState value. The possible state changes are described below,
+/// though we note the following state transitions that occur when the
+/// AfMode is changed.
 ///
 /// If the AfMode is set to AfModeManual, then the AfState will always
-/// report AfStateIdle (even if the lens is subsequently moved). Changing to
-/// the AfModeManual state does not initiate any lens movement.
+/// report AfStateIdle (even if the lens is subsequently moved). Changing
+/// to the AfModeManual state does not initiate any lens movement.
 ///
 /// If the AfMode is set to AfModeAuto then the AfState will report
-/// AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent together
-/// then AfState will omit AfStateIdle and move straight to AfStateScanning
-/// (and start a scan).
+/// AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent
+/// together then AfState will omit AfStateIdle and move straight to
+/// AfStateScanning (and start a scan).
 ///
-/// If the AfMode is set to AfModeContinuous then the AfState will initially
-/// report AfStateScanning.
+/// If the AfMode is set to AfModeContinuous then the AfState will
+/// initially report AfStateScanning.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum AfState {
@@ -1873,11 +2538,12 @@ pub enum AfState {
     /// in-progress scan was cancelled.
     Idle = 0,
     /// The AF algorithm is in auto mode (AfModeAuto), and a scan has been
-    /// started using the AfTrigger control. The scan can be cancelled by
-    /// sending AfTriggerCancel at which point the algorithm will either
-    /// move back to AfStateIdle or, if the scan actually completes before
-    /// the cancel request is processed, to one of AfStateFocused or
-    /// AfStateFailed.
+    /// started using the AfTrigger control.
+    ///
+    /// The scan can be cancelled by sending AfTriggerCancel at which point
+    /// the algorithm will either move back to AfStateIdle or, if the scan
+    /// actually completes before the cancel request is processed, to one
+    /// of AfStateFocused or AfStateFailed.
     ///
     /// Alternatively the AF algorithm could be in continuous mode
     /// (AfModeContinuous) at which point it may enter this state
@@ -1908,9 +2574,12 @@ impl ControlEntry for AfState {
     const ID: u32 = ControlId::AfState as _;
 }
 impl Control for AfState {}
-/// Only applicable in continuous (AfModeContinuous) mode, this reports
-/// whether the algorithm is currently running, paused or pausing (that is,
-/// will pause as soon as any in-progress scan completes).
+/// Report whether the autofocus is currently running, paused or pausing.
+///
+/// This control is only applicable in continuous (AfModeContinuous) mode,
+/// and reports whether the algorithm is currently running, paused or
+/// pausing (that is, will pause as soon as any in-progress scan
+/// completes).
 ///
 /// Any change to AfMode will cause AfPauseStateRunning to be reported.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -1920,12 +2589,16 @@ pub enum AfPauseState {
     /// spontaneously.
     Running = 0,
     /// Continuous AF has been sent an AfPauseDeferred control, and will
-    /// pause as soon as any in-progress scan completes (and then report
-    /// AfPauseStatePaused). No new scans will be start spontaneously until
+    /// pause as soon as any in-progress scan completes.
+    ///
+    /// When the scan completes, the AfPauseState control will report
+    /// AfPauseStatePaused. No new scans will be start spontaneously until
     /// the AfPauseResume control is sent.
     Pausing = 1,
-    /// Continuous AF is paused. No further state changes or lens movements
-    /// will occur until the AfPauseResume control is sent.
+    /// Continuous AF is paused.
+    ///
+    /// No further state changes or lens movements will occur until the
+    /// AfPauseResume control is sent.
     Paused = 2,
 }
 impl TryFrom<ControlValue> for AfPauseState {
@@ -1944,10 +2617,11 @@ impl ControlEntry for AfPauseState {
     const ID: u32 = ControlId::AfPauseState as _;
 }
 impl Control for AfPauseState {}
-/// Control to set the mode to be used for High Dynamic Range (HDR)
-/// imaging. HDR techniques typically include multiple exposure, image
-/// fusion and tone mapping techniques to improve the dynamic range of the
-/// resulting images.
+/// Set the mode to be used for High Dynamic Range (HDR) imaging.
+///
+/// HDR techniques typically include multiple exposure, image fusion and
+/// tone mapping techniques to improve the dynamic range of the resulting
+/// images.
 ///
 /// When using an HDR mode, images are captured with different sets of AGC
 /// settings called HDR channels. Channels indicate in particular the type
@@ -1959,21 +2633,25 @@ impl Control for AfPauseState {}
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
 pub enum HdrMode {
-    /// HDR is disabled. Metadata for this frame will not include the
-    /// HdrChannel control.
+    /// HDR is disabled.
+    ///
+    /// Metadata for this frame will not include the HdrChannel control.
     Off = 0,
     /// Multiple exposures will be generated in an alternating fashion.
-    /// However, they will not be merged together and will be returned to
-    /// the application as they are. Each image will be tagged with the
-    /// correct HDR channel, indicating what kind of exposure it is. The
-    /// tag should be the same as in the HdrModeMultiExposure case.
+    ///
+    /// The multiple exposures will not be merged together and will be
+    /// returned to the application as they are. Each image will be tagged
+    /// with the correct HDR channel, indicating what kind of exposure it
+    /// is. The tag should be the same as in the HdrModeMultiExposure case.
     ///
     /// The expectation is that an application using this mode would merge
     /// the frames to create HDR images for itself if it requires them.
     MultiExposureUnmerged = 1,
     /// Multiple exposures will be generated and merged to create HDR
-    /// images. Each image will be tagged with the HDR channel (long, medium
-    /// or short) that arrived and which caused this image to be output.
+    /// images.
+    ///
+    /// Each image will be tagged with the HDR channel (long, medium or
+    /// short) that arrived and which caused this image to be output.
     ///
     /// Systems that use two channels for HDR will return images tagged
     /// alternately as the short and long channel. Systems that use three
@@ -1981,12 +2659,15 @@ pub enum HdrMode {
     /// channel before repeating.
     MultiExposure = 2,
     /// Multiple frames all at a single exposure will be used to create HDR
-    /// images. These images should be reported as all corresponding to the
-    /// HDR short channel.
+    /// images.
+    ///
+    /// These images should be reported as all corresponding to the HDR
+    /// short channel.
     SingleExposure = 3,
-    /// Multiple frames will be combined to produce "night mode" images. It
-    /// is up to the implementation exactly which HDR channels it uses, and
-    /// the images will all be tagged accordingly with the correct HDR
+    /// Multiple frames will be combined to produce "night mode" images.
+    ///
+    /// It is up to the implementation exactly which HDR channels it uses,
+    /// and the images will all be tagged accordingly with the correct HDR
     /// channel information.
     Night = 4,
 }
@@ -2006,11 +2687,13 @@ impl ControlEntry for HdrMode {
     const ID: u32 = ControlId::HdrMode as _;
 }
 impl Control for HdrMode {}
+/// The HDR channel used to capture the frame.
+///
 /// This value is reported back to the application so that it can discover
-/// whether this capture corresponds to the short or long exposure image (or
-/// any other image used by the HDR procedure). An application can monitor
-/// the HDR channel to discover when the differently exposed images have
-/// arrived.
+/// whether this capture corresponds to the short or long exposure image
+/// (or any other image used by the HDR procedure). An application can
+/// monitor the HDR channel to discover when the differently exposed images
+/// have arrived.
 ///
 /// This metadata is only available when an HDR mode has been enabled.
 ///
@@ -2044,9 +2727,10 @@ impl ControlEntry for HdrChannel {
     const ID: u32 = ControlId::HdrChannel as _;
 }
 impl Control for HdrChannel {}
-/// Specify a fixed gamma value. Default must be 2.2 which closely mimics
-/// sRGB gamma. Note that this is camera gamma, so it is applied as
-/// 1.0/gamma.
+/// Specify a fixed gamma value.
+///
+/// The default gamma value must be 2.2 which closely mimics sRGB gamma.
+/// Note that this is camera gamma, so it is applied as 1.0/gamma.
 #[derive(Debug, Clone)]
 pub struct Gamma(pub f32);
 impl Deref for Gamma {
@@ -2075,6 +2759,35 @@ impl ControlEntry for Gamma {
     const ID: u32 = ControlId::Gamma as _;
 }
 impl Control for Gamma {}
+/// Enable or disable the debug metadata.
+#[derive(Debug, Clone)]
+pub struct DebugMetadataEnable(pub bool);
+impl Deref for DebugMetadataEnable {
+    type Target = bool;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for DebugMetadataEnable {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl TryFrom<ControlValue> for DebugMetadataEnable {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<bool>::try_from(value)?))
+    }
+}
+impl From<DebugMetadataEnable> for ControlValue {
+    fn from(val: DebugMetadataEnable) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+impl ControlEntry for DebugMetadataEnable {
+    const ID: u32 = ControlId::DebugMetadataEnable as _;
+}
+impl Control for DebugMetadataEnable {}
 /// Control for AE metering trigger. Currently identical to
 /// ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
 ///
@@ -2187,48 +2900,6 @@ impl ControlEntry for ColorCorrectionAberrationMode {
 }
 #[cfg(feature = "vendor_draft")]
 impl Control for ColorCorrectionAberrationMode {}
-/// Control to report the current AE algorithm state. Currently identical to
-/// ANDROID_CONTROL_AE_STATE.
-///
-///  Current state of the AE algorithm.
-#[cfg(feature = "vendor_draft")]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-#[repr(i32)]
-pub enum AeState {
-    /// The AE algorithm is inactive.
-    Inactive = 0,
-    /// The AE algorithm has not converged yet.
-    Searching = 1,
-    /// The AE algorithm has converged.
-    Converged = 2,
-    /// The AE algorithm is locked.
-    Locked = 3,
-    /// The AE algorithm would need a flash for good results
-    FlashRequired = 4,
-    /// The AE algorithm has started a pre-capture metering session.
-    /// \sa AePrecaptureTrigger
-    Precapture = 5,
-}
-#[cfg(feature = "vendor_draft")]
-impl TryFrom<ControlValue> for AeState {
-    type Error = ControlValueError;
-    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
-    }
-}
-#[cfg(feature = "vendor_draft")]
-impl From<AeState> for ControlValue {
-    fn from(val: AeState) -> Self {
-        ControlValue::from(<i32>::from(val))
-    }
-}
-#[cfg(feature = "vendor_draft")]
-impl ControlEntry for AeState {
-    const ID: u32 = ControlId::AeState as _;
-}
-#[cfg(feature = "vendor_draft")]
-impl Control for AeState {}
 /// Control to report the current AWB algorithm state. Currently identical
 /// to ANDROID_CONTROL_AWB_STATE.
 ///
@@ -2485,9 +3156,226 @@ impl ControlEntry for TestPatternMode {
 }
 #[cfg(feature = "vendor_draft")]
 impl Control for TestPatternMode {}
-/// Toggles the Raspberry Pi IPA to output a binary dump of the hardware
-/// generated statistics through the Request metadata in the Bcm2835StatsOutput
-/// control.
+/// Control to select the face detection mode used by the pipeline.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+///
+/// \sa FaceDetectFaceRectangles
+/// \sa FaceDetectFaceScores
+/// \sa FaceDetectFaceLandmarks
+/// \sa FaceDetectFaceIds
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum FaceDetectMode {
+    /// Pipeline doesn't perform face detection and doesn't report any
+    /// control related to face detection.
+    Off = 0,
+    /// Pipeline performs face detection and reports the
+    /// FaceDetectFaceRectangles and FaceDetectFaceScores controls for each
+    /// detected face. FaceDetectFaceLandmarks and FaceDetectFaceIds are
+    /// optional.
+    Simple = 1,
+    /// Pipeline performs face detection and reports all the controls
+    /// related to face detection including FaceDetectFaceRectangles,
+    /// FaceDetectFaceScores, FaceDetectFaceLandmarks, and
+    /// FaceDeteceFaceIds for each detected face.
+    Full = 2,
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectMode {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Self::try_from(i32::try_from(value.clone())?)
+            .map_err(|_| ControlValueError::UnknownVariant(value))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectMode> for ControlValue {
+    fn from(val: FaceDetectMode) -> Self {
+        ControlValue::from(<i32>::from(val))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectMode {
+    const ID: u32 = ControlId::FaceDetectMode as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectMode {}
+/// Boundary rectangles of the detected faces. The number of values is
+/// the number of detected faces.
+///
+/// The FaceDetectFaceRectangles control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceRectangles(pub Vec<Rectangle>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceRectangles {
+    type Target = Vec<Rectangle>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceRectangles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceRectangles {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceRectangles> for ControlValue {
+    fn from(val: FaceDetectFaceRectangles) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceRectangles {
+    const ID: u32 = ControlId::FaceDetectFaceRectangles as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceRectangles {}
+/// Confidence score of each of the detected faces. The range of score is
+/// [0, 100]. The number of values should be the number of faces reported
+/// in FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceScores control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceScores(pub Vec<u8>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceScores {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceScores {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceScores {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<u8>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceScores> for ControlValue {
+    fn from(val: FaceDetectFaceScores) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceScores {
+    const ID: u32 = ControlId::FaceDetectFaceScores as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceScores {}
+/// Array of human face landmark coordinates in format [..., left_eye_i,
+/// right_eye_i, mouth_i, left_eye_i+1, ...], with i = index of face. The
+/// number of values should be 3 * the number of faces reported in
+/// FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceLandmarks control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceLandmarks(pub Vec<Point>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceLandmarks {
+    type Target = Vec<Point>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceLandmarks {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceLandmarks {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Point>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceLandmarks> for ControlValue {
+    fn from(val: FaceDetectFaceLandmarks) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceLandmarks {
+    const ID: u32 = ControlId::FaceDetectFaceLandmarks as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceLandmarks {}
+/// Each detected face is given a unique ID that is valid for as long as the
+/// face is visible to the camera device. A face that leaves the field of
+/// view and later returns may be assigned a new ID. The number of values
+/// should be the number of faces reported in FaceDetectFaceRectangles.
+///
+/// The FaceDetectFaceIds control can only be returned in metadata.
+///
+/// Currently identical to ANDROID_STATISTICS_FACE_IDS.
+#[cfg(feature = "vendor_draft")]
+#[derive(Debug, Clone)]
+pub struct FaceDetectFaceIds(pub Vec<i32>);
+#[cfg(feature = "vendor_draft")]
+impl Deref for FaceDetectFaceIds {
+    type Target = Vec<i32>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl DerefMut for FaceDetectFaceIds {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl TryFrom<ControlValue> for FaceDetectFaceIds {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<i32>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl From<FaceDetectFaceIds> for ControlValue {
+    fn from(val: FaceDetectFaceIds) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_draft")]
+impl ControlEntry for FaceDetectFaceIds {
+    const ID: u32 = ControlId::FaceDetectFaceIds as _;
+}
+#[cfg(feature = "vendor_draft")]
+impl Control for FaceDetectFaceIds {}
+/// Toggles the Raspberry Pi IPA to output the hardware generated statistics.
+///
+/// When this control is set to true, the IPA outputs a binary dump of the
+/// hardware generated statistics through the Request metadata in the
+/// Bcm2835StatsOutput control.
 ///
 /// \sa Bcm2835StatsOutput
 #[cfg(feature = "vendor_rpi")]
@@ -2525,9 +3413,11 @@ impl ControlEntry for StatsOutputEnable {
 }
 #[cfg(feature = "vendor_rpi")]
 impl Control for StatsOutputEnable {}
-/// Span of the BCM2835 ISP generated statistics for the current frame. This
-/// is sent in the Request metadata if the StatsOutputEnable is set to true.
-/// The statistics struct definition can be found in include/linux/bcm2835-isp.h.
+/// Span of the BCM2835 ISP generated statistics for the current frame.
+///
+/// This is sent in the Request metadata if the StatsOutputEnable is set to
+/// true.  The statistics struct definition can be found in
+/// include/linux/bcm2835-isp.h.
 ///
 /// \sa StatsOutputEnable
 #[cfg(feature = "vendor_rpi")]
@@ -2565,19 +3455,118 @@ impl ControlEntry for Bcm2835StatsOutput {
 }
 #[cfg(feature = "vendor_rpi")]
 impl Control for Bcm2835StatsOutput {}
+/// An array of rectangles, where each singular value has identical
+/// functionality to the ScalerCrop control. This control allows the
+/// Raspberry Pi pipeline handler to control individual scaler crops per
+/// output stream.
+///
+/// The order of rectangles passed into the control must match the order of
+/// streams configured by the application. The pipeline handler will only
+/// configure crop retangles up-to the number of output streams configured.
+/// All subsequent rectangles passed into this control are ignored by the
+/// pipeline handler.
+///
+/// If both rpi::ScalerCrops and ScalerCrop controls are present in a
+/// ControlList, the latter is discarded, and crops are obtained from this
+/// control.
+///
+/// Note that using different crop rectangles for each output stream with
+/// this control is only applicable on the Pi5/PiSP platform. This control
+/// should also be considered temporary/draft and will be replaced with
+/// official libcamera API support for per-stream controls in the future.
+///
+/// \sa ScalerCrop
+#[cfg(feature = "vendor_rpi")]
+#[derive(Debug, Clone)]
+pub struct ScalerCrops(pub Vec<Rectangle>);
+#[cfg(feature = "vendor_rpi")]
+impl Deref for ScalerCrops {
+    type Target = Vec<Rectangle>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl DerefMut for ScalerCrops {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl TryFrom<ControlValue> for ScalerCrops {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<Rectangle>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl From<ScalerCrops> for ControlValue {
+    fn from(val: ScalerCrops) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl ControlEntry for ScalerCrops {
+    const ID: u32 = ControlId::ScalerCrops as _;
+}
+#[cfg(feature = "vendor_rpi")]
+impl Control for ScalerCrops {}
+/// Span of the PiSP Frontend ISP generated statistics for the current
+/// frame. This is sent in the Request metadata if the StatsOutputEnable is
+/// set to true. The statistics struct definition can be found in
+/// https://github.com/raspberrypi/libpisp/blob/main/src/libpisp/frontend/pisp_statistics.h
+///
+/// \sa StatsOutputEnable
+#[cfg(feature = "vendor_rpi")]
+#[derive(Debug, Clone)]
+pub struct PispStatsOutput(pub Vec<u8>);
+#[cfg(feature = "vendor_rpi")]
+impl Deref for PispStatsOutput {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl DerefMut for PispStatsOutput {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl TryFrom<ControlValue> for PispStatsOutput {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<u8>>::try_from(value)?))
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl From<PispStatsOutput> for ControlValue {
+    fn from(val: PispStatsOutput) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+#[cfg(feature = "vendor_rpi")]
+impl ControlEntry for PispStatsOutput {
+    const ID: u32 = ControlId::PispStatsOutput as _;
+}
+#[cfg(feature = "vendor_rpi")]
+impl Control for PispStatsOutput {}
 pub fn make_dyn(
     id: ControlId,
     val: ControlValue,
 ) -> Result<Box<dyn DynControlEntry>, ControlValueError> {
     match id {
         ControlId::AeEnable => Ok(Box::new(AeEnable::try_from(val)?)),
-        ControlId::AeLocked => Ok(Box::new(AeLocked::try_from(val)?)),
+        ControlId::AeState => Ok(Box::new(AeState::try_from(val)?)),
         ControlId::AeMeteringMode => Ok(Box::new(AeMeteringMode::try_from(val)?)),
         ControlId::AeConstraintMode => Ok(Box::new(AeConstraintMode::try_from(val)?)),
         ControlId::AeExposureMode => Ok(Box::new(AeExposureMode::try_from(val)?)),
         ControlId::ExposureValue => Ok(Box::new(ExposureValue::try_from(val)?)),
         ControlId::ExposureTime => Ok(Box::new(ExposureTime::try_from(val)?)),
+        ControlId::ExposureTimeMode => Ok(Box::new(ExposureTimeMode::try_from(val)?)),
         ControlId::AnalogueGain => Ok(Box::new(AnalogueGain::try_from(val)?)),
+        ControlId::AnalogueGainMode => Ok(Box::new(AnalogueGainMode::try_from(val)?)),
         ControlId::AeFlickerMode => Ok(Box::new(AeFlickerMode::try_from(val)?)),
         ControlId::AeFlickerPeriod => Ok(Box::new(AeFlickerPeriod::try_from(val)?)),
         ControlId::AeFlickerDetected => Ok(Box::new(AeFlickerDetected::try_from(val)?)),
@@ -2617,6 +3606,9 @@ pub fn make_dyn(
         ControlId::HdrMode => Ok(Box::new(HdrMode::try_from(val)?)),
         ControlId::HdrChannel => Ok(Box::new(HdrChannel::try_from(val)?)),
         ControlId::Gamma => Ok(Box::new(Gamma::try_from(val)?)),
+        ControlId::DebugMetadataEnable => {
+            Ok(Box::new(DebugMetadataEnable::try_from(val)?))
+        }
         #[cfg(feature = "vendor_draft")]
         ControlId::AePrecaptureTrigger => {
             Ok(Box::new(AePrecaptureTrigger::try_from(val)?))
@@ -2627,8 +3619,6 @@ pub fn make_dyn(
         ControlId::ColorCorrectionAberrationMode => {
             Ok(Box::new(ColorCorrectionAberrationMode::try_from(val)?))
         }
-        #[cfg(feature = "vendor_draft")]
-        ControlId::AeState => Ok(Box::new(AeState::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::AwbState => Ok(Box::new(AwbState::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
@@ -2643,9 +3633,29 @@ pub fn make_dyn(
         ControlId::MaxLatency => Ok(Box::new(MaxLatency::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::TestPatternMode => Ok(Box::new(TestPatternMode::try_from(val)?)),
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectMode => Ok(Box::new(FaceDetectMode::try_from(val)?)),
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceRectangles => {
+            Ok(Box::new(FaceDetectFaceRectangles::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceScores => {
+            Ok(Box::new(FaceDetectFaceScores::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceLandmarks => {
+            Ok(Box::new(FaceDetectFaceLandmarks::try_from(val)?))
+        }
+        #[cfg(feature = "vendor_draft")]
+        ControlId::FaceDetectFaceIds => Ok(Box::new(FaceDetectFaceIds::try_from(val)?)),
         #[cfg(feature = "vendor_rpi")]
         ControlId::StatsOutputEnable => Ok(Box::new(StatsOutputEnable::try_from(val)?)),
         #[cfg(feature = "vendor_rpi")]
         ControlId::Bcm2835StatsOutput => Ok(Box::new(Bcm2835StatsOutput::try_from(val)?)),
+        #[cfg(feature = "vendor_rpi")]
+        ControlId::ScalerCrops => Ok(Box::new(ScalerCrops::try_from(val)?)),
+        #[cfg(feature = "vendor_rpi")]
+        ControlId::PispStatsOutput => Ok(Box::new(PispStatsOutput::try_from(val)?)),
     }
 }

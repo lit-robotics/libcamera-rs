@@ -79,7 +79,7 @@ pub struct FrameMetadataPlanesIterator<'d> {
     index: usize,
 }
 
-impl<'d> Iterator for FrameMetadataPlanesIterator<'d> {
+impl Iterator for FrameMetadataPlanesIterator<'_> {
     type Item = FrameMetadataPlane;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -97,7 +97,7 @@ pub struct FrameMetadataRef<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> FrameMetadataRef<'d> {
+impl FrameMetadataRef<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_frame_metadata_t>) -> Self {
         Self {
             ptr,
@@ -124,7 +124,7 @@ impl<'d> FrameMetadataRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for FrameMetadataRef<'d> {
+impl core::fmt::Debug for FrameMetadataRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FrameMetadataRef")
             .field("status", &self.status())
@@ -140,7 +140,7 @@ pub struct FrameBufferPlaneRef<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> FrameBufferPlaneRef<'d> {
+impl FrameBufferPlaneRef<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_plane_t>) -> Self {
         Self {
             ptr,
@@ -175,7 +175,7 @@ impl<'d> FrameBufferPlaneRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for FrameBufferPlaneRef<'d> {
+impl core::fmt::Debug for FrameBufferPlaneRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FrameBufferPlaneRef")
             .field("fd", &self.fd())
@@ -190,7 +190,7 @@ pub struct FrameBufferPlanesRef<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> FrameBufferPlanesRef<'d> {
+impl FrameBufferPlanesRef<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_framebuffer_planes_t>) -> Self {
         Self {
             ptr,
@@ -222,7 +222,7 @@ impl<'d> FrameBufferPlanesRef<'d> {
     }
 }
 
-impl<'d> core::fmt::Debug for FrameBufferPlanesRef<'d> {
+impl core::fmt::Debug for FrameBufferPlanesRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut list = f.debug_list();
         for plane in self.into_iter() {

@@ -4,7 +4,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
-use crate::geometry::{Rectangle, Size};
+use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
@@ -12,10 +12,10 @@ use libcamera_sys::*;
 pub enum PropertyId {
     /// Camera mounting location
     Location = LOCATION,
-    /// The camera rotation is expressed as the angular difference in degrees
-    /// between two reference systems, one relative to the camera module, and
-    /// one defined on the external world scene to be captured when projected
-    /// on the image sensor pixel array.
+    /// The camera physical mounting rotation. It is expressed as the angular
+    /// difference in degrees between two reference systems, one relative to the
+    /// camera module, and one defined on the external world scene to be
+    /// captured when projected on the image sensor pixel array.
     ///
     /// A camera sensor has a 2-dimensional reference system 'Rc' defined by
     /// its pixel array read-out order. The origin is set to the first pixel
@@ -708,6 +708,12 @@ pub enum PropertyId {
     /// that is twice that of the full resolution mode. This value will be valid
     /// after the configure method has returned successfully.
     SensorSensitivity = SENSOR_SENSITIVITY,
+    /// A list of integer values of type dev_t denoting the major and minor
+    /// device numbers of the underlying devices used in the operation of this
+    /// camera.
+    ///
+    /// Different cameras may report identical devices.
+    SystemDevices = SYSTEM_DEVICES,
     /// The arrangement of color filters on sensor; represents the colors in the
     /// top-left 2x2 section of the sensor, in reading order. Currently
     /// identical to ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT.
@@ -758,10 +764,10 @@ impl ControlEntry for Location {
     const ID: u32 = PropertyId::Location as _;
 }
 impl Property for Location {}
-/// The camera rotation is expressed as the angular difference in degrees
-/// between two reference systems, one relative to the camera module, and
-/// one defined on the external world scene to be captured when projected
-/// on the image sensor pixel array.
+/// The camera physical mounting rotation. It is expressed as the angular
+/// difference in degrees between two reference systems, one relative to the
+/// camera module, and one defined on the external world scene to be
+/// captured when projected on the image sensor pixel array.
 ///
 /// A camera sensor has a 2-dimensional reference system 'Rc' defined by
 /// its pixel array read-out order. The origin is set to the first pixel
@@ -1670,6 +1676,39 @@ impl ControlEntry for SensorSensitivity {
     const ID: u32 = PropertyId::SensorSensitivity as _;
 }
 impl Property for SensorSensitivity {}
+/// A list of integer values of type dev_t denoting the major and minor
+/// device numbers of the underlying devices used in the operation of this
+/// camera.
+///
+/// Different cameras may report identical devices.
+#[derive(Debug, Clone)]
+pub struct SystemDevices(pub Vec<i64>);
+impl Deref for SystemDevices {
+    type Target = Vec<i64>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for SystemDevices {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl TryFrom<ControlValue> for SystemDevices {
+    type Error = ControlValueError;
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(Self(<Vec<i64>>::try_from(value)?))
+    }
+}
+impl From<SystemDevices> for ControlValue {
+    fn from(val: SystemDevices) -> Self {
+        ControlValue::from(val.0)
+    }
+}
+impl ControlEntry for SystemDevices {
+    const ID: u32 = PropertyId::SystemDevices as _;
+}
+impl Property for SystemDevices {}
 /// The arrangement of color filters on sensor; represents the colors in the
 /// top-left 2x2 section of the sensor, in reading order. Currently
 /// identical to ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT.
@@ -1729,6 +1768,7 @@ pub fn make_dyn(
         }
         PropertyId::ScalerCropMaximum => Ok(Box::new(ScalerCropMaximum::try_from(val)?)),
         PropertyId::SensorSensitivity => Ok(Box::new(SensorSensitivity::try_from(val)?)),
+        PropertyId::SystemDevices => Ok(Box::new(SystemDevices::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         PropertyId::ColorFilterArrangement => {
             Ok(Box::new(ColorFilterArrangement::try_from(val)?))

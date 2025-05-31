@@ -356,7 +356,7 @@ pub struct ControlListRefIterator<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> Iterator for ControlListRefIterator<'d> {
+impl Iterator for ControlListRefIterator<'_> {
     type Item = (u32, ControlValue);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -375,7 +375,7 @@ impl<'d> Iterator for ControlListRefIterator<'d> {
     }
 }
 
-impl<'d> Drop for ControlListRefIterator<'d> {
+impl Drop for ControlListRefIterator<'_> {
     fn drop(&mut self) {
         unsafe { libcamera_control_list_iter_destroy(self.it.as_ptr()) }
     }

@@ -72,7 +72,7 @@ pub struct CameraList<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl<'d> CameraList<'d> {
+impl CameraList<'_> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_list_t>) -> Self {
         Self {
             ptr,
@@ -104,7 +104,7 @@ impl<'d> CameraList<'d> {
     }
 }
 
-impl<'d> Drop for CameraList<'d> {
+impl Drop for CameraList<'_> {
     fn drop(&mut self) {
         unsafe {
             libcamera_camera_list_destroy(self.ptr.as_ptr());

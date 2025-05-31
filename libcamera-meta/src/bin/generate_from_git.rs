@@ -56,7 +56,7 @@ fn main() {
         let name = std::str::from_utf8(name).unwrap();
         println!("Found tag {name}");
 
-        let version = name.split('/').last().unwrap();
+        let version = name.split('/').next_back().unwrap();
         if !version.starts_with('v') {
             return true;
         }
@@ -69,6 +69,12 @@ fn main() {
 
         if version == Version::new(0, 0, 0) {
             // Version 0.0.0 is just an empty repo
+            return true;
+        }
+
+        if version.major == 0 && version.minor < 4 {
+            // Versions bellow v0.4.0 are incompatible with newer control values
+            println!("Skipping unsupported version {version}");
             return true;
         }
 
@@ -243,6 +249,7 @@ mod generate_rust {
             ControlType::String => "String",
             ControlType::Rectangle => "Rectangle",
             ControlType::Size => "Size",
+            ControlType::Point => "Point",
         };
 
         match size {
@@ -457,7 +464,7 @@ mod generate_rust {
                 use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
                 use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
-                use crate::geometry::{{Rectangle, Size}};
+                use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]
                 use libcamera_sys::*;
                 "#;
