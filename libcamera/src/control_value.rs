@@ -28,6 +28,8 @@ pub enum ControlValue {
     None,
     Bool(SmallVec<[bool; 1]>),
     Byte(SmallVec<[u8; 1]>),
+    Uint16(SmallVec<[u16; 1]>),
+    Uint32(SmallVec<[u32; 1]>),
     Int32(SmallVec<[i32; 1]>),
     Int64(SmallVec<[i64; 1]>),
     Float(SmallVec<[f32; 1]>),
@@ -74,11 +76,14 @@ macro_rules! impl_control_value {
 
 impl_control_value!(ControlValue::Bool, bool);
 impl_control_value!(ControlValue::Byte, u8);
+impl_control_value!(ControlValue::Uint16, u16);
+impl_control_value!(ControlValue::Uint32, u32);
 impl_control_value!(ControlValue::Int32, i32);
 impl_control_value!(ControlValue::Int64, i64);
 impl_control_value!(ControlValue::Float, f32);
 impl_control_value!(ControlValue::Rectangle, Rectangle);
 impl_control_value!(ControlValue::Size, Size);
+impl_control_value!(ControlValue::Point, Point);
 
 macro_rules! impl_control_value_vec {
     ($p:path, $type:ty) => {
@@ -107,6 +112,8 @@ macro_rules! impl_control_value_vec {
 
 impl_control_value_vec!(ControlValue::Bool, bool);
 impl_control_value_vec!(ControlValue::Byte, u8);
+impl_control_value_vec!(ControlValue::Uint16, u16);
+impl_control_value_vec!(ControlValue::Uint32, u32);
 impl_control_value_vec!(ControlValue::Int32, i32);
 impl_control_value_vec!(ControlValue::Int64, i64);
 impl_control_value_vec!(ControlValue::Float, f32);
@@ -182,11 +189,14 @@ macro_rules! impl_control_value_array {
 
 impl_control_value_array!(ControlValue::Bool, bool);
 impl_control_value_array!(ControlValue::Byte, u8);
+impl_control_value_array!(ControlValue::Uint16, u16);
+impl_control_value_array!(ControlValue::Uint32, u32);
 impl_control_value_array!(ControlValue::Int32, i32);
 impl_control_value_array!(ControlValue::Int64, i64);
 impl_control_value_array!(ControlValue::Float, f32);
 impl_control_value_array!(ControlValue::Rectangle, Rectangle);
 impl_control_value_array!(ControlValue::Size, Size);
+impl_control_value_array!(ControlValue::Point, Point);
 
 impl From<String> for ControlValue {
     fn from(val: String) -> Self {
@@ -225,6 +235,14 @@ impl ControlValue {
                 let slice = core::slice::from_raw_parts(data as *const u8, num_elements);
                 Ok(Self::Byte(SmallVec::from_slice(slice)))
             }
+            LIBCAMERA_CONTROL_TYPE_UINT16 => {
+                let slice = core::slice::from_raw_parts(data as *const u16, num_elements);
+                Ok(Self::Uint16(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_UINT32 => {
+                let slice = core::slice::from_raw_parts(data as *const u32, num_elements);
+                Ok(Self::Uint32(SmallVec::from_slice(slice)))
+            }
             LIBCAMERA_CONTROL_TYPE_INT32 => {
                 let slice = core::slice::from_raw_parts(data as *const i32, num_elements);
                 Ok(Self::Int32(SmallVec::from_slice(slice)))
@@ -251,6 +269,10 @@ impl ControlValue {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_size_t, num_elements);
                 Ok(Self::Size(SmallVec::from_iter(slice.iter().map(|r| Size::from(*r)))))
             }
+            LIBCAMERA_CONTROL_TYPE_POINT => {
+                let slice = core::slice::from_raw_parts(data as *const libcamera_point_t, num_elements);
+                Ok(Self::Point(SmallVec::from_iter(slice.iter().map(|r| Point::from(*r)))))
+            }
             _ => Err(ControlValueError::UnknownType(ty)),
         }
     }
@@ -260,6 +282,8 @@ impl ControlValue {
             ControlValue::None => (core::ptr::null(), 0),
             ControlValue::Bool(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Byte(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Uint16(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Uint32(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Int32(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Int64(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Float(v) => (v.as_ptr().cast(), v.len()),
@@ -285,6 +309,8 @@ impl ControlValue {
             ControlValue::None => LIBCAMERA_CONTROL_TYPE_NONE,
             ControlValue::Bool(_) => LIBCAMERA_CONTROL_TYPE_BOOL,
             ControlValue::Byte(_) => LIBCAMERA_CONTROL_TYPE_BYTE,
+            ControlValue::Uint16(_) => LIBCAMERA_CONTROL_TYPE_UINT16,
+            ControlValue::Uint32(_) => LIBCAMERA_CONTROL_TYPE_UINT32,
             ControlValue::Int32(_) => LIBCAMERA_CONTROL_TYPE_INT32,
             ControlValue::Int64(_) => LIBCAMERA_CONTROL_TYPE_INT64,
             ControlValue::Float(_) => LIBCAMERA_CONTROL_TYPE_FLOAT,
