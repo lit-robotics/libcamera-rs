@@ -13,16 +13,6 @@ impl From<libcamera_point_t> for Point {
     }
 }
 
-impl From<Point> for libcamera_point_t {
-    fn from(p: Point) -> Self {
-        Self {
-            x: p.x,
-            y: p.y,
-        }
-    }
-}
-
-
 /// Represents `libcamera::Size`
 #[derive(Debug, Clone, Copy)]
 pub struct Size {
