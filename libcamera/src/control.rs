@@ -400,8 +400,12 @@ impl<'a> ControlInfoMapIter<'a> {
             }
         }
     }
+}
 
-    pub fn next(&mut self) -> Option<(u32, &'a ControlInfo)> {
+impl<'a> Iterator for ControlInfoMapIter<'a> {
+    type Item = (u32, &'a ControlInfo);
+
+    fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             if libcamera_control_info_map_iter_has_next(self.iter) {
                 let key = libcamera_control_info_map_iter_key(self.iter);
@@ -417,14 +421,6 @@ impl<'a> ControlInfoMapIter<'a> {
                 None
             }
         }
-    }
-}
-
-impl<'a> Iterator for ControlInfoMapIter<'a> {
-    type Item = (u32, &'a ControlInfo);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next()
     }
 }
 

@@ -269,7 +269,7 @@ impl ControlValue {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_size_t, num_elements);
                 Ok(Self::Size(SmallVec::from_iter(slice.iter().map(|r| Size::from(*r)))))
             }
-            LIBCAMERA_CONTROL_TYPE_POINT=> {
+            LIBCAMERA_CONTROL_TYPE_POINT => {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_point_t, num_elements);
                 Ok(Self::Point(SmallVec::from_iter(slice.iter().map(|r| Point::from(*r)))))
             }
@@ -291,7 +291,6 @@ impl ControlValue {
             ControlValue::Rectangle(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Size(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Point(v) => (v.as_ptr().cast(), v.len()),
-
         };
 
         let ty = self.ty();
