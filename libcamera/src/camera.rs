@@ -130,7 +130,7 @@ pub struct Camera<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl Camera<'_> {
+impl<'d> Camera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
         Self {
             ptr,
