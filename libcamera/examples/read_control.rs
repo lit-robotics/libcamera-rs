@@ -15,7 +15,7 @@ fn main() {
         for (id, control_info) in cam.controls().into_iter().take(1) {
             //Attempt to get ControlID
             match ControlId::try_from(id) {
-                Ok(id) => println!("Control Id {:?} - {:?}", id as u32, id.name()),
+                Ok(id) => println!("Control Id {:?} - {:?}", id as u32, id),
                 Err(_) => println!("Control Id {:?} - UNKOWN", id),
             }
 
