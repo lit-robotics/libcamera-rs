@@ -118,6 +118,17 @@ impl ControlInfo {
     }
 }
 
+impl core::fmt::Debug for ControlInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ControlInfo")
+            .field("min", &self.min())
+            .field("max", &self.max())
+            .field("def", &self.def())
+            .field("values", &self.values())
+            .finish()
+    }
+}
+
 #[repr(transparent)]
 pub struct ControlInfoMap(libcamera_control_info_map_t);
 
@@ -168,6 +179,19 @@ impl<'a> IntoIterator for &'a ControlInfoMap {
 
     fn into_iter(self) -> Self::IntoIter {
         ControlInfoMapIter::new(self).expect("Failed to create ControlInfoMap iterator")
+    }
+}
+
+impl core::fmt::Debug for ControlInfoMap {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut dm = f.debug_map();
+        for (key, value) in self.into_iter() {
+            match ControlId::try_from(key) {
+                Ok(id) => dm.entry(&id, value),
+                Err(_) => dm.entry(&key, value),
+            };
+        }
+        dm.finish()
     }
 }
 
