@@ -5,7 +5,27 @@
 
 extern "C" {
 
-const char *libcamera_control_name(enum libcamera_control_id id) {
+enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *control){
+    return (enum libcamera_control_id_enum)control->id();
+}
+
+const char *libcamera_control_name(libcamera_control_id_t *control){
+    return control->name().c_str();
+}
+
+enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *control) {
+    return (enum libcamera_control_type) control->type();
+}
+
+const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id){
+     auto it = libcamera::controls::controls.find(id);
+    if (it != libcamera::controls::controls.end())
+        return it->second;
+    else
+        return nullptr;
+}
+
+const char *libcamera_control_name_from_id(enum libcamera_control_id_enum id) {
     auto it = libcamera::controls::controls.find(id);
     if (it != libcamera::controls::controls.end())
         return it->second->name().c_str();
@@ -13,7 +33,7 @@ const char *libcamera_control_name(enum libcamera_control_id id) {
         return nullptr;
 }
 
-enum libcamera_control_type libcamera_control_type(enum libcamera_control_id id) {
+enum libcamera_control_type libcamera_control_type_from_id(enum libcamera_control_id_enum id) {
     auto it = libcamera::controls::controls.find(id);
     if (it != libcamera::controls::controls.end())
         return (enum libcamera_control_type)it->second->type();
@@ -21,7 +41,7 @@ enum libcamera_control_type libcamera_control_type(enum libcamera_control_id id)
         return LIBCAMERA_CONTROL_TYPE_NONE;
 }
 
-const char *libcamera_property_name(enum libcamera_property_id id) {
+const char *libcamera_property_name_by_id(enum libcamera_property_id id) {
     auto it = libcamera::properties::properties.find(id);
     if (it != libcamera::properties::properties.end())
         return it->second->name().c_str();
@@ -29,7 +49,7 @@ const char *libcamera_property_name(enum libcamera_property_id id) {
         return nullptr;
 }
 
-enum libcamera_control_type libcamera_property_type(enum libcamera_property_id id) {
+enum libcamera_control_type libcamera_property_type_by_id(enum libcamera_property_id id) {
     auto it = libcamera::properties::properties.find(id);
     if (it != libcamera::properties::properties.end())
         return (enum libcamera_control_type)it->second->type();
@@ -119,5 +139,123 @@ void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_
     libcamera::Span<uint8_t> storage = val->data();
     memcpy(storage.data(), data, storage.size());
 }
+
+size_t libcamera_control_value_size() {
+     return sizeof(libcamera::ControlValue);
+}
+
+const libcamera_control_value_t *libcamera_control_info_max(libcamera_control_info_t *val){
+    return &val->max();
+}
+const libcamera_control_value_t *libcamera_control_info_min(libcamera_control_info_t *val){
+    return &val->min();
+}
+const libcamera_control_value_t *libcamera_control_info_def(libcamera_control_info_t *val){
+    return &val->def();
+}
+
+const libcamera_control_value_t* libcamera_control_info_values(const libcamera_control_info_t* info, size_t* size)
+{
+    if (!info || !size) return nullptr;
+    const std::vector<libcamera::ControlValue>& values = info->values();
+    *size = values.size();
+    return reinterpret_cast<const libcamera_control_value_t*>(values.data());
+}
+
+bool libcamera_control_id_map_add(libcamera_control_id_map_t *idmap, unsigned int key, const libcamera_control_id_t *control_id)
+{
+	if (!idmap || !control_id)
+		return false;
+
+	(*idmap)[key] = control_id;
+	return true;
+}
+
+const libcamera_control_id_t *libcamera_control_id_map_get(libcamera_control_id_map_t *idmap, unsigned int key)
+{
+	if (!idmap)
+		return nullptr;
+
+	auto it = idmap->find(key);
+	if (it != idmap->end())
+		return it->second;
+	return nullptr;
+}
+
+
+const libcamera_control_info_t *libcamera_control_info_map_at(libcamera_control_info_map_t *map, unsigned int key)
+{
+	if (!map)
+		return nullptr;
+
+	try {
+		return &map->at(key);
+	} catch (const std::out_of_range &) {
+		return nullptr;
+	}
+}
+
+size_t libcamera_control_info_map_count(const libcamera_control_info_map_t *map, unsigned int key)
+{
+	if (!map)
+		return 0;
+
+	return map->count(key);
+}
+
+size_t libcamera_control_info_map_size(const libcamera_control_info_map_t *map)
+{
+	if (!map)
+		return 0;
+
+	return map->size();
+}
+
+const libcamera_control_info_t *libcamera_control_info_map_find(const libcamera_control_info_map_t *map, unsigned int key)
+{
+	if (!map)
+		return nullptr;
+
+	auto it = map->find(key);
+	if (it != map->end()) {
+		return &it->second;
+	}
+ 
+	return nullptr;
+}
+
+
+libcamera_control_info_map_iter_t* libcamera_control_info_map_iter_create(const libcamera_control_info_map_t* map) {
+    if (!map) return nullptr;
+    libcamera_control_info_map_iter_t* iter = new libcamera_control_info_map_iter_t();
+    iter->current = map->begin();
+    iter->end = map->end();
+    return iter;
+}
+
+bool libcamera_control_info_map_iter_has_next(const libcamera_control_info_map_iter_t* iter) {
+    if (!iter) return false;
+    return iter->current != iter->end;
+}
+
+unsigned int libcamera_control_info_map_iter_key(const libcamera_control_info_map_iter_t* iter) {
+    if (!iter || iter->current == iter->end) return 0;
+    return iter->current->first->id();
+}
+
+const libcamera_control_info_t* libcamera_control_info_map_iter_value(const libcamera_control_info_map_iter_t* iter) {
+    if (!iter || iter->current == iter->end) return nullptr;
+    return &(iter->current->second);
+}
+
+void libcamera_control_info_map_iter_next(libcamera_control_info_map_iter_t* iter) {
+    if (!iter || iter->current == iter->end) return;
+    ++(iter->current);
+}
+
+void libcamera_control_info_map_iter_destroy(libcamera_control_info_map_iter_t* iter) {
+    delete iter;
+}
+
 
 }

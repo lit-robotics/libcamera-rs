@@ -44,12 +44,154 @@ impl<T: ControlEntry> DynControlEntry for T {
 }
 
 #[repr(transparent)]
+pub struct ControlInfo(libcamera_control_info_t);
+
+impl ControlInfo {
+    pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_info_t>) -> &'a mut Self {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &mut *(ptr.as_ptr() as *mut Self)
+    }
+
+    pub(crate) fn ptr(&self) -> *const libcamera_control_info_t {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &self.0 as *const libcamera_control_info_t
+    }
+
+    pub fn min(&self) -> ControlValue {
+        unsafe {
+            ControlValue::read(NonNull::new(libcamera_control_info_min(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
+        }
+    }
+
+    pub fn max(&self) -> ControlValue {
+        unsafe {
+            ControlValue::read(NonNull::new(libcamera_control_info_max(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
+        }
+    }
+
+    pub fn def(&self) -> ControlValue {
+        unsafe {
+            ControlValue::read(NonNull::new(libcamera_control_info_def(self.ptr().cast_mut()).cast_mut()).unwrap())
+                .unwrap()
+        }
+    }
+
+    pub fn values(&self) -> Vec<ControlValue> {
+        unsafe {
+            let mut size: usize = 0;
+            let values_ptr = libcamera_control_info_values(self.ptr(), &mut size as *mut usize);
+
+            if values_ptr.is_null() || size == 0 {
+                return Vec::new();
+            }
+
+            // Determine the size of libcamera_control_value_t
+            let control_value_size = libcamera_control_value_size();
+
+            // Cast the pointer to *const u8 for byte-wise pointer arithmetic
+            let base_ptr = values_ptr as *const u8;
+
+            let mut control_values = Vec::with_capacity(size);
+            for i in 0..size {
+                // Calculate the pointer to the i-th ControlValue
+                let offset = i * control_value_size;
+                let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
+
+                if val_ptr.is_null() {
+                    eprintln!("ControlValue at index {} is null", i);
+                    continue;
+                }
+
+                // Read and convert the ControlValue
+                match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
+                    Ok(control_val) => control_values.push(control_val),
+                    Err(e) => {
+                        eprintln!("Failed to read ControlValue at index {}: {:?}", i, e);
+                    }
+                }
+            }
+
+            control_values
+        }
+    }
+}
+
+impl core::fmt::Debug for ControlInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ControlInfo")
+            .field("min", &self.min())
+            .field("max", &self.max())
+            .field("def", &self.def())
+            .field("values", &self.values())
+            .finish()
+    }
+}
+
+#[repr(transparent)]
 pub struct ControlInfoMap(libcamera_control_info_map_t);
 
 impl ControlInfoMap {
     pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_info_map_t>) -> &'a mut Self {
         // Safety: we can cast it because of `#[repr(transparent)]`
         &mut *(ptr.as_ptr() as *mut Self)
+    }
+
+    pub(crate) fn ptr(&self) -> *const libcamera_control_info_map_t {
+        // Safety: we can cast it because of `#[repr(transparent)]`
+        &self.0 as *const libcamera_control_info_map_t
+    }
+
+    pub fn at(&self, key: u32) -> Result<&ControlInfo, ControlError> {
+        unsafe {
+            let ptr = NonNull::new(libcamera_control_info_map_at(self.ptr().cast_mut(), key).cast_mut());
+            match ptr {
+                Some(ptr) => Ok(ControlInfo::from_ptr(ptr)),
+                None => Err(ControlError::NotFound(key)),
+            }
+        }
+    }
+
+    pub fn count(&self, key: u32) -> usize {
+        unsafe { libcamera_control_info_map_count(self.ptr().cast_mut(), key) }
+    }
+
+    pub fn find(&self, key: u32) -> Result<&ControlInfo, ControlError> {
+        unsafe {
+            let ptr = NonNull::new(libcamera_control_info_map_find(self.ptr().cast_mut(), key).cast_mut());
+
+            match ptr {
+                Some(ptr) => Ok(ControlInfo::from_ptr(ptr)),
+                None => Err(ControlError::NotFound(key)),
+            }
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        unsafe { libcamera_control_info_map_size(self.ptr().cast_mut()) }
+    }
+}
+
+impl<'a> IntoIterator for &'a ControlInfoMap {
+    type Item = (u32, &'a ControlInfo);
+    type IntoIter = ControlInfoMapIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ControlInfoMapIter::new(self).expect("Failed to create ControlInfoMap iterator")
+    }
+}
+
+impl core::fmt::Debug for ControlInfoMap {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut dm = f.debug_map();
+        for (key, value) in self.into_iter() {
+            match ControlId::try_from(key) {
+                Ok(id) => dm.entry(&id, value),
+                Err(_) => dm.entry(&key, value),
+            };
+        }
+        dm.finish()
     }
 }
 
@@ -105,6 +247,29 @@ impl ControlList {
 
         Ok(())
     }
+
+    /// Sets control value.
+    ///
+    /// This can fail if control is not supported by the camera, but due to libcamera API limitations an error will not
+    /// be returned. Use [ControlList::get] if you need to ensure that value was set.
+    pub fn set_raw(&mut self, id: u32, val: ControlValue) -> Result<(), ControlError> {
+        unsafe {
+            let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
+            val.write(val_ptr);
+            libcamera_control_list_set(self.ptr().cast_mut(), id as _, val_ptr.as_ptr());
+            libcamera_control_value_destroy(val_ptr.as_ptr());
+        }
+
+        Ok(())
+    }
+
+    pub fn get_raw(&mut self, id: u32) -> Result<ControlValue, ControlError> {
+        let val_ptr = NonNull::new(unsafe { libcamera_control_list_get(self.ptr().cast_mut(), id as _).cast_mut() })
+            .ok_or(ControlError::NotFound(id))?;
+
+        let val = unsafe { ControlValue::read(val_ptr) }?;
+        Ok(val)
+    }
 }
 
 impl<'d> IntoIterator for &'d ControlList {
@@ -157,6 +322,7 @@ impl PropertyList {
             .ok_or(ControlError::NotFound(C::ID))?;
 
         let val = unsafe { ControlValue::read(val_ptr) }?;
+
         Ok(C::try_from(val)?)
     }
 
@@ -236,5 +402,56 @@ impl Iterator for ControlListRefIterator<'_> {
 impl Drop for ControlListRefIterator<'_> {
     fn drop(&mut self) {
         unsafe { libcamera_control_list_iter_destroy(self.it.as_ptr()) }
+    }
+}
+
+pub struct ControlInfoMapIter<'a> {
+    iter: *mut libcamera_control_info_map_iter_t,
+    marker: PhantomData<&'a libcamera_control_info_map_t>,
+}
+
+impl<'a> ControlInfoMapIter<'a> {
+    pub fn new(map: &'a ControlInfoMap) -> Option<Self> {
+        unsafe {
+            let iter = libcamera_control_info_map_iter_create(map.ptr());
+            if iter.is_null() {
+                None
+            } else {
+                Some(ControlInfoMapIter {
+                    iter,
+                    marker: PhantomData,
+                })
+            }
+        }
+    }
+}
+
+impl<'a> Iterator for ControlInfoMapIter<'a> {
+    type Item = (u32, &'a ControlInfo);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if libcamera_control_info_map_iter_has_next(self.iter) {
+                let key = libcamera_control_info_map_iter_key(self.iter);
+                let value_ptr = libcamera_control_info_map_iter_value(self.iter);
+                if value_ptr.is_null() {
+                    None
+                } else {
+                    let control_info = &*(value_ptr as *const ControlInfo);
+                    libcamera_control_info_map_iter_next(self.iter);
+                    Some((key, control_info))
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl<'a> Drop for ControlInfoMapIter<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            libcamera_control_info_map_iter_destroy(self.iter);
+        }
     }
 }
