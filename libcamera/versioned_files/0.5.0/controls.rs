@@ -1,12 +1,17 @@
-use std::{ffi::CStr, ops::{Deref, DerefMut}};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-#[allow(unused_imports)]
-use crate::control::{Control, Property, ControlEntry, DynControlEntry};
-use crate::control_value::{ControlValue, ControlValueError};
-#[allow(unused_imports)]
-use crate::geometry::{Rectangle, Point, Size};
+use std::{
+    ffi::CStr,
+    ops::{Deref, DerefMut},
+};
+
 #[allow(unused_imports)]
 use libcamera_sys::*;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
+#[allow(unused_imports)]
+use crate::control::{Control, ControlEntry, DynControlEntry, Property};
+use crate::control_value::{ControlValue, ControlValueError};
+#[allow(unused_imports)]
+use crate::geometry::{Point, Rectangle, Size};
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ControlId {
@@ -779,6 +784,65 @@ impl ControlId {
             CStr::from_ptr(c_str).to_str().unwrap().into()
         }
     }
+    pub fn vendor(&self) -> String {
+        unsafe {
+            let ptr = libcamera_control_id_vendor(self as *const _);
+            if ptr.is_null() {
+                String::new()
+            } else {
+                CStr::from_ptr(ptr).to_string_lossy().into_owned()
+            }
+        }
+    }
+
+    pub fn control_type(&self) -> ControlType {
+        unsafe { std::mem::transmute(libcamera_control_id_type(self as *const _)) }
+    }
+
+    pub fn direction_bits(&self) -> u32 {
+        unsafe { libcamera_control_id_direction(self as *const _) }
+    }
+
+    pub fn is_input(&self) -> bool {
+        unsafe { libcamera_control_id_is_input(self as *const _) }
+    }
+
+    pub fn is_output(&self) -> bool {
+        unsafe { libcamera_control_id_is_output(self as *const _) }
+    }
+
+    pub fn is_array(&self) -> bool {
+        unsafe { libcamera_control_id_is_array(self as *const _) }
+    }
+
+    pub fn array_size(&self) -> usize {
+        unsafe { libcamera_control_id_size(self as *const _) }
+    }
+
+    pub fn enumerators_map(&self) -> HashMap<i32, String> {
+        let mut map = HashMap::new();
+        let len = unsafe { libcamera_control_id_enumerators_len(self as *const _) };
+        for i in 0..len {
+            let key = unsafe { libcamera_control_id_enumerators_key(self as *const _, i) };
+            let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self as *const _, i) };
+            if !name_ptr.is_null() {
+                let name = unsafe { CStr::from_ptr(name_ptr).to_string_lossy().into_owned() };
+                map.insert(key, name);
+            }
+        }
+        map
+    }
+
+    pub fn from_id(id: u32) -> Option<&'static Self> {
+        unsafe {
+            let ptr = libcamera_control_from_id(id);
+            if ptr.is_null() {
+                None
+            } else {
+                Some(&*ptr)
+            }
+        }
+    }
 }
 /// Enable or disable the AEGC algorithm. When this control is set to true,
 /// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
@@ -876,8 +940,7 @@ pub enum AeState {
 impl TryFrom<ControlValue> for AeState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AeState> for ControlValue {
@@ -909,8 +972,7 @@ pub enum AeMeteringMode {
 impl TryFrom<ControlValue> for AeMeteringMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AeMeteringMode> for ControlValue {
@@ -955,8 +1017,7 @@ pub enum AeConstraintMode {
 impl TryFrom<ControlValue> for AeConstraintMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AeConstraintMode> for ControlValue {
@@ -994,8 +1055,7 @@ pub enum AeExposureMode {
 impl TryFrom<ControlValue> for AeExposureMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AeExposureMode> for ControlValue {
@@ -1178,8 +1238,7 @@ pub enum ExposureTimeMode {
 impl TryFrom<ControlValue> for ExposureTimeMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<ExposureTimeMode> for ControlValue {
@@ -1292,8 +1351,7 @@ pub enum AnalogueGainMode {
 impl TryFrom<ControlValue> for AnalogueGainMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AnalogueGainMode> for ControlValue {
@@ -1342,8 +1400,7 @@ pub enum AeFlickerMode {
 impl TryFrom<ControlValue> for AeFlickerMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AeFlickerMode> for ControlValue {
@@ -1610,8 +1667,7 @@ pub enum AwbMode {
 impl TryFrom<ControlValue> for AwbMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AwbMode> for ControlValue {
@@ -2223,8 +2279,7 @@ pub enum AfMode {
 impl TryFrom<ControlValue> for AfMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfMode> for ControlValue {
@@ -2259,8 +2314,7 @@ pub enum AfRange {
 impl TryFrom<ControlValue> for AfRange {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfRange> for ControlValue {
@@ -2290,8 +2344,7 @@ pub enum AfSpeed {
 impl TryFrom<ControlValue> for AfSpeed {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfSpeed> for ControlValue {
@@ -2317,8 +2370,7 @@ pub enum AfMetering {
 impl TryFrom<ControlValue> for AfMetering {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfMetering> for ControlValue {
@@ -2403,8 +2455,7 @@ pub enum AfTrigger {
 impl TryFrom<ControlValue> for AfTrigger {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfTrigger> for ControlValue {
@@ -2454,8 +2505,7 @@ pub enum AfPause {
 impl TryFrom<ControlValue> for AfPause {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfPause> for ControlValue {
@@ -2575,8 +2625,7 @@ pub enum AfState {
 impl TryFrom<ControlValue> for AfState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfState> for ControlValue {
@@ -2618,8 +2667,7 @@ pub enum AfPauseState {
 impl TryFrom<ControlValue> for AfPauseState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<AfPauseState> for ControlValue {
@@ -2688,8 +2736,7 @@ pub enum HdrMode {
 impl TryFrom<ControlValue> for HdrMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<HdrMode> for ControlValue {
@@ -2728,8 +2775,7 @@ pub enum HdrChannel {
 impl TryFrom<ControlValue> for HdrChannel {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 impl From<HdrChannel> for ControlValue {
@@ -2823,8 +2869,7 @@ pub enum AePrecaptureTrigger {
 impl TryFrom<ControlValue> for AePrecaptureTrigger {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -2862,8 +2907,7 @@ pub enum NoiseReductionMode {
 impl TryFrom<ControlValue> for NoiseReductionMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -2898,8 +2942,7 @@ pub enum ColorCorrectionAberrationMode {
 impl TryFrom<ControlValue> for ColorCorrectionAberrationMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -2935,8 +2978,7 @@ pub enum AwbState {
 impl TryFrom<ControlValue> for AwbState {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -3004,8 +3046,7 @@ pub enum LensShadingMapMode {
 impl TryFrom<ControlValue> for LensShadingMapMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -3154,8 +3195,7 @@ pub enum TestPatternMode {
 impl TryFrom<ControlValue> for TestPatternMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -3200,8 +3240,7 @@ pub enum FaceDetectMode {
 impl TryFrom<ControlValue> for FaceDetectMode {
     type Error = ControlValueError;
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
-        Self::try_from(i32::try_from(value.clone())?)
-            .map_err(|_| ControlValueError::UnknownVariant(value))
+        Self::try_from(i32::try_from(value.clone())?).map_err(|_| ControlValueError::UnknownVariant(value))
     }
 }
 #[cfg(feature = "vendor_draft")]
@@ -3566,10 +3605,7 @@ impl ControlEntry for PispStatsOutput {
 }
 #[cfg(feature = "vendor_rpi")]
 impl Control for PispStatsOutput {}
-pub fn make_dyn(
-    id: ControlId,
-    val: ControlValue,
-) -> Result<Box<dyn DynControlEntry>, ControlValueError> {
+pub fn make_dyn(id: ControlId, val: ControlValue) -> Result<Box<dyn DynControlEntry>, ControlValueError> {
     match id {
         ControlId::AeEnable => Ok(Box::new(AeEnable::try_from(val)?)),
         ControlId::AeState => Ok(Box::new(AeState::try_from(val)?)),
@@ -3596,15 +3632,11 @@ pub fn make_dyn(
         ControlId::SensorBlackLevels => Ok(Box::new(SensorBlackLevels::try_from(val)?)),
         ControlId::Sharpness => Ok(Box::new(Sharpness::try_from(val)?)),
         ControlId::FocusFoM => Ok(Box::new(FocusFoM::try_from(val)?)),
-        ControlId::ColourCorrectionMatrix => {
-            Ok(Box::new(ColourCorrectionMatrix::try_from(val)?))
-        }
+        ControlId::ColourCorrectionMatrix => Ok(Box::new(ColourCorrectionMatrix::try_from(val)?)),
         ControlId::ScalerCrop => Ok(Box::new(ScalerCrop::try_from(val)?)),
         ControlId::DigitalGain => Ok(Box::new(DigitalGain::try_from(val)?)),
         ControlId::FrameDuration => Ok(Box::new(FrameDuration::try_from(val)?)),
-        ControlId::FrameDurationLimits => {
-            Ok(Box::new(FrameDurationLimits::try_from(val)?))
-        }
+        ControlId::FrameDurationLimits => Ok(Box::new(FrameDurationLimits::try_from(val)?)),
         ControlId::SensorTemperature => Ok(Box::new(SensorTemperature::try_from(val)?)),
         ControlId::SensorTimestamp => Ok(Box::new(SensorTimestamp::try_from(val)?)),
         ControlId::AfMode => Ok(Box::new(AfMode::try_from(val)?)),
@@ -3620,25 +3652,17 @@ pub fn make_dyn(
         ControlId::HdrMode => Ok(Box::new(HdrMode::try_from(val)?)),
         ControlId::HdrChannel => Ok(Box::new(HdrChannel::try_from(val)?)),
         ControlId::Gamma => Ok(Box::new(Gamma::try_from(val)?)),
-        ControlId::DebugMetadataEnable => {
-            Ok(Box::new(DebugMetadataEnable::try_from(val)?))
-        }
+        ControlId::DebugMetadataEnable => Ok(Box::new(DebugMetadataEnable::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::AePrecaptureTrigger => {
-            Ok(Box::new(AePrecaptureTrigger::try_from(val)?))
-        }
+        ControlId::AePrecaptureTrigger => Ok(Box::new(AePrecaptureTrigger::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::NoiseReductionMode => Ok(Box::new(NoiseReductionMode::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::ColorCorrectionAberrationMode => {
-            Ok(Box::new(ColorCorrectionAberrationMode::try_from(val)?))
-        }
+        ControlId::ColorCorrectionAberrationMode => Ok(Box::new(ColorCorrectionAberrationMode::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::AwbState => Ok(Box::new(AwbState::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::SensorRollingShutterSkew => {
-            Ok(Box::new(SensorRollingShutterSkew::try_from(val)?))
-        }
+        ControlId::SensorRollingShutterSkew => Ok(Box::new(SensorRollingShutterSkew::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::LensShadingMapMode => Ok(Box::new(LensShadingMapMode::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
@@ -3650,17 +3674,11 @@ pub fn make_dyn(
         #[cfg(feature = "vendor_draft")]
         ControlId::FaceDetectMode => Ok(Box::new(FaceDetectMode::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::FaceDetectFaceRectangles => {
-            Ok(Box::new(FaceDetectFaceRectangles::try_from(val)?))
-        }
+        ControlId::FaceDetectFaceRectangles => Ok(Box::new(FaceDetectFaceRectangles::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::FaceDetectFaceScores => {
-            Ok(Box::new(FaceDetectFaceScores::try_from(val)?))
-        }
+        ControlId::FaceDetectFaceScores => Ok(Box::new(FaceDetectFaceScores::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
-        ControlId::FaceDetectFaceLandmarks => {
-            Ok(Box::new(FaceDetectFaceLandmarks::try_from(val)?))
-        }
+        ControlId::FaceDetectFaceLandmarks => Ok(Box::new(FaceDetectFaceLandmarks::try_from(val)?)),
         #[cfg(feature = "vendor_draft")]
         ControlId::FaceDetectFaceIds => Ok(Box::new(FaceDetectFaceIds::try_from(val)?)),
         #[cfg(feature = "vendor_rpi")]
