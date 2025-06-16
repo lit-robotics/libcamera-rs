@@ -543,6 +543,7 @@ mod generate_rust {
 
     pub fn generate_controls_file(controls: &[Control], ty: ControlsType) -> String {
         let header = r#"
+                #[allow(unused_imports)]
                 use std::{ffi::CStr, ops::{{Deref, DerefMut}},collections::HashMap};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
@@ -552,6 +553,7 @@ mod generate_rust {
                 use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]
                 use libcamera_sys::*;
+                #[allow(unused_imports)]
                 use libcamera_sys::libcamera_control_direction::*;
                 "#;
 

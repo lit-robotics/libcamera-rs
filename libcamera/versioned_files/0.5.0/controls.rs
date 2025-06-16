@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use std::{
     ffi::CStr, ops::{Deref, DerefMut},
     collections::HashMap,
@@ -10,6 +11,7 @@ use crate::control_value::{ControlValue, ControlValueError};
 use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
+#[allow(unused_imports)]
 use libcamera_sys::libcamera_control_direction::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
