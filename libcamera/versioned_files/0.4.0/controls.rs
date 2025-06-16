@@ -671,7 +671,7 @@ impl ControlId {
         }
     }
     pub fn control_type(&self) -> u32 {
-        unsafe { std::mem::transmute(libcamera_control_id_type(self.as_ptr())) }
+        unsafe { libcamera_control_id_type(self.as_ptr()) }
     }
     pub fn direction(&self) -> ControlDirection {
         let raw = unsafe { libcamera_control_id_direction(self.as_ptr()) } as u32;
