@@ -1,8 +1,10 @@
 use std::{
+    collections::HashMap,
     ffi::CStr,
     ops::{Deref, DerefMut},
 };
 
+use libcamera_sys::libcamera_control_direction::*;
 #[allow(unused_imports)]
 use libcamera_sys::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -12,7 +14,7 @@ use crate::control::{Control, ControlEntry, DynControlEntry, Property};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
 use crate::geometry::{Point, Rectangle, Size};
-#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ControlId {
     /// Enable or disable the AEGC algorithm. When this control is set to true,
@@ -771,6 +773,7 @@ pub enum ControlId {
     #[cfg(feature = "vendor_rpi")]
     PispStatsOutput = PISP_STATS_OUTPUT,
 }
+
 impl ControlId {
     fn id(&self) -> u32 {
         *self as u32
@@ -786,7 +789,7 @@ impl ControlId {
     }
     pub fn vendor(&self) -> String {
         unsafe {
-            let ptr = libcamera_control_id_vendor(self as *const _);
+            let ptr = libcamera_control_id_vendor(self as *const _ as *mut _);
             if ptr.is_null() {
                 String::new()
             } else {
@@ -795,36 +798,37 @@ impl ControlId {
         }
     }
 
-    pub fn control_type(&self) -> ControlType {
-        unsafe { std::mem::transmute(libcamera_control_id_type(self as *const _)) }
+    pub fn control_type(&self) -> u32 {
+        unsafe { std::mem::transmute(libcamera_control_id_type(self as *const _ as *mut _)) }
     }
 
-    pub fn direction_bits(&self) -> u32 {
-        unsafe { libcamera_control_id_direction(self as *const _) }
+    pub fn direction(&self) -> ControlDirection {
+        let raw = unsafe { libcamera_control_id_direction(self as *const _ as *mut _) } as u32;
+        ControlDirection::try_from(raw).expect("Unknown libcamera_control_direction value")
     }
 
     pub fn is_input(&self) -> bool {
-        unsafe { libcamera_control_id_is_input(self as *const _) }
+        unsafe { libcamera_control_id_is_input(self as *const _ as *mut _) }
     }
 
     pub fn is_output(&self) -> bool {
-        unsafe { libcamera_control_id_is_output(self as *const _) }
+        unsafe { libcamera_control_id_is_output(self as *const _ as *mut _) }
     }
 
     pub fn is_array(&self) -> bool {
-        unsafe { libcamera_control_id_is_array(self as *const _) }
+        unsafe { libcamera_control_id_is_array(self as *const _ as *mut _) }
     }
 
     pub fn array_size(&self) -> usize {
-        unsafe { libcamera_control_id_size(self as *const _) }
+        unsafe { libcamera_control_id_size(self as *const _ as *mut _) }
     }
 
     pub fn enumerators_map(&self) -> HashMap<i32, String> {
         let mut map = HashMap::new();
-        let len = unsafe { libcamera_control_id_enumerators_len(self as *const _) };
+        let len = unsafe { libcamera_control_id_enumerators_len(self as *const _ as *mut _) };
         for i in 0..len {
-            let key = unsafe { libcamera_control_id_enumerators_key(self as *const _, i) };
-            let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self as *const _, i) };
+            let key = unsafe { libcamera_control_id_enumerators_key(self as *const _ as *mut _, i) };
+            let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self as *const _ as *mut _, i) };
             if !name_ptr.is_null() {
                 let name = unsafe { CStr::from_ptr(name_ptr).to_string_lossy().into_owned() };
                 map.insert(key, name);
@@ -833,15 +837,33 @@ impl ControlId {
         map
     }
 
-    pub fn from_id(id: u32) -> Option<&'static Self> {
-        unsafe {
-            let ptr = libcamera_control_from_id(id);
-            if ptr.is_null() {
-                None
-            } else {
-                Some(&*ptr)
-            }
-        }
+    pub fn from_id(id: u32) -> Option<Self> {
+        ControlId::try_from(id).ok()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum ControlDirection {
+    /// Input flag (1<<0)
+    In = LIBCAMERA_CONTROL_DIRECTION_IN,
+    /// Output flag (1<<1)
+    Out = LIBCAMERA_CONTROL_DIRECTION_OUT,
+}
+
+impl core::fmt::Debug for ControlId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ControlId")
+            .field("id", &self.id())
+            .field("name", &self.name())
+            .field("vendor", &self.vendor())
+            .field("control_type", &self.control_type())
+            .field("direction", &self.direction())
+            .field("is_input", &self.is_input())
+            .field("is_output", &self.is_output())
+            .field("is_array", &self.is_array())
+            .field("enumerators_map", &self.enumerators_map())
+            .finish()
     }
 }
 /// Enable or disable the AEGC algorithm. When this control is set to true,

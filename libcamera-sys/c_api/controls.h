@@ -59,6 +59,10 @@ enum libcamera_control_type {
 	LIBCAMERA_CONTROL_TYPE_POINT,
 };
 
+enum libcamera_control_direction {
+    LIBCAMERA_CONTROL_DIRECTION_IN  = (1 << 0),
+    LIBCAMERA_CONTROL_DIRECTION_OUT = (1 << 1),
+};
 // --- libcamera_control_id ---
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id);
 const char *libcamera_control_name_from_id(enum libcamera_control_id_enum id);
@@ -66,9 +70,9 @@ enum libcamera_control_type libcamera_control_type_from_id(enum libcamera_contro
 
 enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *control);
 const char *libcamera_control_name(libcamera_control_id_t *control);
-enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *control);
+enum libcamera_control_type libcamera_control_id_type(libcamera_control_id_t *control);
 const char *libcamera_control_id_vendor(libcamera_control_id_t *control);
-unsigned int libcamera_control_id_direction(libcamera_control_id_t *control);
+enum libcamera_control_direction libcamera_control_id_direction(libcamera_control_id_t *control);
 bool libcamera_control_id_is_input(libcamera_control_id_t *control);
 bool libcamera_control_id_is_output(libcamera_control_id_t *control);
 bool libcamera_control_id_is_array(libcamera_control_id_t *control);

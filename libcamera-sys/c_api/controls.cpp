@@ -13,7 +13,7 @@ const char *libcamera_control_name(libcamera_control_id_t *control){
     return control->name().c_str();
 }
 
-enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *control) {
+enum libcamera_control_type libcamera_control_id_type(libcamera_control_id_t *control) {
     return (enum libcamera_control_type) control->type();
 }
 
@@ -21,8 +21,12 @@ const char *libcamera_control_id_vendor(libcamera_control_id_t *control) {
     return control->vendor().c_str();
 }
 
-unsigned int libcamera_control_id_direction(libcamera_control_id_t *control) {
-    return static_cast<unsigned int>(control->direction());
+enum libcamera_control_direction libcamera_control_id_direction(libcamera_control_id_t *control) {
+    using Underlying = std::underlying_type_t<libcamera::ControlId::Direction>;
+    Underlying bits = static_cast<Underlying>(control->direction());
+
+    // …then cast that integer into your C enum
+    return static_cast<enum libcamera_control_direction>(bits);
 }
 
 bool libcamera_control_id_is_input(libcamera_control_id_t *control) {
