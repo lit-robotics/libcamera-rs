@@ -334,8 +334,72 @@ mod generate_rust {
                 }
             }
         "#;
-
         out += "}\n";
+
+        //ControlId has extra functions that PropertyId does not
+        if let ControlsType::Control = ty {
+            out += r#"
+                pub fn vendor(&self) -> String {
+                    unsafe {
+                        let ptr = libcamera_control_id_vendor(self as *const _);
+                        if ptr.is_null() {
+                            String::new()
+                        } else {
+                            CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                        }
+                    }
+                }
+
+                pub fn control_type(&self) -> ControlType {
+                    unsafe { std::mem::transmute(libcamera_control_id_type(self as *const _)) }
+                }
+
+                pub fn direction_bits(&self) -> u32 {
+                    unsafe { libcamera_control_id_direction(self as *const _) }
+                }
+
+                pub fn is_input(&self) -> bool {
+                    unsafe { libcamera_control_id_is_input(self as *const _) }
+                }
+
+                pub fn is_output(&self) -> bool {
+                    unsafe { libcamera_control_id_is_output(self as *const _) }
+                }
+
+                pub fn is_array(&self) -> bool {
+                    unsafe { libcamera_control_id_is_array(self as *const _) }
+                }
+
+                pub fn array_size(&self) -> usize {
+                    unsafe { libcamera_control_id_size(self as *const _) }
+                }
+
+                pub fn enumerators_map(&self) -> HashMap<i32, String> {
+                    let mut map = HashMap::new();
+                    let len = unsafe { libcamera_control_id_enumerators_len(self as *const _) };
+                    for i in 0..len {
+                        let key = unsafe { libcamera_control_id_enumerators_key(self as *const _, i) };
+                        let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self as *const _, i) };
+                        if !name_ptr.is_null() {
+                            let name = unsafe { CStr::from_ptr(name_ptr).to_string_lossy().into_owned() };
+                            map.insert(key, name);
+                        }
+                    }
+                    map
+                }
+
+                pub fn from_id(id: u32) -> Option<&'static Self> {
+                    unsafe {
+                        let ptr = libcamera_control_from_id(id);
+                        if ptr.is_null() {
+                            None
+                        } else {
+                            Some(&*ptr)
+                        }
+                    }
+                }"#;
+            out += "\n";
+        }
 
         let mut dyn_variants = String::new();
 

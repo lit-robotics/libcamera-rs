@@ -17,6 +17,79 @@ enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *contr
     return (enum libcamera_control_type) control->type();
 }
 
+const char *libcamera_control_id_vendor(libcamera_control_id_t *control) {
+    return control->vendor().c_str();
+}
+
+unsigned int libcamera_control_id_direction(libcamera_control_id_t *control) {
+    return static_cast<unsigned int>(control->direction());
+}
+
+bool libcamera_control_id_is_input(libcamera_control_id_t *control) {
+    return control->isInput();
+}
+
+bool libcamera_control_id_is_output(libcamera_control_id_t *control) {
+    return control->isOutput();
+}
+
+bool libcamera_control_id_is_array(libcamera_control_id_t *control) {
+    return control->isArray();
+}
+
+size_t libcamera_control_id_size(libcamera_control_id_t *control) {
+    return control->size();
+}
+
+size_t libcamera_control_id_enumerator_count(libcamera_control_id_t *control) {
+    return control->enumerators().size();
+}
+
+const char *libcamera_control_id_enumerator_name(libcamera_control_id_t *control, int32_t value) {
+    auto &rev = control->enumerators();
+    auto it = rev.find(value);
+    return it != rev.end() ? it->second.c_str() : nullptr;
+}
+
+int32_t libcamera_control_id_enumerator_value(libcamera_control_id_t *control, const char *name) {
+    if (!control || !name)
+        return 0;
+    for (auto &p : control->enumerators()) {
+        if (p.second == name)
+            return p.first;
+    }
+    return 0;
+}
+
+size_t libcamera_control_id_enumerators_len(libcamera_control_id_t *ctrl) {
+    if (!ctrl)
+        return 0;
+    return ctrl->enumerators().size();
+}
+
+int32_t libcamera_control_id_enumerators_key(libcamera_control_id_t *ctrl, size_t index) {
+    if (!ctrl)
+        return 0;
+    auto &m = ctrl->enumerators();
+    if (index >= m.size())
+        return 0;
+    auto it = m.begin();
+    std::advance(it, index);
+    return it->first;
+}
+
+
+const char *libcamera_control_id_enumerators_name_by_index(libcamera_control_id_t *ctrl, size_t index) {
+    if (!ctrl)
+        return nullptr;
+    auto &m = ctrl->enumerators();
+    if (index >= m.size())
+        return nullptr;
+    auto it = m.begin();
+    std::advance(it, index);
+    return it->second.c_str();
+}
+
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id){
      auto it = libcamera::controls::controls.find(id);
     if (it != libcamera::controls::controls.end())

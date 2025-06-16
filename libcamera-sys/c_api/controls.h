@@ -67,6 +67,20 @@ enum libcamera_control_type libcamera_control_type_from_id(enum libcamera_contro
 enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *control);
 const char *libcamera_control_name(libcamera_control_id_t *control);
 enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *control);
+const char *libcamera_control_id_vendor(libcamera_control_id_t *control);
+unsigned int libcamera_control_id_direction(libcamera_control_id_t *control);
+bool libcamera_control_id_is_input(libcamera_control_id_t *control);
+bool libcamera_control_id_is_output(libcamera_control_id_t *control);
+bool libcamera_control_id_is_array(libcamera_control_id_t *control);
+size_t libcamera_control_id_size(libcamera_control_id_t *control);
+size_t libcamera_control_id_enumerator_count(libcamera_control_id_t *control);
+const char *libcamera_control_id_enumerator_name(libcamera_control_id_t *control,int32_t value);
+int32_t libcamera_control_id_enumerator_value(libcamera_control_id_t *control, const char *name);
+size_t libcamera_control_id_enumerators_len(libcamera_control_id_t *control);
+int32_t libcamera_control_id_enumerators_key(libcamera_control_id_t *control, size_t index);
+const char *libcamera_control_id_enumerators_name_by_index(libcamera_control_id_t *control, size_t index);
+
+
 // --- libcamera_property_id ---
 const char *libcamera_property_name_by_id(enum libcamera_property_id id);
 enum libcamera_control_type libcamera_property_type_by_id(enum libcamera_property_id id);
