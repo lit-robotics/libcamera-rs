@@ -773,7 +773,7 @@ pub enum ControlId {
     PispStatsOutput = PISP_STATS_OUTPUT,
 }
 impl ControlId {
-    fn id(&self) -> u32 {
+    pub fn id(&self) -> u32 {
         *self as u32
     }
     pub fn name(&self) -> String {

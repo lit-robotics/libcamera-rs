@@ -640,7 +640,7 @@ pub enum ControlId {
     ScalerCrops = SCALER_CROPS,
 }
 impl ControlId {
-    fn id(&self) -> u32 {
+    pub fn id(&self) -> u32 {
         *self as u32
     }
     pub fn name(&self) -> String {

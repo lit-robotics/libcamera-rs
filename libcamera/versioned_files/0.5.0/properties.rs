@@ -727,7 +727,7 @@ pub enum PropertyId {
     ColorFilterArrangement = COLOR_FILTER_ARRANGEMENT,
 }
 impl PropertyId {
-    fn id(&self) -> u32 {
+    pub fn id(&self) -> u32 {
         *self as u32
     }
     pub fn name(&self) -> String {

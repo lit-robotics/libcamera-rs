@@ -9,6 +9,11 @@ fn main() {
 
     for cam in cameras.iter() {
         println!("ID: {}", cam.id());
+
+        let duration = cam.controls().at(ControlId::FrameDurationLimits.);
+
+        println!("Duration Limit {:?}", duration);
+
         for (id, _) in cam.controls() {
             let id = ControlId::from_id(id).unwrap();
             println!("{:#?}", id.name());

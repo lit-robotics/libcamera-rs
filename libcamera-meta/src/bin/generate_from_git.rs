@@ -315,7 +315,7 @@ mod generate_rust {
 
         out += &format!("impl {} {{\n", name);
         out += r#"
-            fn id(&self) -> u32 {
+            pub fn id(&self) -> u32 {
                 *self as u32
             }
             "#;
