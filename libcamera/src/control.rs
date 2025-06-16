@@ -187,7 +187,7 @@ impl core::fmt::Debug for ControlInfoMap {
         let mut dm = f.debug_map();
         for (key, value) in self.into_iter() {
             match ControlId::try_from(key) {
-                Ok(id) => dm.entry(&id, value),
+                Ok(id) => dm.entry(&id.name(), value),
                 Err(_) => dm.entry(&key, value),
             };
         }

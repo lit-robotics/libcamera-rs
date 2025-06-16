@@ -294,7 +294,7 @@ mod generate_rust {
             ControlsType::Property => "PropertyId",
         };
 
-        out += "#[derive(Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]\n";
+        out += "#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]\n";
         out += "#[repr(u32)]\n";
         out += &format!("pub enum {} {{\n", name);
         for ctrl in controls.iter() {
@@ -334,53 +334,63 @@ mod generate_rust {
                 }
             }
         "#;
-        out += "}\n";
 
         //ControlId has extra functions that PropertyId does not
         if let ControlsType::Control = ty {
             out += r#"
+                fn as_ptr(&self) -> *mut libcamera_control_id_t {
+                    unsafe { libcamera_control_from_id(self.id()) as *mut _ }
+                }
+
                 pub fn vendor(&self) -> String {
                     unsafe {
-                        let ptr = libcamera_control_id_vendor(self as *const _ as *mut _);
-                        if ptr.is_null() {
+                        let ctrl = self.as_ptr();
+                        if ctrl.is_null() {
                             String::new()
                         } else {
-                            CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                            let ptr = libcamera_control_id_vendor(ctrl);
+                            if ptr.is_null() {
+                                String::new()
+                            } else {
+                                CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                            }
                         }
                     }
                 }
 
                 pub fn control_type(&self) -> u32 {
-                    unsafe { std::mem::transmute(libcamera_control_id_type(self as *const _ as *mut _)) }
+                    unsafe { std::mem::transmute(libcamera_control_id_type(self.as_ptr())) }
                 }
 
                 pub fn direction(&self) -> ControlDirection {
-                    let raw = unsafe { libcamera_control_id_direction(self as *const _ as *mut _) } as u32;
+                    let raw = unsafe { libcamera_control_id_direction(self.as_ptr()) } as u32;
                     ControlDirection::try_from(raw).expect("Unknown libcamera_control_direction value")
                 }
 
                 pub fn is_input(&self) -> bool {
-                    unsafe { libcamera_control_id_is_input(self as *const _ as *mut _) }
+                    unsafe { libcamera_control_id_is_input(self.as_ptr()) }
                 }
 
                 pub fn is_output(&self) -> bool {
-                    unsafe { libcamera_control_id_is_output(self as *const _ as *mut _) }
+                    unsafe { libcamera_control_id_is_output(self.as_ptr()) }
                 }
 
                 pub fn is_array(&self) -> bool {
-                    unsafe { libcamera_control_id_is_array(self as *const _ as *mut _) }
+                    unsafe { libcamera_control_id_is_array(self.as_ptr()) }
                 }
 
                 pub fn array_size(&self) -> usize {
-                    unsafe { libcamera_control_id_size(self as *const _ as *mut _) }
+                    unsafe { libcamera_control_id_size(self.as_ptr()) }
                 }
 
                 pub fn enumerators_map(&self) -> HashMap<i32, String> {
                     let mut map = HashMap::new();
-                    let len = unsafe { libcamera_control_id_enumerators_len(self as *const _ as *mut _) };
+                    let len = unsafe { libcamera_control_id_enumerators_len(self.as_ptr()) };
                     for i in 0..len {
-                        let key = unsafe { libcamera_control_id_enumerators_key(self as *const _ as *mut _, i) };
-                        let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self as *const _ as *mut _, i) };
+                        let key = unsafe { libcamera_control_id_enumerators_key(self.as_ptr(), i) };
+                        let name_ptr = unsafe {
+                            libcamera_control_id_enumerators_name_by_index(self.as_ptr(), i)
+                            };
                         if !name_ptr.is_null() {
                             let name = unsafe { CStr::from_ptr(name_ptr).to_string_lossy().into_owned() };
                             map.insert(key, name);
@@ -393,6 +403,11 @@ mod generate_rust {
                     ControlId::try_from(id).ok()
                 }"#;
             out += "\n";
+        }
+
+        out += "}\n";
+
+        if let ControlsType::Control = ty {
             out += r#"
                 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
                 #[repr(u32)]
@@ -401,22 +416,8 @@ mod generate_rust {
                     In = LIBCAMERA_CONTROL_DIRECTION_IN,
                     /// Output flag (1<<1)
                     Out = LIBCAMERA_CONTROL_DIRECTION_OUT,
-                }
-
-                impl core::fmt::Debug for ControlId {
-                    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                        f.debug_struct("ControlId")
-                            .field("id", &self.id())
-                            .field("name", &self.name())
-                            .field("vendor", &self.vendor())
-                            .field("control_type", &self.control_type())
-                            .field("direction", &self.direction())
-                            .field("is_input", &self.is_input())
-                            .field("is_output", &self.is_output())
-                            .field("is_array", &self.is_array())
-                            .field("enumerators_map", &self.enumerators_map())
-                            .finish()
-                    }
+                    /// Input and output flags combined (1<<0 | 1<<1)
+                    InOut = LIBCAMERA_CONTROL_DIRECTION_IN | LIBCAMERA_CONTROL_DIRECTION_OUT,
                 }
                 "#;
         }
@@ -545,7 +546,7 @@ mod generate_rust {
                 use std::{ffi::CStr, ops::{{Deref, DerefMut}},collections::HashMap};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
-                use crate::control::{{Control, Property, ControlEntry, DynControlEntry, ControlType}};
+                use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
                 use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
                 use crate::geometry::{{Rectangle, Point, Size}};
