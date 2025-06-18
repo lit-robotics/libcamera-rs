@@ -1,4 +1,6 @@
-use libcamera::{camera_manager::CameraManager, controls::ControlId, logging::LoggingLevel};
+use libcamera::{
+    camera_manager::CameraManager, control_value::ControlType, controls::ControlId, logging::LoggingLevel,
+};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();
@@ -15,6 +17,7 @@ fn main() {
             println!("{:#?}", id.name());
             println!("  Vendor: {:#?}", id.vendor());
             println!("  Control Type: {:#?}", id.control_type());
+            println!("  Size: {:#?}", id.size());
             println!("  Direction: {:#?}", id.direction());
             println!("  Is Array: {:#?}", id.is_array());
             println!("  Is Input: {:#?}", id.is_input());

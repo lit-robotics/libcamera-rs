@@ -358,8 +358,9 @@ mod generate_rust {
                     }
                 }
 
-                pub fn control_type(&self) -> u32 {
-                    unsafe { libcamera_control_id_type(self.as_ptr()) }
+                pub fn control_type(&self) -> ControlType {
+                    let raw = unsafe { libcamera_control_id_type(self.as_ptr()) } as u32;
+                    ControlType::try_from(raw).expect("Unknown ControlType")
                 }
 
                 pub fn direction(&self) -> ControlDirection {
@@ -548,7 +549,7 @@ mod generate_rust {
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
                 use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
-                use crate::control_value::{{ControlValue, ControlValueError}};
+                use crate::control_value::{{ControlValue, ControlValueError, ControlType}};
                 #[allow(unused_imports)]
                 use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]
