@@ -820,7 +820,7 @@ impl ControlId {
     pub fn is_array(&self) -> bool {
         unsafe { libcamera_control_id_is_array(self.as_ptr()) }
     }
-    pub fn array_size(&self) -> usize {
+    pub fn size(&self) -> usize {
         unsafe { libcamera_control_id_size(self.as_ptr()) }
     }
     pub fn enumerators_map(&self) -> HashMap<i32, String> {
