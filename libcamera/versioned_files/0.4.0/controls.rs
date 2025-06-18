@@ -6,6 +6,7 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
+#[allow(unused_imports)]
 use crate::control_value::{ControlValue, ControlValueError, ControlType};
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Point, Size};
