@@ -26,7 +26,7 @@ impl TryFrom<libcamera_request_status_t> for RequestStatus {
             libcamera_request_status::LIBCAMERA_REQUEST_STATUS_PENDING => Ok(Self::Pending),
             libcamera_request_status::LIBCAMERA_REQUEST_STATUS_COMPLETE => Ok(Self::Complete),
             libcamera_request_status::LIBCAMERA_REQUEST_STATUS_CANCELLED => Ok(Self::Cancelled),
-            _ => Err(format!("Unknown libcamera_request_status: {}", value)),
+            _ => Err(format!("Unknown libcamera_request_status: {value}")),
         }
     }
 }

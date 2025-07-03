@@ -27,7 +27,7 @@ impl TryFrom<&str> for ControlType {
             "Rectangle" => Ok(ControlType::Rectangle),
             "Point" => Ok(ControlType::Point),
             "Size" => Ok(ControlType::Size),
-            _ => Err(format!("Unknown control type {}", value)),
+            _ => Err(format!("Unknown control type {value}")),
         }
     }
 }
@@ -45,13 +45,13 @@ impl TryFrom<&Yaml> for ControlSize {
         match value {
             Yaml::Integer(size) => match (*size).try_into() {
                 Ok(size) => Ok(ControlSize::Fixed(size)),
-                _ => Err(format!("Invalid ControlSize integer {}", size)),
+                _ => Err(format!("Invalid ControlSize integer {size}")),
             },
             Yaml::String(s) => match s.as_str() {
                 "n" => Ok(ControlSize::Dynamic),
-                _ => Err(format!("Unknown ControlSize string {}", s)),
+                _ => Err(format!("Unknown ControlSize string {s}")),
             },
-            _ => Err(format!("Unknown ControlSize type {:?}", value)),
+            _ => Err(format!("Unknown ControlSize type {value:?}")),
         }
     }
 }
