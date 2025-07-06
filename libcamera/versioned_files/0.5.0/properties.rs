@@ -1,12 +1,19 @@
-use std::ops::{Deref, DerefMut};
+#[allow(unused_imports)]
+use std::{
+    ffi::CStr, ops::{Deref, DerefMut},
+    collections::HashMap,
+};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
 use crate::control::{Control, Property, ControlEntry, DynControlEntry};
-use crate::control_value::{ControlValue, ControlValueError};
+#[allow(unused_imports)]
+use crate::control_value::{ControlValue, ControlValueError, ControlType};
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
+#[allow(unused_imports)]
+use libcamera_sys::libcamera_control_direction::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum PropertyId {
@@ -719,6 +726,20 @@ pub enum PropertyId {
     /// identical to ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT.
     #[cfg(feature = "vendor_draft")]
     ColorFilterArrangement = COLOR_FILTER_ARRANGEMENT,
+}
+impl PropertyId {
+    pub fn id(&self) -> u32 {
+        *self as u32
+    }
+    pub fn name(&self) -> String {
+        unsafe {
+            let c_str = libcamera_property_name_by_id(self.id());
+            if c_str.is_null() {
+                return "".into();
+            }
+            CStr::from_ptr(c_str).to_str().unwrap().into()
+        }
+    }
 }
 /// Camera mounting location
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]

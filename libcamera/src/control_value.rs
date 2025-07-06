@@ -1,5 +1,6 @@
 use std::ptr::NonNull;
 
+use libcamera_control_type::*;
 use libcamera_sys::*;
 use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
@@ -21,13 +22,14 @@ pub enum ControlValueError {
     #[error("Unknown enum variant {0:?}")]
     UnknownVariant(ControlValue),
 }
-
 /// A value of a control or a property.
 #[derive(Debug, Clone)]
 pub enum ControlValue {
     None,
     Bool(SmallVec<[bool; 1]>),
     Byte(SmallVec<[u8; 1]>),
+    Uint16(SmallVec<[u16; 1]>),
+    Uint32(SmallVec<[u32; 1]>),
     Int32(SmallVec<[i32; 1]>),
     Int64(SmallVec<[i64; 1]>),
     Float(SmallVec<[f32; 1]>),
@@ -74,11 +76,14 @@ macro_rules! impl_control_value {
 
 impl_control_value!(ControlValue::Bool, bool);
 impl_control_value!(ControlValue::Byte, u8);
+impl_control_value!(ControlValue::Uint16, u16);
+impl_control_value!(ControlValue::Uint32, u32);
 impl_control_value!(ControlValue::Int32, i32);
 impl_control_value!(ControlValue::Int64, i64);
 impl_control_value!(ControlValue::Float, f32);
 impl_control_value!(ControlValue::Rectangle, Rectangle);
 impl_control_value!(ControlValue::Size, Size);
+impl_control_value!(ControlValue::Point, Point);
 
 macro_rules! impl_control_value_vec {
     ($p:path, $type:ty) => {
@@ -107,6 +112,8 @@ macro_rules! impl_control_value_vec {
 
 impl_control_value_vec!(ControlValue::Bool, bool);
 impl_control_value_vec!(ControlValue::Byte, u8);
+impl_control_value_vec!(ControlValue::Uint16, u16);
+impl_control_value_vec!(ControlValue::Uint32, u32);
 impl_control_value_vec!(ControlValue::Int32, i32);
 impl_control_value_vec!(ControlValue::Int64, i64);
 impl_control_value_vec!(ControlValue::Float, f32);
@@ -182,11 +189,14 @@ macro_rules! impl_control_value_array {
 
 impl_control_value_array!(ControlValue::Bool, bool);
 impl_control_value_array!(ControlValue::Byte, u8);
+impl_control_value_array!(ControlValue::Uint16, u16);
+impl_control_value_array!(ControlValue::Uint32, u32);
 impl_control_value_array!(ControlValue::Int32, i32);
 impl_control_value_array!(ControlValue::Int64, i64);
 impl_control_value_array!(ControlValue::Float, f32);
 impl_control_value_array!(ControlValue::Rectangle, Rectangle);
 impl_control_value_array!(ControlValue::Size, Size);
+impl_control_value_array!(ControlValue::Point, Point);
 
 impl From<String> for ControlValue {
     fn from(val: String) -> Self {
@@ -214,7 +224,6 @@ impl ControlValue {
         let num_elements = unsafe { libcamera_control_value_num_elements(val.as_ptr()) };
         let data = unsafe { libcamera_control_value_get(val.as_ptr()) };
 
-        use libcamera_control_type::*;
         match ty {
             LIBCAMERA_CONTROL_TYPE_NONE => Ok(Self::None),
             LIBCAMERA_CONTROL_TYPE_BOOL => {
@@ -224,6 +233,14 @@ impl ControlValue {
             LIBCAMERA_CONTROL_TYPE_BYTE => {
                 let slice = core::slice::from_raw_parts(data as *const u8, num_elements);
                 Ok(Self::Byte(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_UINT16 => {
+                let slice = core::slice::from_raw_parts(data as *const u16, num_elements);
+                Ok(Self::Uint16(SmallVec::from_slice(slice)))
+            }
+            LIBCAMERA_CONTROL_TYPE_UINT32 => {
+                let slice = core::slice::from_raw_parts(data as *const u32, num_elements);
+                Ok(Self::Uint32(SmallVec::from_slice(slice)))
             }
             LIBCAMERA_CONTROL_TYPE_INT32 => {
                 let slice = core::slice::from_raw_parts(data as *const i32, num_elements);
@@ -251,6 +268,10 @@ impl ControlValue {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_size_t, num_elements);
                 Ok(Self::Size(SmallVec::from_iter(slice.iter().map(|r| Size::from(*r)))))
             }
+            LIBCAMERA_CONTROL_TYPE_POINT => {
+                let slice = core::slice::from_raw_parts(data as *const libcamera_point_t, num_elements);
+                Ok(Self::Point(SmallVec::from_iter(slice.iter().map(|r| Point::from(*r)))))
+            }
             _ => Err(ControlValueError::UnknownType(ty)),
         }
     }
@@ -260,6 +281,8 @@ impl ControlValue {
             ControlValue::None => (core::ptr::null(), 0),
             ControlValue::Bool(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Byte(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Uint16(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::Uint32(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Int32(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Int64(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Float(v) => (v.as_ptr().cast(), v.len()),
@@ -285,6 +308,8 @@ impl ControlValue {
             ControlValue::None => LIBCAMERA_CONTROL_TYPE_NONE,
             ControlValue::Bool(_) => LIBCAMERA_CONTROL_TYPE_BOOL,
             ControlValue::Byte(_) => LIBCAMERA_CONTROL_TYPE_BYTE,
+            ControlValue::Uint16(_) => LIBCAMERA_CONTROL_TYPE_UINT16,
+            ControlValue::Uint32(_) => LIBCAMERA_CONTROL_TYPE_UINT32,
             ControlValue::Int32(_) => LIBCAMERA_CONTROL_TYPE_INT32,
             ControlValue::Int64(_) => LIBCAMERA_CONTROL_TYPE_INT64,
             ControlValue::Float(_) => LIBCAMERA_CONTROL_TYPE_FLOAT,
@@ -293,5 +318,85 @@ impl ControlValue {
             ControlValue::Size(_) => LIBCAMERA_CONTROL_TYPE_SIZE,
             ControlValue::Point(_) => LIBCAMERA_CONTROL_TYPE_POINT,
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ControlTypeError {
+    /// Control type is not recognized
+    #[error("Unknown control type {0}")]
+    UnknownType(u32),
+}
+
+#[derive(Debug, Clone)]
+#[repr(u32)]
+pub enum ControlType {
+    None = LIBCAMERA_CONTROL_TYPE_NONE,
+    Bool = LIBCAMERA_CONTROL_TYPE_BOOL,
+    Byte = LIBCAMERA_CONTROL_TYPE_BYTE,
+    Uint16 = LIBCAMERA_CONTROL_TYPE_UINT16,
+    Uint32 = LIBCAMERA_CONTROL_TYPE_UINT32,
+    Int32 = LIBCAMERA_CONTROL_TYPE_INT32,
+    Int64 = LIBCAMERA_CONTROL_TYPE_INT64,
+    Float = LIBCAMERA_CONTROL_TYPE_FLOAT,
+    String = LIBCAMERA_CONTROL_TYPE_STRING,
+    Rectangle = LIBCAMERA_CONTROL_TYPE_RECTANGLE,
+    Size = LIBCAMERA_CONTROL_TYPE_SIZE,
+    Point = LIBCAMERA_CONTROL_TYPE_POINT,
+}
+
+impl TryFrom<u32> for ControlType {
+    type Error = ControlTypeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use libcamera_control_type::*;
+        match value {
+            LIBCAMERA_CONTROL_TYPE_NONE => Ok(ControlType::None),
+            LIBCAMERA_CONTROL_TYPE_BOOL => Ok(ControlType::Bool),
+            LIBCAMERA_CONTROL_TYPE_BYTE => Ok(ControlType::Byte),
+            LIBCAMERA_CONTROL_TYPE_UINT16 => Ok(ControlType::Uint16),
+            LIBCAMERA_CONTROL_TYPE_UINT32 => Ok(ControlType::Uint32),
+            LIBCAMERA_CONTROL_TYPE_INT32 => Ok(ControlType::Int32),
+            LIBCAMERA_CONTROL_TYPE_INT64 => Ok(ControlType::Int64),
+            LIBCAMERA_CONTROL_TYPE_FLOAT => Ok(ControlType::Float),
+            LIBCAMERA_CONTROL_TYPE_STRING => Ok(ControlType::String),
+            LIBCAMERA_CONTROL_TYPE_RECTANGLE => Ok(ControlType::Rectangle),
+            LIBCAMERA_CONTROL_TYPE_SIZE => Ok(ControlType::Size),
+            LIBCAMERA_CONTROL_TYPE_POINT => Ok(ControlType::Point),
+            unknown => Err(ControlTypeError::UnknownType(unknown)),
+        }
+    }
+}
+
+impl From<ControlType> for u32 {
+    fn from(control_type: ControlType) -> Self {
+        control_type as u32
+    }
+}
+
+impl From<&ControlValue> for ControlType {
+    fn from(control_value: &ControlValue) -> Self {
+        match control_value {
+            ControlValue::None => ControlType::None,
+            ControlValue::Bool(_) => ControlType::Bool,
+            ControlValue::Byte(_) => ControlType::Byte,
+            ControlValue::Uint16(_) => ControlType::Uint16,
+            ControlValue::Uint32(_) => ControlType::Uint32,
+            ControlValue::Int32(_) => ControlType::Int32,
+            ControlValue::Int64(_) => ControlType::Int64,
+            ControlValue::Float(_) => ControlType::Float,
+            ControlValue::String(_) => ControlType::String,
+            ControlValue::Rectangle(_) => ControlType::Rectangle,
+            ControlValue::Size(_) => ControlType::Size,
+            ControlValue::Point(_) => ControlType::Point,
+        }
+    }
+}
+
+impl TryFrom<ControlValue> for ControlType {
+    type Error = ControlTypeError;
+
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(ControlType::from(&value))
     }
 }
