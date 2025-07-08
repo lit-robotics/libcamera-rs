@@ -438,7 +438,7 @@ mod generate_rust {
     pub fn generate_controls_file(controls: &[Control], ty: ControlsType) -> String {
         let header = r#"
                 #[allow(unused_imports)]
-                use std::{ops::{{Deref, DerefMut}}, collections::HashMap};
+                use std::ops::{{Deref, DerefMut}};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
                 use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
@@ -447,8 +447,6 @@ mod generate_rust {
                 use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]
                 use libcamera_sys::*;
-                #[allow(unused_imports)]
-                use libcamera_sys::libcamera_control_direction::*;
                 "#;
 
         let file = format!("{header}\n{}", generate_controls(controls, ty));
