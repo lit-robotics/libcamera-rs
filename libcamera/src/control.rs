@@ -100,7 +100,7 @@ impl ControlInfo {
                 let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
 
                 if val_ptr.is_null() {
-                    eprintln!("ControlValue at index {} is null", i);
+                    eprintln!("ControlValue at index {i} is null");
                     continue;
                 }
 
