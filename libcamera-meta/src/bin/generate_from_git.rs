@@ -345,7 +345,7 @@ mod generate_rust {
                             if ptr.is_null() {
                                 String::new()
                             } else {
-                                CStr::from_ptr(ptr).to_string_lossy().into_owned()
+                                (*ptr).to_string()
                             }
                         }
                     }
@@ -537,13 +537,15 @@ mod generate_rust {
 
     pub fn generate_controls_file(controls: &[Control], ty: ControlsType) -> String {
         let header = r#"
-                use std::ops::{{Deref, DerefMut}};
+                #[allow(unused_imports)]
+                use std::{ops::{{Deref, DerefMut}}, collections::HashMap};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
                 use crate::control::{{
                     Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name
                 }};
-                use crate::control_value::{{ControlValue, ControlValueError}};
+                #[allow(unused_imports)]
+                use crate::control_value::{{ControlValue, ControlValueError, ControlType}};
                 #[allow(unused_imports)]
                 use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]

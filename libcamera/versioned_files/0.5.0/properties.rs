@@ -1,14 +1,19 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    collections::HashMap,
+};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
 use crate::control::{
     Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name,
 };
-use crate::control_value::{ControlValue, ControlValueError};
+use crate::control_value::{ControlValue, ControlValueError, ControlType};
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
+#[allow(unused_imports)]
+use libcamera_sys::libcamera_control_direction::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum PropertyId {
