@@ -1,19 +1,12 @@
-use std::{
-    ops::{Deref, DerefMut},
-    collections::HashMap,
-};
+use std::ops::{Deref, DerefMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
-use crate::control::{
-    Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name,
-};
-use crate::control_value::{ControlValue, ControlValueError, ControlType};
+use crate::control::{Control, Property, ControlEntry, DynControlEntry};
+use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Point, Size};
 #[allow(unused_imports)]
 use libcamera_sys::*;
-#[allow(unused_imports)]
-use libcamera_sys::libcamera_control_direction::*;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum PropertyId {
@@ -730,9 +723,6 @@ pub enum PropertyId {
 impl PropertyId {
     pub fn id(&self) -> u32 {
         u32::from(*self)
-    }
-    pub fn name(&self) -> String {
-        property_id_name(*self)
     }
 }
 /// Camera mounting location

@@ -456,16 +456,20 @@ impl<'a> Drop for ControlInfoMapIter<'a> {
     }
 }
 
-pub fn control_id_name(id: ControlId) -> String {
-    unsafe { CStr::from_ptr(libcamera_control_name_from_id(id.id())) }
-        .to_str()
-        .unwrap()
-        .into()
+impl ControlId {
+    pub fn name(&self) -> String {
+        unsafe { CStr::from_ptr(libcamera_control_name_from_id(self.id())) }
+            .to_str()
+            .unwrap()
+            .into()
+    }
 }
 
-pub fn property_id_name(id: PropertyId) -> String {
-    unsafe { CStr::from_ptr(libcamera_property_name_from_id(id.id())) }
-        .to_str()
-        .unwrap()
-        .into()
+impl PropertyId {
+    pub fn name(&self) -> String {
+        unsafe { CStr::from_ptr(libcamera_property_name_from_id(self.id())) }
+            .to_str()
+            .unwrap()
+            .into()
+    }
 }
