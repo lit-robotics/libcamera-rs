@@ -35,13 +35,6 @@ impl CameraManager {
         unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
     }
 
-    pub fn stop(&self) {
-        unsafe {
-            libcamera_camera_manager_stop(self.ptr.as_ptr());
-            // libcamera_camera_manager_destroy(self.ptr.as_ptr());
-        }
-    }
-
     /// Set the log level.
     ///
     /// # Parameters
