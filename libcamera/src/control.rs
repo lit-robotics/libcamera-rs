@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::NonNull};
+use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
 use thiserror::Error;
@@ -100,7 +100,7 @@ impl ControlInfo {
                 let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
 
                 if val_ptr.is_null() {
-                    eprintln!("ControlValue at index {} is null", i);
+                    eprintln!("ControlValue at index {i} is null");
                     continue;
                 }
 
@@ -108,7 +108,7 @@ impl ControlInfo {
                 match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
                     Ok(control_val) => control_values.push(control_val),
                     Err(e) => {
-                        eprintln!("Failed to read ControlValue at index {}: {:?}", i, e);
+                        eprintln!("Failed to read ControlValue at index {i}: {e:?}");
                     }
                 }
             }
@@ -454,4 +454,18 @@ impl<'a> Drop for ControlInfoMapIter<'a> {
             libcamera_control_info_map_iter_destroy(self.iter);
         }
     }
+}
+
+pub fn control_id_name(id: ControlId) -> String {
+    unsafe { CStr::from_ptr(libcamera_control_name_from_id(id.id())) }
+        .to_str()
+        .unwrap()
+        .into()
+}
+
+pub fn property_id_name(id: PropertyId) -> String {
+    unsafe { CStr::from_ptr(libcamera_property_name_from_id(id.id())) }
+        .to_str()
+        .unwrap()
+        .into()
 }

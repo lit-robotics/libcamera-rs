@@ -43,11 +43,11 @@ fn main() {
 
     cfgs.get_mut(0).unwrap().set_pixel_format(PIXEL_FORMAT_MJPEG);
 
-    println!("Generated config: {:#?}", cfgs);
+    println!("Generated config: {cfgs:#?}");
 
     match cfgs.validate() {
         CameraConfigurationStatus::Valid => println!("Camera configuration valid!"),
-        CameraConfigurationStatus::Adjusted => println!("Camera configuration was adjusted: {:#?}", cfgs),
+        CameraConfigurationStatus::Adjusted => println!("Camera configuration was adjusted: {cfgs:#?}"),
         CameraConfigurationStatus::Invalid => panic!("Error validating camera configuration"),
     }
 
@@ -110,7 +110,7 @@ fn main() {
         println!("Waiting for camera request execution");
         let mut req = rx.recv_timeout(Duration::from_secs(2)).expect("Camera request failed");
 
-        println!("Camera request {:?} completed!", req);
+        println!("Camera request {req:?} completed!");
         println!("Metadata: {:#?}", req.metadata());
 
         // Get framebuffer for our stream
@@ -119,7 +119,7 @@ fn main() {
 
         // MJPEG format has only one data plane containing encoded jpeg data with all the headers
         let planes = framebuffer.data();
-        let frame_data = planes.get(0).unwrap();
+        let frame_data = planes.first().unwrap();
         // Actual encoded data will be smalled than framebuffer size, its length can be obtained from metadata.
         let bytes_used = framebuffer.metadata().unwrap().planes().get(0).unwrap().bytes_used as usize;
 
