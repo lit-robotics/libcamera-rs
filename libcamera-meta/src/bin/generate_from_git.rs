@@ -308,32 +308,25 @@ mod generate_rust {
         }
         out += "}\n";
 
-        let ffi_binding = match ty {
-            ControlsType::Control => "libcamera_control_name_from_id",
-            ControlsType::Property => "libcamera_property_name_by_id",
+        let name_fn = match ty {
+            ControlsType::Control => "control_id_name",
+            ControlsType::Property => "property_id_name",
         };
 
         out += &format!("impl {name} {{\n");
         out += r#"
             pub fn id(&self) -> u32 {
-                *self as u32
+                u32::from(*self)
             }
             "#;
         out += "\n";
-        out += r#"
-            pub fn name(&self) -> String {
-                unsafe {"#;
-        out += &format!("       let c_str = {ffi_binding}(self.id());\n");
-        out += r#"
-                    if c_str.is_null() {
-                        // Handle null pointer as empty strings
-                        return "".into();
-                    }
-                    // Convert the C string to a Rust &str
-                    CStr::from_ptr(c_str).to_str().unwrap().into()
-                }
-            }
-        "#;
+        out += &format!(
+            "
+            pub fn name(&self) -> String {{
+                {name_fn}(*self)
+            }}
+        "
+        );
 
         //ControlId has extra functions that PropertyId does not
         if let ControlsType::Control = ty {
@@ -544,13 +537,13 @@ mod generate_rust {
 
     pub fn generate_controls_file(controls: &[Control], ty: ControlsType) -> String {
         let header = r#"
-                #[allow(unused_imports)]
-                use std::{ffi::CStr, ops::{{Deref, DerefMut}},collections::HashMap};
+                use std::ops::{{Deref, DerefMut}};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
-                use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
-                #[allow(unused_imports)]
-                use crate::control_value::{{ControlValue, ControlValueError, ControlType}};
+                use crate::control::{{
+                    Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name
+                }};
+                use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
                 use crate::geometry::{{Rectangle, Point, Size}};
                 #[allow(unused_imports)]

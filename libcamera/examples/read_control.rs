@@ -7,16 +7,16 @@ fn main() {
 
     let cameras = mgr.cameras();
 
-    //Grab the first camera, if one exists
-    for cam in cameras.iter().take(1) {
+    // Grab the first camera, if one exists
+    if let Some(cam) = cameras.iter().next() {
         println!("ID: {}", cam.id());
 
-        //Read the first ControlInfo
-        for (id, control_info) in cam.controls().into_iter().take(1) {
-            //Attempt to get ControlID
+        // Read the first ControlInfo
+        if let Some((id, control_info)) = cam.controls().into_iter().next() {
+            // Attempt to get ControlID
             match ControlId::try_from(id) {
-                Ok(id) => println!("Control Id {:?} - {:?}", id as u32, id),
-                Err(_) => println!("Control Id {:?} - UNKOWN", id),
+                Ok(control) => println!("Control Id {} - {:?}", id, control),
+                Err(_) => println!("Control Id {id} - UNKOWN"),
             }
 
             println!("Control Max: {:?}", control_info.max());
@@ -25,14 +25,16 @@ fn main() {
 
             let values = control_info.values();
 
-            //Some controls only support specific values within their ranges.
-            //this will display those possible values if they exist
-            if values.len() > 0 {
+            // Some controls only support specific values within their ranges.
+            // this will display those possible values if they exist
+            if !values.is_empty() {
                 println!("Supported Values:");
                 for value in values {
-                    println!("{:?}", value);
+                    println!("{value:?}");
                 }
             }
         }
-    }
+    } else {
+        eprintln!("No cameras found");
+    };
 }
