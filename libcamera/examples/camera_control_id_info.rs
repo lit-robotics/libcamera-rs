@@ -1,6 +1,4 @@
-use libcamera::{
-    camera_manager::CameraManager, control_value::ControlType, controls::ControlId, logging::LoggingLevel,
-};
+use libcamera::{camera_manager::CameraManager, controls::ControlId, logging::LoggingLevel};
 
 fn main() {
     let mgr = CameraManager::new().unwrap();

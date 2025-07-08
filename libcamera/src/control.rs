@@ -108,7 +108,7 @@ impl ControlInfo {
                 match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
                     Ok(control_val) => control_values.push(control_val),
                     Err(e) => {
-                        eprintln!("Failed to read ControlValue at index {}: {:?}", i, e);
+                        eprintln!("Failed to read ControlValue at index {i}: {e:?}");
                     }
                 }
             }
