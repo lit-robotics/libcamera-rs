@@ -296,7 +296,7 @@ mod generate_rust {
 
         out += "#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]\n";
         out += "#[repr(u32)]\n";
-        out += &format!("pub enum {} {{\n", name);
+        out += &format!("pub enum {name} {{\n");
         for ctrl in controls.iter() {
             out += &format_docstring(&ctrl.description, 4);
             out += &format!(
