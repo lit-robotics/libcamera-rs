@@ -313,7 +313,7 @@ mod generate_rust {
             ControlsType::Property => "libcamera_property_name_by_id",
         };
 
-        out += &format!("impl {} {{\n", name);
+        out += &format!("impl {name} {{\n");
         out += r#"
             fn id(&self) -> u32 {
                 *self as u32
@@ -323,7 +323,7 @@ mod generate_rust {
         out += r#"
             pub fn name(&self) -> String {
                 unsafe {"#;
-        out += &format!("       let c_str = {}(self.id());\n", ffi_binding);
+        out += &format!("       let c_str = {ffi_binding}(self.id());\n");
         out += r#"
                     if c_str.is_null() {
                         // Handle null pointer as empty strings

@@ -9,7 +9,7 @@ fn main() {
 
     for i in 0..cameras.len() {
         let cam = cameras.get(i).unwrap();
-        println!("Camera {}", i);
+        println!("Camera {i}");
         println!("ID: {}", cam.id());
 
         println!("Properties: {:#?}", cam.properties());

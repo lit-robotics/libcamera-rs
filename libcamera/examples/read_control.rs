@@ -16,7 +16,7 @@ fn main() {
             //Attempt to get ControlID
             match ControlId::try_from(id) {
                 Ok(id) => println!("Control Id {:?} - {:?}", id as u32, id),
-                Err(_) => println!("Control Id {:?} - UNKOWN", id),
+                Err(_) => println!("Control Id {id:?} - UNKOWN"),
             }
 
             println!("Control Max: {:?}", control_info.max());
@@ -27,10 +27,10 @@ fn main() {
 
             //Some controls only support specific values within their ranges.
             //this will display those possible values if they exist
-            if values.len() > 0 {
+            if !values.is_empty() {
                 println!("Supported Values:");
                 for value in values {
-                    println!("{:?}", value);
+                    println!("{value:?}");
                 }
             }
         }

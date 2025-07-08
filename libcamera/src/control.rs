@@ -100,7 +100,7 @@ impl ControlInfo {
                 let val_ptr = base_ptr.add(offset) as *const libcamera_control_value_t;
 
                 if val_ptr.is_null() {
-                    eprintln!("ControlValue at index {} is null", i);
+                    eprintln!("ControlValue at index {i} is null");
                     continue;
                 }
 
@@ -108,7 +108,7 @@ impl ControlInfo {
                 match ControlValue::read(NonNull::new(val_ptr.cast_mut()).unwrap()) {
                     Ok(control_val) => control_values.push(control_val),
                     Err(e) => {
-                        eprintln!("Failed to read ControlValue at index {}: {:?}", i, e);
+                        eprintln!("Failed to read ControlValue at index {i}: {e:?}");
                     }
                 }
             }
