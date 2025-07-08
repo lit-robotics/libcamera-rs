@@ -31,8 +31,15 @@ impl CameraManager {
     }
 
     /// Enumerates cameras within the system.
-    pub fn cameras(&self) -> CameraList<'_> {
+    pub fn cameras<'a>(&self) -> CameraList<'a> {
         unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
+    }
+
+    pub fn stop(&self) {
+        unsafe {
+            libcamera_camera_manager_stop(self.ptr.as_ptr());
+            // libcamera_camera_manager_destroy(self.ptr.as_ptr());
+        }
     }
 
     /// Set the log level.
@@ -65,7 +72,7 @@ pub struct CameraList<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl CameraList<'_> {
+impl<'d> CameraList<'d> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_list_t>) -> Self {
         Self {
             ptr,
@@ -86,9 +93,14 @@ impl CameraList<'_> {
     /// Returns camera at a given index.
     ///
     /// Returns [None] if index is out of range of available cameras.
-    pub fn get(&self, index: usize) -> Option<Camera<'_>> {
+    pub fn get(&self, index: usize) -> Option<Camera<'d>> {
         let cam_ptr = unsafe { libcamera_camera_list_get(self.ptr.as_ptr(), index as _) };
         NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr(p) })
+    }
+
+    /// Returns an iterator over the cameras in the list.
+    pub fn iter(&'d self) -> CameraListIter<'d> {
+        CameraListIter { list: self, index: 0 }
     }
 }
 
@@ -99,3 +111,29 @@ impl Drop for CameraList<'_> {
         }
     }
 }
+
+pub struct CameraListIter<'d> {
+    list: &'d CameraList<'d>,
+    index: usize,
+}
+
+impl<'d> Iterator for CameraListIter<'d> {
+    type Item = Camera<'d>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.list.len() {
+            let camera = self.list.get(self.index);
+            self.index += 1;
+            camera
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.list.len().saturating_sub(self.index);
+        (len, Some(len))
+    }
+}
+
+impl<'d> ExactSizeIterator for CameraListIter<'d> {}

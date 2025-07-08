@@ -130,7 +130,7 @@ pub struct Camera<'d> {
     _phantom: PhantomData<&'d ()>,
 }
 
-impl Camera<'_> {
+impl<'d> Camera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
         Self {
             ptr,
@@ -178,7 +178,7 @@ impl Camera<'_> {
     }
 
     /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.
-    pub fn acquire(&self) -> io::Result<ActiveCamera<'_>> {
+    pub fn acquire(&self) -> io::Result<ActiveCamera<'d>> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
