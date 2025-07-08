@@ -437,7 +437,6 @@ mod generate_rust {
 
     pub fn generate_controls_file(controls: &[Control], ty: ControlsType) -> String {
         let header = r#"
-                #[allow(unused_imports)]
                 use std::ops::{{Deref, DerefMut}};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
