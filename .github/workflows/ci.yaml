@@ -11,6 +11,9 @@ permissions:
 jobs:
   build_and_test:
     name: Build and test
+    strategy:
+      matrix:
+        libcamera_version: ["v0.4.0", "v0.5.0", "v0.5.1"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,7 +22,7 @@ jobs:
         run: |
           sudo pip3 install meson
           sudo apt-get -y install libyaml-dev python3-yaml python3-ply python3-jinja2 ninja-build clang
-          git clone https://git.libcamera.org/libcamera/libcamera.git deps/libcamera --branch v0.5.1
+          git clone https://git.libcamera.org/libcamera/libcamera.git deps/libcamera --branch ${{ matrix.libcamera_version }}
           cd deps/libcamera
           # Use only VIMC for faster builds
           meson build -Dipas=vimc -Dpipelines=vimc
