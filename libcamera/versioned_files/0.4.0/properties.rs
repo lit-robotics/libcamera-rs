@@ -1,7 +1,9 @@
-use std::{ffi::CStr, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[allow(unused_imports)]
-use crate::control::{Control, Property, ControlEntry, DynControlEntry};
+use crate::control::{
+    Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name,
+};
 use crate::control_value::{ControlValue, ControlValueError};
 #[allow(unused_imports)]
 use crate::geometry::{Rectangle, Point, Size};
@@ -721,17 +723,11 @@ pub enum PropertyId {
     ColorFilterArrangement = COLOR_FILTER_ARRANGEMENT,
 }
 impl PropertyId {
-    fn id(&self) -> u32 {
-        *self as u32
+    pub fn id(&self) -> u32 {
+        u32::from(*self)
     }
     pub fn name(&self) -> String {
-        unsafe {
-            let c_str = libcamera_property_name_by_id(self.id());
-            if c_str.is_null() {
-                return "".into();
-            }
-            CStr::from_ptr(c_str).to_str().unwrap().into()
-        }
+        property_id_name(*self)
     }
 }
 /// Camera mounting location

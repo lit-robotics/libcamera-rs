@@ -68,8 +68,8 @@ enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *cont
 const char *libcamera_control_name(libcamera_control_id_t *control);
 enum libcamera_control_type libcamera_control_type(libcamera_control_id_t *control);
 // --- libcamera_property_id ---
-const char *libcamera_property_name_by_id(enum libcamera_property_id id);
-enum libcamera_control_type libcamera_property_type_by_id(enum libcamera_property_id id);
+const char *libcamera_property_name_from_id(enum libcamera_property_id id);
+enum libcamera_control_type libcamera_property_type_from_id(enum libcamera_property_id id);
 
 // --- libcamera_control_list_t ---
 libcamera_control_list_t *libcamera_control_list_create();

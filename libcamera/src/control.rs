@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::NonNull};
+use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
 
 use libcamera_sys::*;
 use thiserror::Error;
@@ -454,4 +454,18 @@ impl<'a> Drop for ControlInfoMapIter<'a> {
             libcamera_control_info_map_iter_destroy(self.iter);
         }
     }
+}
+
+pub fn control_id_name(id: ControlId) -> String {
+    unsafe { CStr::from_ptr(libcamera_control_name_from_id(id.id())) }
+        .to_str()
+        .unwrap()
+        .into()
+}
+
+pub fn property_id_name(id: PropertyId) -> String {
+    unsafe { CStr::from_ptr(libcamera_property_name_from_id(id.id())) }
+        .to_str()
+        .unwrap()
+        .into()
 }
