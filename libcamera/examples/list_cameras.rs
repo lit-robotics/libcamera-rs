@@ -7,9 +7,8 @@ fn main() {
 
     let cameras = mgr.cameras();
 
-    for i in 0..cameras.len() {
-        let cam = cameras.get(i).unwrap();
-        println!("Camera {i}");
+    for cam in cameras.iter() {
+        println!("");
         println!("ID: {}", cam.id());
 
         println!("Properties: {:#?}", cam.properties());
