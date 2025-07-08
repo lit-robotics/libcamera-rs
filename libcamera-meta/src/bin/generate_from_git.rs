@@ -316,21 +316,6 @@ mod generate_rust {
             "#;
         out += "}\n";
 
-        if let ControlsType::Control = ty {
-            out += r#"
-                #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
-                #[repr(u32)]
-                pub enum ControlDirection {
-                    /// Input flag (1<<0)
-                    In = LIBCAMERA_CONTROL_DIRECTION_IN,
-                    /// Output flag (1<<1)
-                    Out = LIBCAMERA_CONTROL_DIRECTION_OUT,
-                    /// Input and output flags combined (1<<0 | 1<<1)
-                    InOut = LIBCAMERA_CONTROL_DIRECTION_IN | LIBCAMERA_CONTROL_DIRECTION_OUT,
-                }
-                "#;
-        }
-
         let mut dyn_variants = String::new();
 
         for ctrl in controls.iter() {
