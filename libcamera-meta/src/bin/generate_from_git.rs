@@ -308,26 +308,12 @@ mod generate_rust {
         }
         out += "}\n";
 
-        let name_fn = match ty {
-            ControlsType::Control => "control_id_name",
-            ControlsType::Property => "property_id_name",
-        };
-
         out += &format!("impl {name} {{\n");
         out += r#"
             pub fn id(&self) -> u32 {
                 u32::from(*self)
             }
             "#;
-        out += "\n";
-        out += &format!(
-            "
-            pub fn name(&self) -> String {{
-                {name_fn}(*self)
-            }}
-        "
-        );
-
         out += "}\n";
 
         let mut dyn_variants = String::new();
@@ -454,9 +440,7 @@ mod generate_rust {
                 use std::ops::{{Deref, DerefMut}};
                 use num_enum::{{IntoPrimitive, TryFromPrimitive}};
                 #[allow(unused_imports)]
-                use crate::control::{{
-                    Control, Property, ControlEntry, DynControlEntry, control_id_name, property_id_name
-                }};
+                use crate::control::{{Control, Property, ControlEntry, DynControlEntry}};
                 use crate::control_value::{{ControlValue, ControlValueError}};
                 #[allow(unused_imports)]
                 use crate::geometry::{{Rectangle, Point, Size}};
