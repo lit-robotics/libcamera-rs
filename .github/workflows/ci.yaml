@@ -42,7 +42,7 @@ jobs:
           RUSTDOCFLAGS: "-Dwarnings"
         run: cargo doc --no-deps --lib
       - name: Upload docs artifact
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && matrix.libcamera_version == 'v0.5.1'
         uses: actions/upload-artifact@v4
         with:
           name: docs
