@@ -458,6 +458,57 @@ impl<'a> Drop for ControlInfoMapIter<'a> {
     }
 }
 
+pub struct ControlIdEnumeratorsIter<'a> {
+    iter: *mut libcamera_control_id_enumerators_iter_t,
+    marker: PhantomData<&'a ControlId>,
+}
+
+impl<'a> ControlIdEnumeratorsIter<'a> {
+    fn new(id: &'a ControlId) -> Option<Self> {
+        unsafe {
+            let iter = libcamera_control_id_enumerators_iter_create(id.as_ptr());
+            if iter.is_null() {
+                None
+            } else {
+                Some(ControlIdEnumeratorsIter {
+                    iter,
+                    marker: PhantomData,
+                })
+            }
+        }
+    }
+}
+
+impl Iterator for ControlIdEnumeratorsIter<'_> {
+    type Item = (i32, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if libcamera_control_id_enumerators_iter_has_next(self.iter) {
+                let key = libcamera_control_id_enumerators_iter_key(self.iter);
+                let val_ptr = libcamera_control_id_enumerators_iter_value(self.iter);
+                if val_ptr.is_null() {
+                    None
+                } else {
+                    let name = CStr::from_ptr(val_ptr).to_string_lossy().into_owned();
+                    libcamera_control_id_enumerators_iter_next(self.iter);
+                    Some((key, name))
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl Drop for ControlIdEnumeratorsIter<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            libcamera_control_id_enumerators_iter_destroy(self.iter);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ControlDirection {
@@ -478,7 +529,9 @@ impl ControlId {
     }
 
     fn as_ptr(&self) -> *mut libcamera_control_id_t {
-        unsafe { libcamera_control_from_id(self.id()) as *mut _ }
+        let ptr = unsafe { libcamera_control_from_id(self.id()) as *mut libcamera_control_id_t };
+        assert!(!ptr.is_null(), "libcamera_control_from_id returned null");
+        ptr
     }
 
     pub fn vendor(&self) -> String {
@@ -488,11 +541,7 @@ impl ControlId {
                 String::new()
             } else {
                 let ptr = libcamera_control_id_vendor(ctrl);
-                if ptr.is_null() {
-                    String::new()
-                } else {
-                    CStr::from_ptr(ptr).to_string_lossy().to_string()
-                }
+                CStr::from_ptr(ptr).to_string_lossy().to_string()
             }
         }
     }
@@ -523,18 +572,15 @@ impl ControlId {
         unsafe { libcamera_control_id_size(self.as_ptr()) }
     }
 
+    pub fn enumerators(&self) -> Option<ControlIdEnumeratorsIter<'_>> {
+        ControlIdEnumeratorsIter::new(self)
+    }
+
     pub fn enumerators_map(&self) -> HashMap<i32, String> {
-        let mut map = HashMap::new();
-        let len = unsafe { libcamera_control_id_enumerators_len(self.as_ptr()) };
-        for i in 0..len {
-            let key = unsafe { libcamera_control_id_enumerators_key(self.as_ptr(), i) };
-            let name_ptr = unsafe { libcamera_control_id_enumerators_name_by_index(self.as_ptr(), i) };
-            if !name_ptr.is_null() {
-                let name = unsafe { CStr::from_ptr(name_ptr).to_string_lossy().into_owned() };
-                map.insert(key, name);
-            }
+        match self.enumerators() {
+            Some(iter) => iter.collect(),
+            None => HashMap::new(),
         }
-        map
     }
 
     pub fn from_id(id: u32) -> Option<Self> {

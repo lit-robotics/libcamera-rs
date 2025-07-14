@@ -18,6 +18,10 @@ struct libcamera_control_info_map_iter {
     libcamera::ControlInfoMap::const_iterator end;
 };
 
+struct libcamera_control_id_enumerators_iter {
+    std::map<int32_t, std::string>::const_iterator current;
+    std::map<int32_t, std::string>::const_iterator end;
+};
 
 typedef libcamera::ControlValue libcamera_control_value_t;
 typedef libcamera::ControlList libcamera_control_list_t;
@@ -38,8 +42,11 @@ typedef struct libcamera_control_info_map libcamera_control_info_map_t;
 typedef struct libcamera_control_id libcamera_control_id_t;
 typedef struct libcamera_control_info libcamera_control_info_t;
 typedef struct libcamera_control_id_map libcamera_control_id_map_t;
+typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
 
 #endif
+
+typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
 
 enum libcamera_control_id_enum { libcamera_control_id_DUMMY };
 enum libcamera_property_id { libcamera_property_id_DUMMY };
@@ -77,13 +84,14 @@ bool libcamera_control_id_is_input(libcamera_control_id_t *control);
 bool libcamera_control_id_is_output(libcamera_control_id_t *control);
 bool libcamera_control_id_is_array(libcamera_control_id_t *control);
 size_t libcamera_control_id_size(libcamera_control_id_t *control);
-size_t libcamera_control_id_enumerator_count(libcamera_control_id_t *control);
-const char *libcamera_control_id_enumerator_name(libcamera_control_id_t *control,int32_t value);
-int32_t libcamera_control_id_enumerator_value(libcamera_control_id_t *control, const char *name);
-size_t libcamera_control_id_enumerators_len(libcamera_control_id_t *control);
-int32_t libcamera_control_id_enumerators_key(libcamera_control_id_t *control, size_t index);
-const char *libcamera_control_id_enumerators_name_by_index(libcamera_control_id_t *control, size_t index);
 
+// --- libcamera_control_id_enumerators_iter_t ---
+libcamera_control_id_enumerators_iter_t *libcamera_control_id_enumerators_iter_create(libcamera_control_id_t *control);
+bool libcamera_control_id_enumerators_iter_has_next(const libcamera_control_id_enumerators_iter_t *iter);
+int32_t libcamera_control_id_enumerators_iter_key(const libcamera_control_id_enumerators_iter_t *iter);
+const char *libcamera_control_id_enumerators_iter_value(const libcamera_control_id_enumerators_iter_t *iter);
+void libcamera_control_id_enumerators_iter_next(libcamera_control_id_enumerators_iter_t *iter);
+void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerators_iter_t *iter);
 
 // --- libcamera_property_id ---
 const char *libcamera_property_name_from_id(enum libcamera_property_id id);

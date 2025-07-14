@@ -45,54 +45,43 @@ size_t libcamera_control_id_size(libcamera_control_id_t *control) {
     return control->size();
 }
 
-size_t libcamera_control_id_enumerator_count(libcamera_control_id_t *control) {
-    return control->enumerators().size();
-}
-
-const char *libcamera_control_id_enumerator_name(libcamera_control_id_t *control, int32_t value) {
-    auto &rev = control->enumerators();
-    auto it = rev.find(value);
-    return it != rev.end() ? it->second.c_str() : nullptr;
-}
-
-int32_t libcamera_control_id_enumerator_value(libcamera_control_id_t *control, const char *name) {
-    if (!control || !name)
-        return 0;
-    for (auto &p : control->enumerators()) {
-        if (p.second == name)
-            return p.first;
-    }
-    return 0;
-}
-
-size_t libcamera_control_id_enumerators_len(libcamera_control_id_t *ctrl) {
-    if (!ctrl)
-        return 0;
-    return ctrl->enumerators().size();
-}
-
-int32_t libcamera_control_id_enumerators_key(libcamera_control_id_t *ctrl, size_t index) {
-    if (!ctrl)
-        return 0;
-    auto &m = ctrl->enumerators();
-    if (index >= m.size())
-        return 0;
-    auto it = m.begin();
-    std::advance(it, index);
-    return it->first;
-}
-
-
-const char *libcamera_control_id_enumerators_name_by_index(libcamera_control_id_t *ctrl, size_t index) {
+libcamera_control_id_enumerators_iter_t *libcamera_control_id_enumerators_iter_create(libcamera_control_id_t *ctrl) {
     if (!ctrl)
         return nullptr;
-    auto &m = ctrl->enumerators();
-    if (index >= m.size())
-        return nullptr;
-    auto it = m.begin();
-    std::advance(it, index);
-    return it->second.c_str();
+    auto iter = new libcamera_control_id_enumerators_iter_t();
+    iter->current = ctrl->enumerators().begin();
+    iter->end = ctrl->enumerators().end();
+    return iter;
 }
+
+bool libcamera_control_id_enumerators_iter_has_next(const libcamera_control_id_enumerators_iter_t *iter) {
+    if (!iter)
+        return false;
+    return iter->current != iter->end;
+}
+
+int32_t libcamera_control_id_enumerators_iter_key(const libcamera_control_id_enumerators_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return 0;
+    return iter->current->first;
+}
+
+const char *libcamera_control_id_enumerators_iter_value(const libcamera_control_id_enumerators_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return nullptr;
+    return iter->current->second.c_str();
+}
+
+void libcamera_control_id_enumerators_iter_next(libcamera_control_id_enumerators_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return;
+    ++(iter->current);
+}
+
+void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerators_iter_t *iter) {
+    delete iter;
+}
+
 
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id){
      auto it = libcamera::controls::controls.find(id);
