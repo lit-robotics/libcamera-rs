@@ -1,5 +1,6 @@
 use std::ptr::NonNull;
 
+use libcamera_control_type::*;
 use libcamera_sys::*;
 use smallvec::{smallvec, SmallVec};
 use thiserror::Error;
@@ -21,7 +22,6 @@ pub enum ControlValueError {
     #[error("Unknown enum variant {0:?}")]
     UnknownVariant(ControlValue),
 }
-
 /// A value of a control or a property.
 #[derive(Debug, Clone)]
 pub enum ControlValue {
@@ -224,7 +224,6 @@ impl ControlValue {
         let num_elements = unsafe { libcamera_control_value_num_elements(val.as_ptr()) };
         let data = unsafe { libcamera_control_value_get(val.as_ptr()) };
 
-        use libcamera_control_type::*;
         match ty {
             LIBCAMERA_CONTROL_TYPE_NONE => Ok(Self::None),
             LIBCAMERA_CONTROL_TYPE_BOOL => {
@@ -319,5 +318,85 @@ impl ControlValue {
             ControlValue::Size(_) => LIBCAMERA_CONTROL_TYPE_SIZE,
             ControlValue::Point(_) => LIBCAMERA_CONTROL_TYPE_POINT,
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ControlTypeError {
+    /// Control type is not recognized
+    #[error("Unknown control type {0}")]
+    UnknownType(u32),
+}
+
+#[derive(Debug, Clone)]
+#[repr(u32)]
+pub enum ControlType {
+    None = LIBCAMERA_CONTROL_TYPE_NONE,
+    Bool = LIBCAMERA_CONTROL_TYPE_BOOL,
+    Byte = LIBCAMERA_CONTROL_TYPE_BYTE,
+    Uint16 = LIBCAMERA_CONTROL_TYPE_UINT16,
+    Uint32 = LIBCAMERA_CONTROL_TYPE_UINT32,
+    Int32 = LIBCAMERA_CONTROL_TYPE_INT32,
+    Int64 = LIBCAMERA_CONTROL_TYPE_INT64,
+    Float = LIBCAMERA_CONTROL_TYPE_FLOAT,
+    String = LIBCAMERA_CONTROL_TYPE_STRING,
+    Rectangle = LIBCAMERA_CONTROL_TYPE_RECTANGLE,
+    Size = LIBCAMERA_CONTROL_TYPE_SIZE,
+    Point = LIBCAMERA_CONTROL_TYPE_POINT,
+}
+
+impl TryFrom<u32> for ControlType {
+    type Error = ControlTypeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use libcamera_control_type::*;
+        match value {
+            LIBCAMERA_CONTROL_TYPE_NONE => Ok(ControlType::None),
+            LIBCAMERA_CONTROL_TYPE_BOOL => Ok(ControlType::Bool),
+            LIBCAMERA_CONTROL_TYPE_BYTE => Ok(ControlType::Byte),
+            LIBCAMERA_CONTROL_TYPE_UINT16 => Ok(ControlType::Uint16),
+            LIBCAMERA_CONTROL_TYPE_UINT32 => Ok(ControlType::Uint32),
+            LIBCAMERA_CONTROL_TYPE_INT32 => Ok(ControlType::Int32),
+            LIBCAMERA_CONTROL_TYPE_INT64 => Ok(ControlType::Int64),
+            LIBCAMERA_CONTROL_TYPE_FLOAT => Ok(ControlType::Float),
+            LIBCAMERA_CONTROL_TYPE_STRING => Ok(ControlType::String),
+            LIBCAMERA_CONTROL_TYPE_RECTANGLE => Ok(ControlType::Rectangle),
+            LIBCAMERA_CONTROL_TYPE_SIZE => Ok(ControlType::Size),
+            LIBCAMERA_CONTROL_TYPE_POINT => Ok(ControlType::Point),
+            unknown => Err(ControlTypeError::UnknownType(unknown)),
+        }
+    }
+}
+
+impl From<ControlType> for u32 {
+    fn from(control_type: ControlType) -> Self {
+        control_type as u32
+    }
+}
+
+impl From<&ControlValue> for ControlType {
+    fn from(control_value: &ControlValue) -> Self {
+        match control_value {
+            ControlValue::None => ControlType::None,
+            ControlValue::Bool(_) => ControlType::Bool,
+            ControlValue::Byte(_) => ControlType::Byte,
+            ControlValue::Uint16(_) => ControlType::Uint16,
+            ControlValue::Uint32(_) => ControlType::Uint32,
+            ControlValue::Int32(_) => ControlType::Int32,
+            ControlValue::Int64(_) => ControlType::Int64,
+            ControlValue::Float(_) => ControlType::Float,
+            ControlValue::String(_) => ControlType::String,
+            ControlValue::Rectangle(_) => ControlType::Rectangle,
+            ControlValue::Size(_) => ControlType::Size,
+            ControlValue::Point(_) => ControlType::Point,
+        }
+    }
+}
+
+impl TryFrom<ControlValue> for ControlType {
+    type Error = ControlTypeError;
+
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        Ok(ControlType::from(&value))
     }
 }

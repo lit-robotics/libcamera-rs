@@ -1,10 +1,12 @@
-use std::{ffi::CStr, marker::PhantomData, ptr::NonNull};
+use std::{collections::HashMap, ffi::CStr, marker::PhantomData, ptr::NonNull};
 
+use libcamera_control_direction::*;
 use libcamera_sys::*;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use thiserror::Error;
 
 use crate::{
-    control_value::{ControlValue, ControlValueError},
+    control_value::{ControlType, ControlValue, ControlValueError},
     controls::{self, ControlId},
     properties::{self, PropertyId},
     utils::{UniquePtr, UniquePtrTarget},
@@ -187,7 +189,7 @@ impl core::fmt::Debug for ControlInfoMap {
         let mut dm = f.debug_map();
         for (key, value) in self.into_iter() {
             match ControlId::try_from(key) {
-                Ok(id) => dm.entry(&id, value),
+                Ok(id) => dm.entry(&id.name(), value),
                 Err(_) => dm.entry(&key, value),
             };
         }
@@ -456,12 +458,133 @@ impl<'a> Drop for ControlInfoMapIter<'a> {
     }
 }
 
+pub struct ControlIdEnumeratorsIter<'a> {
+    iter: *mut libcamera_control_id_enumerators_iter_t,
+    marker: PhantomData<&'a ControlId>,
+}
+
+impl<'a> ControlIdEnumeratorsIter<'a> {
+    fn new(id: &'a ControlId) -> Option<Self> {
+        unsafe {
+            let iter = libcamera_control_id_enumerators_iter_create(id.as_ptr());
+            if iter.is_null() {
+                None
+            } else {
+                Some(ControlIdEnumeratorsIter {
+                    iter,
+                    marker: PhantomData,
+                })
+            }
+        }
+    }
+}
+
+impl Iterator for ControlIdEnumeratorsIter<'_> {
+    type Item = (i32, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if libcamera_control_id_enumerators_iter_has_next(self.iter) {
+                let key = libcamera_control_id_enumerators_iter_key(self.iter);
+                let val_ptr = libcamera_control_id_enumerators_iter_value(self.iter);
+                if val_ptr.is_null() {
+                    None
+                } else {
+                    let name = CStr::from_ptr(val_ptr).to_string_lossy().into_owned();
+                    libcamera_control_id_enumerators_iter_next(self.iter);
+                    Some((key, name))
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl Drop for ControlIdEnumeratorsIter<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            libcamera_control_id_enumerators_iter_destroy(self.iter);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u32)]
+pub enum ControlDirection {
+    /// Input flag (1<<0)
+    In = LIBCAMERA_CONTROL_DIRECTION_IN,
+    /// Output flag (1<<1)
+    Out = LIBCAMERA_CONTROL_DIRECTION_OUT,
+    /// Input and output flags combined (1<<0 | 1<<1)
+    InOut = LIBCAMERA_CONTROL_DIRECTION_IN | LIBCAMERA_CONTROL_DIRECTION_OUT,
+}
+
 impl ControlId {
     pub fn name(&self) -> String {
         unsafe { CStr::from_ptr(libcamera_control_name_from_id(self.id())) }
             .to_str()
             .unwrap()
             .into()
+    }
+
+    fn as_ptr(&self) -> *mut libcamera_control_id_t {
+        let ptr = unsafe { libcamera_control_from_id(self.id()) as *mut libcamera_control_id_t };
+        assert!(!ptr.is_null(), "libcamera_control_from_id returned null");
+        ptr
+    }
+
+    pub fn vendor(&self) -> String {
+        unsafe {
+            let ctrl = self.as_ptr();
+            if ctrl.is_null() {
+                String::new()
+            } else {
+                let ptr = libcamera_control_id_vendor(ctrl);
+                CStr::from_ptr(ptr).to_string_lossy().to_string()
+            }
+        }
+    }
+
+    pub fn control_type(&self) -> ControlType {
+        let raw = unsafe { libcamera_control_id_type(self.as_ptr()) } as u32;
+        ControlType::try_from(raw).expect("Unknown ControlType")
+    }
+
+    pub fn direction(&self) -> ControlDirection {
+        let raw = unsafe { libcamera_control_id_direction(self.as_ptr()) } as u32;
+        ControlDirection::try_from(raw).expect("Unknown libcamera_control_direction value")
+    }
+
+    pub fn is_input(&self) -> bool {
+        unsafe { libcamera_control_id_is_input(self.as_ptr()) }
+    }
+
+    pub fn is_output(&self) -> bool {
+        unsafe { libcamera_control_id_is_output(self.as_ptr()) }
+    }
+
+    pub fn is_array(&self) -> bool {
+        unsafe { libcamera_control_id_is_array(self.as_ptr()) }
+    }
+
+    pub fn size(&self) -> usize {
+        unsafe { libcamera_control_id_size(self.as_ptr()) }
+    }
+
+    pub fn enumerators(&self) -> Option<ControlIdEnumeratorsIter<'_>> {
+        ControlIdEnumeratorsIter::new(self)
+    }
+
+    pub fn enumerators_map(&self) -> HashMap<i32, String> {
+        match self.enumerators() {
+            Some(iter) => iter.collect(),
+            None => HashMap::new(),
+        }
+    }
+
+    pub fn from_id(id: u32) -> Option<Self> {
+        ControlId::try_from(id).ok()
     }
 }
 
