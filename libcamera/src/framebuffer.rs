@@ -11,6 +11,7 @@ pub enum FrameMetadataStatus {
     Success = libcamera_frame_metadata_status::LIBCAMERA_FRAME_METADATA_STATUS_SUCCESS,
     Error = libcamera_frame_metadata_status::LIBCAMERA_FRAME_METADATA_STATUS_ERROR,
     Cancelled = libcamera_frame_metadata_status::LIBCAMERA_FRAME_METADATA_STATUS_CANCELLED,
+    Startup = libcamera_frame_metadata_status::LIBCAMERA_FRAME_METADATA_STATUS_STARTUP,
 }
 
 pub type FrameMetadataPlane = libcamera_frame_metadata_plane_t;
