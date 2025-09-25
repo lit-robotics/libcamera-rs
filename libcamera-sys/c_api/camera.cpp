@@ -91,4 +91,28 @@ int libcamera_camera_stop(libcamera_camera_t *cam) {
     return cam->get()->stop();
 }
 
+libcamera_sensor_configuration_t *libcamera_sensor_configuration_create()
+{
+    return new libcamera_sensor_configuration_t();
+}
+
+void libcamera_sensor_configuration_set_bit_depth(libcamera_sensor_configuration_t *config, unsigned int bit_depth)
+{
+    config->bitDepth = bit_depth;
+}
+
+void libcamera_sensor_configuration_set_output_size(libcamera_sensor_configuration_t *config, unsigned int width, unsigned int height)
+{
+    config->outputSize = libcamera::Size(width, height);
+}
+
+void libcamera_camera_set_sensor_configuration(libcamera_camera_configuration_t *config, const libcamera_sensor_configuration_t *sensor_config)
+{
+    config->sensorConfig = *sensor_config;
+}
+
+void libcamera_sensor_configuration_destroy(libcamera_sensor_configuration_t *config) {
+    delete config;
+}
+
 }
