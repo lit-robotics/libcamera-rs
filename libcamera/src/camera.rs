@@ -55,6 +55,41 @@ impl TryFrom<libcamera_camera_configuration_status_t> for CameraConfigurationSta
     }
 }
 
+pub struct SensorConfiguration {
+    item: NonNull<libcamera_sensor_configuration_t>,
+}
+
+impl SensorConfiguration {
+    pub fn new() -> Self {
+        let ptr = NonNull::new(unsafe { libcamera_sensor_configuration_create() }).unwrap();
+        Self { item: ptr }
+    }
+
+    pub fn from_ptr(ptr: NonNull<libcamera_sensor_configuration_t>) -> Self {
+        Self { item: ptr }
+    }
+
+    pub fn set_bit_depth(&mut self, depth: u32) {
+        unsafe { libcamera_sensor_configuration_set_bit_depth(self.item.as_ptr(), depth) }
+    }
+
+    pub fn set_output_size(&mut self, width: u32, height: u32) {
+        unsafe { libcamera_sensor_configuration_set_output_size(self.item.as_ptr(), width, height) }
+    }
+}
+
+impl Default for SensorConfiguration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SensorConfiguration {
+    fn drop(&mut self) {
+        unsafe { libcamera_sensor_configuration_destroy(self.item.as_ptr()) }
+    }
+}
+
 /// Camera configuration.
 ///
 /// Contains [StreamConfigurationRef] for each stream used by the camera.
@@ -85,6 +120,10 @@ impl CameraConfiguration {
     pub fn get_mut(&mut self, index: usize) -> Option<StreamConfigurationRef<'_>> {
         let ptr = unsafe { libcamera_camera_configuration_at(self.ptr.as_ptr(), index as _) };
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
+    }
+
+    pub fn set_sensor_configuration(&mut self, mode: SensorConfiguration) {
+        unsafe { libcamera_camera_set_sensor_configuration(self.ptr.as_ptr(), mode.item.as_ptr()) }
     }
 
     /// Returns number of streams within camera configuration.
