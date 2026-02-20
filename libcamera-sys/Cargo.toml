@@ -1,6 +1,6 @@
 [package]
 name = "libcamera-sys"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 description = "Low-level unsafe bindings to libcamera"
 documentation = "https://docs.rs/libcamera-sys"
@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["libcamera", "camera"]
 categories = ["external-ffi-bindings", "computer-vision", "multimedia"]
 readme = "../README.md"
+links = "camera"
 
 [lib]
 # libcamera comments are interpreted as rust code blocks failing the doctest
@@ -18,5 +19,15 @@ doctest = false
 
 [build-dependencies]
 bindgen = "0.70"
-pkg-config = "0.3"
+pkg-config = { version = "0.3", optional = true }
 cc = "1"
+anyhow = "1.0"
+
+[features]
+vendored = []
+pkg-config = ["dep:pkg-config"]
+# Use pre-generated bindgen bindings instead of running bindgen at build time.
+# This avoids the need for libclang at build time, which is required for
+# cross-compilation on musl targets where bindgen cannot dlopen libclang.so.
+pregenerated-bindings = []
+default = ["vendored", "pkg-config"]

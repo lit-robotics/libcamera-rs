@@ -1,4 +1,3 @@
-use core::panic;
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -6,25 +5,34 @@ use std::{
 
 use semver::{Comparator, Op, Version};
 
+struct LibcameraInfo {
+    version: String,
+    include_path: PathBuf,
+}
+
+fn get_libcamera_info() -> LibcameraInfo {
+    // DEP_CAMERA_ vars are set by libcamera-sys build script (via links = "camera")
+    let version = env::var("DEP_CAMERA_VERSION")
+        .expect("DEP_CAMERA_VERSION not set by libcamera-sys");
+    let include_path = PathBuf::from(
+        env::var("DEP_CAMERA_INCLUDE")
+            .expect("DEP_CAMERA_INCLUDE not set by libcamera-sys"),
+    );
+    LibcameraInfo {
+        version,
+        include_path,
+    }
+}
+
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(libcamera_has_vendor_controls)");
-    let libcamera = match pkg_config::probe_library("libcamera") {
-        Ok(lib) => Ok(lib),
-        Err(e) => {
-            // Older libcamera versions use camera name instead of libcamera, try that instead
-            match pkg_config::probe_library("camera") {
-                Ok(lib) => Ok(lib),
-                // Return original error
-                Err(_) => Err(e),
-            }
-        }
-    }
-    .unwrap();
 
-    let libcamera_version = match Version::parse(&libcamera.version) {
+    let info = get_libcamera_info();
+
+    let libcamera_version = match Version::parse(&info.version) {
         Ok(v) => v,
         Err(e) => {
-            panic!("bad version from pkgconfig, {e:?}")
+            panic!("bad libcamera version '{}': {e:?}", info.version)
         }
     };
 
@@ -83,11 +91,7 @@ fn main() {
     }
 
     // Generate vendor feature flags from libcamera's generated control_ids.h
-    let control_ids_header = libcamera
-        .include_paths
-        .first()
-        .map(|p| p.join("libcamera/control_ids.h"))
-        .expect("Unable to get libcamera include path");
+    let control_ids_header = info.include_path.join("libcamera").join("control_ids.h");
     let header_contents = fs::read_to_string(&control_ids_header).expect("Failed to read libcamera/control_ids.h");
     let mut vendor_controls_present = false;
     let mut feature_consts = String::new();
@@ -111,11 +115,7 @@ fn main() {
     }
 
     // Generate pixel format constants from libcamera/formats.h
-    let formats_header = libcamera
-        .include_paths
-        .first()
-        .map(|p| p.join("libcamera/formats.h"))
-        .expect("Unable to get libcamera include path");
+    let formats_header = info.include_path.join("libcamera").join("formats.h");
     let formats_contents = fs::read_to_string(&formats_header).expect("Failed to read libcamera/formats.h");
     let mut generated = String::from(
         "// Auto-generated from libcamera/formats.h\n\

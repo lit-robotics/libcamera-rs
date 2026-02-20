@@ -1,0 +1,3 @@
+[submodule "libcamera-sys/libcamera"]
+	path = libcamera-sys/libcamera
+	url = https://git.libcamera.org/libcamera/libcamera.git

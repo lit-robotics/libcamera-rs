@@ -1,37 +1,535 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
-fn main() {
-    let libcamera = match pkg_config::probe_library("libcamera") {
-        Ok(lib) => Ok(lib),
-        Err(e) => {
-            // Older libcamera versions use camera name instead of libcamera, try that instead
-            match pkg_config::probe_library("camera") {
-                Ok(lib) => Ok(lib),
-                // Return original error
-                Err(_) => Err(e),
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+use std::process::Command;
+
+use anyhow::{bail, Context, Result};
+
+/// Represents the link kind for the library.
+#[derive(Clone, Copy)]
+enum LinkKind {
+    /// Use the default (static for vendored, whatever pkg-config says otherwise).
+    Default,
+    /// Force static linking.
+    Static,
+    /// Force dynamic linking.
+    Dynamic,
+}
+
+/// Information about the discovered or built library.
+struct Library {
+    include_paths: Vec<PathBuf>,
+    #[allow(dead_code)]
+    version: Option<String>,
+}
+
+fn main() -> Result<()> {
+    println!("cargo:rerun-if-changed=build.rs");
+
+    let link_kind = get_link_kind();
+    let library = build_or_find_library(link_kind)?;
+    compile_c_api(&library)?;
+    generate_bindings(&library)?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Environment variable helpers (supports target-triple prefix)
+// ---------------------------------------------------------------------------
+
+/// Get the target triple, uppercased with hyphens replaced by underscores.
+fn target_triple_prefix() -> String {
+    env::var("TARGET")
+        .unwrap_or_default()
+        .to_uppercase()
+        .replace('-', "_")
+}
+
+/// Read an env var with optional target-triple prefix override.
+/// Checks `<TRIPLE>_<NAME>` first, then `<NAME>`.
+fn get_env(name: &str) -> Option<String> {
+    let prefixed = format!("{}_{}", target_triple_prefix(), name);
+    env::var(&prefixed).ok().or_else(|| env::var(name).ok())
+}
+
+fn get_link_kind() -> LinkKind {
+    if get_env("LIBCAMERA_STATIC")
+        .as_deref()
+        .is_some_and(|v| v == "1")
+    {
+        LinkKind::Static
+    } else if get_env("LIBCAMERA_DYNAMIC")
+        .as_deref()
+        .is_some_and(|v| v == "1")
+    {
+        LinkKind::Dynamic
+    } else {
+        LinkKind::Default
+    }
+}
+
+fn link_kind_cargo_str(kind: &LinkKind) -> &'static str {
+    match kind {
+        LinkKind::Static => "static=",
+        LinkKind::Dynamic => "dylib=",
+        LinkKind::Default => "",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Source selection
+// ---------------------------------------------------------------------------
+
+fn build_or_find_library(link_kind: LinkKind) -> Result<Library> {
+    // Environment variable override
+    if let Some(source) = get_env("LIBCAMERA_SOURCE") {
+        return match source.as_str() {
+            "vendor" => build_vendor(link_kind),
+            "pkg-config" => find_pkg_config(link_kind),
+            "explicit" => find_explicit(link_kind),
+            other => bail!(
+                "Unknown LIBCAMERA_SOURCE value '{}'. Expected: vendor, pkg-config, explicit",
+                other
+            ),
+        };
+    }
+
+    // Feature-based selection: vendored first, then pkg-config, then explicit
+    #[cfg(feature = "vendored")]
+    return build_vendor(link_kind);
+
+    #[cfg(all(not(feature = "vendored"), feature = "pkg-config"))]
+    return find_pkg_config(link_kind);
+
+    #[cfg(not(any(feature = "vendored", feature = "pkg-config")))]
+    return find_explicit(link_kind);
+}
+
+// ---------------------------------------------------------------------------
+// Vendored build via meson
+// ---------------------------------------------------------------------------
+
+/// Parse the target triple's architecture into meson's (cpu_family, cpu, endian).
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn parse_target_arch(target: &str) -> Result<(&'static str, &'static str, &'static str)> {
+    let arch = target.split('-').next().unwrap_or("");
+    match arch {
+        "aarch64" => Ok(("aarch64", "aarch64", "little")),
+        "armv7" => Ok(("arm", "armv7hl", "little")),
+        "riscv64gc" => Ok(("riscv64", "riscv64", "little")),
+        "x86_64" => Ok(("x86_64", "x86_64", "little")),
+        "i686" | "i586" => Ok(("x86", "i686", "little")),
+        "powerpc64le" => Ok(("ppc64", "ppc64le", "little")),
+        "powerpc64" => Ok(("ppc64", "ppc64", "big")),
+        "s390x" => Ok(("s390x", "s390x", "big")),
+        _ => bail!(
+            "Unsupported target architecture '{}' for meson cross-file",
+            arch
+        ),
+    }
+}
+
+/// Generate a meson cross-file when cross-compiling (HOST != TARGET).
+///
+/// Reads cross-compiler paths from cc-rs convention env vars (e.g.
+/// `CC_aarch64_unknown_linux_gnu`) and forwards `PKG_CONFIG_PATH` so meson
+/// can find target-architecture dependencies like libyaml.
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn generate_meson_cross_file(out_dir: &Path) -> Result<Option<PathBuf>> {
+    let host = env::var("HOST").unwrap_or_default();
+    let target = env::var("TARGET").unwrap_or_default();
+
+    if host == target {
+        return Ok(None);
+    }
+
+    let target_under = target.replace('-', "_");
+
+    // Read cross-compiler paths using cc-rs convention: CC_<target_underscored>
+    let cc = env::var(format!("CC_{}", target_under))
+        .or_else(|_| env::var("TARGET_CC"))
+        .or_else(|_| env::var("CC"))
+        .unwrap_or_else(|_| "cc".to_string());
+    let cxx = env::var(format!("CXX_{}", target_under))
+        .or_else(|_| env::var("TARGET_CXX"))
+        .or_else(|_| env::var("CXX"))
+        .unwrap_or_else(|_| "c++".to_string());
+    let ar = env::var(format!("AR_{}", target_under))
+        .or_else(|_| env::var("TARGET_AR"))
+        .or_else(|_| env::var("AR"))
+        .unwrap_or_else(|_| "ar".to_string());
+
+    let (cpu_family, cpu, endian) = parse_target_arch(&target)?;
+    let system = if target.contains("linux") {
+        "linux"
+    } else if target.contains("windows") {
+        "windows"
+    } else if target.contains("darwin") || target.contains("apple") {
+        "darwin"
+    } else {
+        bail!("Unsupported OS in target triple: {}", target)
+    };
+
+    let mut content = format!(
+        "[binaries]\n\
+         c = '{}'\n\
+         cpp = '{}'\n\
+         ar = '{}'\n\
+         pkg-config = 'pkg-config'\n",
+        cc, cxx, ar
+    );
+
+    // Auto-detect lld for cross-linking. When the compiler wrappers don't
+    // embed -fuse-ld=lld (to avoid meson's -Werror=unused-command-line-argument
+    // during compile-only checks), we specify the linker explicitly here.
+    // Meson only passes -fuse-ld=<value> during link steps, not compile checks.
+    if Command::new("ld.lld").arg("--version").output().is_ok() {
+        content.push_str("c_ld = 'lld'\ncpp_ld = 'lld'\n");
+    }
+
+    content.push_str(&format!(
+        "\n[host_machine]\n\
+         system = '{}'\n\
+         cpu_family = '{}'\n\
+         cpu = '{}'\n\
+         endian = '{}'\n",
+        system, cpu_family, cpu, endian
+    ));
+
+    // Forward PKG_CONFIG_PATH so meson can find cross-compiled dependencies
+    let pkg_config_path = env::var("PKG_CONFIG_PATH").unwrap_or_default();
+    if !pkg_config_path.is_empty() {
+        let paths: Vec<String> = pkg_config_path
+            .split(':')
+            .filter(|p| !p.is_empty())
+            .map(|p| format!("'{}'", p))
+            .collect();
+        content.push_str(&format!(
+            "\n[built-in options]\npkg_config_path = [{}]\n",
+            paths.join(", ")
+        ));
+    }
+
+    let cross_file_path = out_dir.join("meson-cross.ini");
+    fs::write(&cross_file_path, &content).context("Failed to write meson cross-file")?;
+
+    eprintln!(
+        "Generated meson cross-file for target '{}' at {}",
+        target,
+        cross_file_path.display()
+    );
+
+    Ok(Some(cross_file_path))
+}
+
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn build_vendor(link_kind: LinkKind) -> Result<Library> {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
+    let source_path = manifest_dir.join("libcamera");
+    if !source_path.join("meson.build").exists() {
+        bail!(
+            "Vendored libcamera source not found at {}. \
+             Make sure git submodules are initialized: \
+             `git submodule update --init --recursive`",
+            source_path.display()
+        );
+    }
+
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+    let build_path = out_dir.join("libcamera-build");
+    let install_path = out_dir.join("libcamera-install");
+
+    // meson setup
+    let default_library = match link_kind {
+        LinkKind::Static | LinkKind::Default => "static",
+        LinkKind::Dynamic => "shared",
+    };
+
+    let mut setup_cmd = Command::new("meson");
+    setup_cmd
+        .arg("setup")
+        .arg(&build_path)
+        .arg(&source_path)
+        .arg(format!("--prefix={}", install_path.display()))
+        .arg("--buildtype=release")
+        .arg(format!("--default-library={}", default_library))
+        // Disable optional components not needed for Rust bindings
+        .arg("-Dcam=disabled")
+        .arg("-Dqcam=disabled")
+        .arg("-Dgstreamer=disabled")
+        .arg("-Dtracing=disabled")
+        .arg("-Dpycamera=disabled")
+        .arg("-Dlc-compliance=disabled")
+        .arg("-Ddocumentation=disabled")
+        .arg("-Dtest=false")
+        .arg("-Dv4l2=disabled")
+        // Prevent meson from downloading wrap dependencies during the build.
+        // This avoids network access and ensures reproducible builds.
+        .arg("--wrap-mode=nodownload");
+
+    // On ARM targets, the rpi/pisp pipeline is auto-selected but requires
+    // libpisp which is only available via meson wrap download. Exclude it
+    // by explicitly listing all other ARM pipelines.
+    // Users can override this with LIBCAMERA_PIPELINES env var.
+    let target = env::var("TARGET").unwrap_or_default();
+    if let Ok(pipelines) = env::var("LIBCAMERA_PIPELINES") {
+        setup_cmd.arg(format!("-Dpipelines={}", pipelines));
+    } else if target.starts_with("aarch64") || target.starts_with("arm") {
+        setup_cmd.arg("-Dpipelines=imx8-isi,mali-c55,rkisp1,rpi/vc4,simple,uvcvideo");
+    }
+
+    // Add cross-file when cross-compiling (HOST != TARGET)
+    if let Some(cross_file) = generate_meson_cross_file(&out_dir)? {
+        setup_cmd.arg(format!("--cross-file={}", cross_file.display()));
+    }
+
+    run_command(&mut setup_cmd)
+        .context("Failed to run meson setup. Is meson installed?")?;
+
+    // meson compile
+    run_command(
+        Command::new("meson")
+            .arg("compile")
+            .arg("-C")
+            .arg(&build_path),
+    )
+    .context("Failed to compile libcamera with meson")?;
+
+    // meson install
+    run_command(
+        Command::new("meson")
+            .arg("install")
+            .arg("-C")
+            .arg(&build_path),
+    )
+    .context("Failed to install libcamera with meson")?;
+
+    // Find the lib directory (could be lib, lib64, or lib/<triple>)
+    let lib_path = find_lib_dir(&install_path);
+    let version = read_meson_version(&source_path)?;
+
+    // Emit cargo directives.
+    // libcamera depends on libcamera-base for core types (SharedFD, Signal, etc.)
+    // so both libraries must be linked, with camera-base listed first.
+    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    let link_prefix = link_kind_cargo_str(&link_kind);
+    println!("cargo:rustc-link-lib={}camera-base", link_prefix);
+    println!("cargo:rustc-link-lib={}camera", link_prefix);
+
+    // Propagate to dependent crates via DEP_CAMERA_* env vars
+    println!("cargo:VERSION={}", version);
+    // Set INCLUDE to include/libcamera (matches pkg-config -I output structure)
+    let include_base = install_path.join("include").join("libcamera");
+    println!("cargo:INCLUDE={}", include_base.display());
+
+    let include_libcamera = include_base.join("libcamera");
+
+    Ok(Library {
+        include_paths: vec![include_libcamera, include_base],
+        version: Some(version),
+    })
+}
+
+#[cfg(all(not(feature = "vendored"), any(feature = "vendored", feature = "pkg-config")))]
+fn build_vendor(_link_kind: LinkKind) -> Result<Library> {
+    bail!("Vendored feature is not enabled. Enable the 'vendored' feature or use a different LIBCAMERA_SOURCE.");
+}
+
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn run_command(cmd: &mut Command) -> Result<()> {
+    let status = cmd
+        .status()
+        .with_context(|| format!("Failed to execute {:?}", cmd.get_program()))?;
+    if !status.success() {
+        bail!(
+            "Command {:?} failed with exit code: {}",
+            cmd.get_program(),
+            status
+        );
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn find_lib_dir(install_path: &Path) -> PathBuf {
+    // Try common lib directory names
+    for dir in &["lib", "lib64"] {
+        let path = install_path.join(dir);
+        if path.exists() {
+            // Check for architecture-specific subdirectory (e.g. lib/x86_64-linux-gnu)
+            if let Ok(entries) = fs::read_dir(&path) {
+                for entry in entries.flatten() {
+                    let entry_path = entry.path();
+                    if entry_path.is_dir() {
+                        // Check if this subdir contains libcamera files
+                        if entry_path.join("libcamera.a").exists()
+                            || entry_path.join("libcamera.so").exists()
+                        {
+                            return entry_path;
+                        }
+                    }
+                }
+            }
+            // Check the lib dir itself
+            if path.join("libcamera.a").exists() || path.join("libcamera.so").exists() {
+                return path;
             }
         }
     }
-    .unwrap();
+    // Fallback
+    install_path.join("lib")
+}
 
-    let libcamera_include_path = libcamera
-        .include_paths
-        .first()
-        .expect("Unable to get libcamera include path");
+#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
+fn read_meson_version(source_path: &Path) -> Result<String> {
+    let meson_build = fs::read_to_string(source_path.join("meson.build"))
+        .context("Failed to read meson.build")?;
 
-    println!("cargo:rustc-link-lib=camera");
+    // Parse: version : '0.7.0' (but not meson_version : '>= 1.0.1')
+    for line in meson_build.lines() {
+        let line = line.trim();
+        // Skip meson_version lines
+        if line.starts_with("meson_version") {
+            continue;
+        }
+        if line.contains("version") && line.contains(':') {
+            // Look for version : 'X.Y.Z'
+            if let Some(start) = line.find('\'') {
+                if let Some(end) = line[start + 1..].find('\'') {
+                    let version = &line[start + 1..start + 1 + end];
+                    // Must start with a digit (excludes '>= 1.0.1' etc.)
+                    if version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.')
+                    {
+                        return Ok(version.to_string());
+                    }
+                }
+            }
+        }
+    }
 
+    bail!(
+        "Could not parse version from {}",
+        source_path.join("meson.build").display()
+    )
+}
+
+// ---------------------------------------------------------------------------
+// pkg-config
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pkg-config")]
+fn find_pkg_config(link_kind: LinkKind) -> Result<Library> {
+    let lib = match pkg_config::probe_library("libcamera") {
+        Ok(lib) => lib,
+        Err(e) => {
+            // Older libcamera versions use "camera" instead of "libcamera"
+            pkg_config::probe_library("camera").map_err(|_| e)?
+        }
+    };
+
+    let version = lib.version.clone();
+
+    // Emit additional link directive (pkg-config already emits some)
+    println!(
+        "cargo:rustc-link-lib={}camera",
+        link_kind_cargo_str(&link_kind)
+    );
+
+    // Propagate to dependent crates
+    println!("cargo:VERSION={}", version);
+    if let Some(include_path) = lib.include_paths.first() {
+        println!("cargo:INCLUDE={}", include_path.display());
+    }
+
+    Ok(Library {
+        include_paths: lib.include_paths,
+        version: Some(version),
+    })
+}
+
+#[cfg(not(feature = "pkg-config"))]
+fn find_pkg_config(_link_kind: LinkKind) -> Result<Library> {
+    bail!("pkg-config feature is not enabled. Enable the 'pkg-config' feature or use a different LIBCAMERA_SOURCE.");
+}
+
+// ---------------------------------------------------------------------------
+// Explicit paths via env vars
+// ---------------------------------------------------------------------------
+
+fn find_explicit(link_kind: LinkKind) -> Result<Library> {
+    let lib_dir = get_env("LIBCAMERA_LIB_DIR")
+        .context("LIBCAMERA_LIB_DIR must be set when using explicit source mode")?;
+    let include_dir = get_env("LIBCAMERA_INCLUDE_DIR")
+        .context("LIBCAMERA_INCLUDE_DIR must be set when using explicit source mode")?;
+
+    let lib_path = PathBuf::from(&lib_dir);
+    let include_path = PathBuf::from(&include_dir);
+
+    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    println!(
+        "cargo:rustc-link-lib={}camera",
+        link_kind_cargo_str(&link_kind)
+    );
+
+    // Propagate to dependent crates
+    // Try to detect version from the include path's headers
+    let version = detect_version_from_includes(&include_path).unwrap_or_default();
+    if !version.is_empty() {
+        println!("cargo:VERSION={}", version);
+    }
+    println!("cargo:INCLUDE={}", include_path.display());
+
+    let include_libcamera = include_path.join("libcamera");
+    let mut include_paths = vec![];
+    if include_libcamera.exists() {
+        include_paths.push(include_libcamera);
+    }
+    include_paths.push(include_path);
+
+    Ok(Library {
+        include_paths,
+        version: if version.is_empty() {
+            None
+        } else {
+            Some(version)
+        },
+    })
+}
+
+fn detect_version_from_includes(include_path: &Path) -> Option<String> {
+    // Try to find version.h
+    let version_h = include_path.join("libcamera").join("version.h");
+    if let Ok(contents) = fs::read_to_string(&version_h) {
+        for line in contents.lines() {
+            if line.contains("LIBCAMERA_VERSION_STRING") {
+                if let Some(start) = line.find('"') {
+                    if let Some(end) = line[start + 1..].find('"') {
+                        return Some(line[start + 1..start + 1 + end].to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+// ---------------------------------------------------------------------------
+// Compile C API wrapper
+// ---------------------------------------------------------------------------
+
+fn compile_c_api(library: &Library) -> Result<()> {
     let mut c_api_headers: Vec<PathBuf> = Vec::new();
     let mut cpp_api_headers: Vec<PathBuf> = Vec::new();
     let mut c_api_sources: Vec<PathBuf> = Vec::new();
 
-    for entry in fs::read_dir("c_api").unwrap() {
-        let entry = entry.unwrap();
-
-        if !entry.file_type().unwrap().is_file() {
+    for entry in fs::read_dir("c_api").context("Failed to read c_api directory")? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
             continue;
         }
-
         match entry.path().extension().and_then(|s| s.to_str()) {
             Some("h") => c_api_headers.push(entry.path()),
             Some("hpp") => cpp_api_headers.push(entry.path()),
@@ -48,50 +546,110 @@ fn main() {
         println!("cargo:rerun-if-changed={}", file.display());
     }
 
-    cc::Build::new()
-        .cpp(true)
-        .flag("-std=c++17")
-        .files(c_api_sources)
-        .include(libcamera_include_path)
-        .include(
-            libcamera_include_path
-                .parent()
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|| libcamera_include_path.to_path_buf()),
+    let mut build = cc::Build::new();
+    build.cpp(true).flag("-std=c++17").files(&c_api_sources);
+
+    for path in &library.include_paths {
+        build.include(path);
+        // Also add parent of the include path (e.g. if path is .../libcamera, add ...)
+        if let Some(parent) = path.parent() {
+            build.include(parent);
+        }
+    }
+
+    build.compile("camera_c_api");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Generate bindgen bindings
+// ---------------------------------------------------------------------------
+
+fn generate_bindings(library: &Library) -> Result<()> {
+    let out_path = PathBuf::from(env::var("OUT_DIR")?);
+
+    // Use pre-generated bindings when the feature is enabled.
+    // This avoids requiring libclang at build time, which is necessary for
+    // cross-compilation on musl targets where the build script cannot
+    // dlopen libclang.so (musl static binaries don't support dlopen).
+    #[cfg(feature = "pregenerated-bindings")]
+    {
+        let manifest_dir =
+            PathBuf::from(env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR not set")?);
+        let bindings_dir = manifest_dir.join("bindings");
+        fs::copy(bindings_dir.join("bindings.rs"), out_path.join("bindings.rs"))
+            .context("Failed to copy pre-generated C bindings")?;
+        fs::copy(
+            bindings_dir.join("bindings_cpp.rs"),
+            out_path.join("bindings_cpp.rs"),
         )
-        .compile("camera_c_api");
+        .context("Failed to copy pre-generated C++ bindings")?;
+        let _ = library; // suppress unused warning
+        return Ok(());
+    }
+
+    #[cfg(not(feature = "pregenerated-bindings"))]
+    generate_bindings_with_bindgen(library, &out_path)
+}
+
+#[cfg(not(feature = "pregenerated-bindings"))]
+fn generate_bindings_with_bindgen(library: &Library, out_path: &Path) -> Result<()> {
+    let mut c_api_headers: Vec<PathBuf> = Vec::new();
+    let mut cpp_api_headers: Vec<PathBuf> = Vec::new();
+
+    for entry in fs::read_dir("c_api").context("Failed to read c_api directory")? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        match entry.path().extension().and_then(|s| s.to_str()) {
+            Some("h") => c_api_headers.push(entry.path()),
+            Some("hpp") => cpp_api_headers.push(entry.path()),
+            _ => {}
+        }
+    }
 
     // C bindings
     let mut builder = bindgen::Builder::default()
-        .clang_arg(format!("-I{}", libcamera_include_path.display()))
         .constified_enum_module("libcamera_.*")
         .allowlist_function("libcamera_.*")
         .allowlist_var("LIBCAMERA_.*")
         .allowlist_var(".*LIBCAMERA_VERSION.*")
         .allowlist_type("libcamera_.*");
-    for header in c_api_headers {
+
+    for path in &library.include_paths {
+        builder = builder.clang_arg(format!("-I{}", path.display()));
+    }
+
+    for header in &c_api_headers {
         builder = builder.header(header.to_str().unwrap());
     }
 
-    let bindings = builder.generate().expect("Unable to generate bindings");
-
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bindings = builder.generate().context("Unable to generate C bindings")?;
     bindings
         .write_to_file(out_path.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        .context("Couldn't write C bindings")?;
 
     // CPP bindings
     let mut builder = bindgen::Builder::default()
-        .clang_arg(format!("-I{}", libcamera_include_path.display()))
         .clang_arg("-std=c++17")
         .allowlist_type(".*controls.*")
         .allowlist_type(".*properties.*");
-    for header in cpp_api_headers {
+
+    for path in &library.include_paths {
+        builder = builder.clang_arg(format!("-I{}", path.display()));
+    }
+
+    for header in &cpp_api_headers {
         builder = builder.header(header.to_str().unwrap());
     }
 
-    let bindings = builder.generate().expect("Unable to generate bindings");
+    let bindings = builder
+        .generate()
+        .context("Unable to generate CPP bindings")?;
     bindings
         .write_to_file(out_path.join("bindings_cpp.rs"))
-        .expect("Couldn't write bindings!");
+        .context("Couldn't write CPP bindings")?;
+
+    Ok(())
 }
