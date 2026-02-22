@@ -18,7 +18,7 @@ doctest = false
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.70"
+bindgen = { version = "0.70", optional = true }
 pkg-config = { version = "0.3", optional = true }
 cc = "1"
 anyhow = "1.0"
@@ -26,8 +26,9 @@ anyhow = "1.0"
 [features]
 vendored = []
 pkg-config = ["dep:pkg-config"]
+bindgen = ["dep:bindgen"]
 # Use pre-generated bindgen bindings instead of running bindgen at build time.
 # This avoids the need for libclang at build time, which is required for
 # cross-compilation on musl targets where bindgen cannot dlopen libclang.so.
 pregenerated-bindings = []
-default = ["vendored", "pkg-config"]
+default = ["pkg-config", "bindgen"]

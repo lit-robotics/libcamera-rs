@@ -1,12 +1,15 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    process::Command,
 };
 
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
-use std::process::Command;
-
 use anyhow::{bail, Context, Result};
+
+/// Information about the discovered or built library.
+struct Library {
+    include_paths: Vec<PathBuf>,
+}
 
 /// Represents the link kind for the library.
 #[derive(Clone, Copy)]
@@ -19,15 +22,14 @@ enum LinkKind {
     Dynamic,
 }
 
-/// Information about the discovered or built library.
-struct Library {
-    include_paths: Vec<PathBuf>,
-    #[allow(dead_code)]
-    version: Option<String>,
-}
-
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_SOURCE");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_STATIC");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_DYNAMIC");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_LIB_DIR");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_INCLUDE_DIR");
+    println!("cargo:rerun-if-env-changed=LIBCAMERA_PIPELINES");
 
     let link_kind = get_link_kind();
     let library = build_or_find_library(link_kind)?;
@@ -113,7 +115,6 @@ fn build_or_find_library(link_kind: LinkKind) -> Result<Library> {
 // ---------------------------------------------------------------------------
 
 /// Parse the target triple's architecture into meson's (cpu_family, cpu, endian).
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn parse_target_arch(target: &str) -> Result<(&'static str, &'static str, &'static str)> {
     let arch = target.split('-').next().unwrap_or("");
     match arch {
@@ -137,7 +138,6 @@ fn parse_target_arch(target: &str) -> Result<(&'static str, &'static str, &'stat
 /// Reads cross-compiler paths from cc-rs convention env vars (e.g.
 /// `CC_aarch64_unknown_linux_gnu`) and forwards `PKG_CONFIG_PATH` so meson
 /// can find target-architecture dependencies like libyaml.
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn generate_meson_cross_file(out_dir: &Path) -> Result<Option<PathBuf>> {
     let host = env::var("HOST").unwrap_or_default();
     let target = env::var("TARGET").unwrap_or_default();
@@ -186,7 +186,12 @@ fn generate_meson_cross_file(out_dir: &Path) -> Result<Option<PathBuf>> {
     // embed -fuse-ld=lld (to avoid meson's -Werror=unused-command-line-argument
     // during compile-only checks), we specify the linker explicitly here.
     // Meson only passes -fuse-ld=<value> during link steps, not compile checks.
-    if Command::new("ld.lld").arg("--version").output().is_ok() {
+    if Command::new("ld.lld")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
         content.push_str("c_ld = 'lld'\ncpp_ld = 'lld'\n");
     }
 
@@ -225,9 +230,9 @@ fn generate_meson_cross_file(out_dir: &Path) -> Result<Option<PathBuf>> {
     Ok(Some(cross_file_path))
 }
 
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn build_vendor(link_kind: LinkKind) -> Result<Library> {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
     let source_path = manifest_dir.join("libcamera");
     if !source_path.join("meson.build").exists() {
         bail!(
@@ -270,6 +275,11 @@ fn build_vendor(link_kind: LinkKind) -> Result<Library> {
         // This avoids network access and ensures reproducible builds.
         .arg("--wrap-mode=nodownload");
 
+    // Reconfigure if the build directory already exists from a previous run.
+    if build_path.join("build.ninja").exists() {
+        setup_cmd.arg("--reconfigure");
+    }
+
     // On ARM targets, the rpi/pisp pipeline is auto-selected but requires
     // libpisp which is only available via meson wrap download. Exclude it
     // by explicitly listing all other ARM pipelines.
@@ -286,8 +296,7 @@ fn build_vendor(link_kind: LinkKind) -> Result<Library> {
         setup_cmd.arg(format!("--cross-file={}", cross_file.display()));
     }
 
-    run_command(&mut setup_cmd)
-        .context("Failed to run meson setup. Is meson installed?")?;
+    run_command(&mut setup_cmd).context("Failed to run meson setup. Is meson installed?")?;
 
     // meson compile
     run_command(
@@ -312,12 +321,12 @@ fn build_vendor(link_kind: LinkKind) -> Result<Library> {
     let version = read_meson_version(&source_path)?;
 
     // Emit cargo directives.
-    // libcamera depends on libcamera-base for core types (SharedFD, Signal, etc.)
-    // so both libraries must be linked, with camera-base listed first.
+    // libcamera depends on libcamera-base; list camera first so GNU ld resolves
+    // camera's references to camera-base symbols correctly (left-to-right order).
     println!("cargo:rustc-link-search=native={}", lib_path.display());
     let link_prefix = link_kind_cargo_str(&link_kind);
-    println!("cargo:rustc-link-lib={}camera-base", link_prefix);
     println!("cargo:rustc-link-lib={}camera", link_prefix);
+    println!("cargo:rustc-link-lib={}camera-base", link_prefix);
 
     // Propagate to dependent crates via DEP_CAMERA_* env vars
     println!("cargo:VERSION={}", version);
@@ -329,16 +338,9 @@ fn build_vendor(link_kind: LinkKind) -> Result<Library> {
 
     Ok(Library {
         include_paths: vec![include_libcamera, include_base],
-        version: Some(version),
     })
 }
 
-#[cfg(all(not(feature = "vendored"), any(feature = "vendored", feature = "pkg-config")))]
-fn build_vendor(_link_kind: LinkKind) -> Result<Library> {
-    bail!("Vendored feature is not enabled. Enable the 'vendored' feature or use a different LIBCAMERA_SOURCE.");
-}
-
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn run_command(cmd: &mut Command) -> Result<()> {
     let status = cmd
         .status()
@@ -353,8 +355,8 @@ fn run_command(cmd: &mut Command) -> Result<()> {
     Ok(())
 }
 
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn find_lib_dir(install_path: &Path) -> PathBuf {
+    let lib_names = ["libcamera.a", "libcamera.so", "libcamera.dylib"];
     // Try common lib directory names
     for dir in &["lib", "lib64"] {
         let path = install_path.join(dir);
@@ -363,18 +365,15 @@ fn find_lib_dir(install_path: &Path) -> PathBuf {
             if let Ok(entries) = fs::read_dir(&path) {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
-                    if entry_path.is_dir() {
-                        // Check if this subdir contains libcamera files
-                        if entry_path.join("libcamera.a").exists()
-                            || entry_path.join("libcamera.so").exists()
-                        {
-                            return entry_path;
-                        }
+                    if entry_path.is_dir()
+                        && lib_names.iter().any(|name| entry_path.join(name).exists())
+                    {
+                        return entry_path;
                     }
                 }
             }
             // Check the lib dir itself
-            if path.join("libcamera.a").exists() || path.join("libcamera.so").exists() {
+            if lib_names.iter().any(|name| path.join(name).exists()) {
                 return path;
             }
         }
@@ -383,13 +382,13 @@ fn find_lib_dir(install_path: &Path) -> PathBuf {
     install_path.join("lib")
 }
 
-#[cfg(any(feature = "vendored", not(any(feature = "vendored", feature = "pkg-config"))))]
 fn read_meson_version(source_path: &Path) -> Result<String> {
     let meson_build = fs::read_to_string(source_path.join("meson.build"))
         .context("Failed to read meson.build")?;
 
-    // Parse: version : '0.7.0' (but not meson_version : '>= 1.0.1')
-    for line in meson_build.lines() {
+    // The version is in the project() call at the top of meson.build.
+    // Limit to first 20 lines to avoid matching dependency versions deeper in the file.
+    for line in meson_build.lines().take(20) {
         let line = line.trim();
         // Skip meson_version lines
         if line.starts_with("meson_version") {
@@ -422,37 +421,53 @@ fn read_meson_version(source_path: &Path) -> Result<String> {
 
 #[cfg(feature = "pkg-config")]
 fn find_pkg_config(link_kind: LinkKind) -> Result<Library> {
-    let lib = match pkg_config::probe_library("libcamera") {
-        Ok(lib) => lib,
-        Err(e) => {
-            // Older libcamera versions use "camera" instead of "libcamera"
-            pkg_config::probe_library("camera").map_err(|_| e)?
+    let probe = |name: &str| -> Result<pkg_config::Library, pkg_config::Error> {
+        let mut config = pkg_config::Config::new();
+        if matches!(link_kind, LinkKind::Static) {
+            config.statik(true);
         }
+        if matches!(link_kind, LinkKind::Dynamic) {
+            // Suppress default cargo metadata so we can emit dylib= prefix manually.
+            config.cargo_metadata(false);
+        }
+        config.probe(name)
     };
 
-    let version = lib.version.clone();
+    let lib = probe("libcamera")
+        .or_else(|e| {
+            // Older libcamera versions use "camera" instead of "libcamera"
+            probe("camera").map_err(|_| e)
+        })
+        .context("Failed to find libcamera via pkg-config")?;
 
-    // Emit additional link directive (pkg-config already emits some)
-    println!(
-        "cargo:rustc-link-lib={}camera",
-        link_kind_cargo_str(&link_kind)
-    );
+    // For Dynamic, we suppressed pkg-config's cargo metadata above and emit manually.
+    if matches!(link_kind, LinkKind::Dynamic) {
+        for path in &lib.link_paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
+        for name in &lib.libs {
+            println!("cargo:rustc-link-lib=dylib={}", name);
+        }
+    }
+    // For Default and Static, pkg-config already emitted the correct directives.
 
-    // Propagate to dependent crates
-    println!("cargo:VERSION={}", version);
+    // Propagate to dependent crates via DEP_CAMERA_* env vars
+    println!("cargo:VERSION={}", lib.version);
     if let Some(include_path) = lib.include_paths.first() {
         println!("cargo:INCLUDE={}", include_path.display());
     }
 
     Ok(Library {
         include_paths: lib.include_paths,
-        version: Some(version),
     })
 }
 
 #[cfg(not(feature = "pkg-config"))]
 fn find_pkg_config(_link_kind: LinkKind) -> Result<Library> {
-    bail!("pkg-config feature is not enabled. Enable the 'pkg-config' feature or use a different LIBCAMERA_SOURCE.");
+    bail!(
+        "pkg-config feature is not enabled. \
+         Enable the 'pkg-config' feature or use a different LIBCAMERA_SOURCE."
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -489,14 +504,7 @@ fn find_explicit(link_kind: LinkKind) -> Result<Library> {
     }
     include_paths.push(include_path);
 
-    Ok(Library {
-        include_paths,
-        version: if version.is_empty() {
-            None
-        } else {
-            Some(version)
-        },
-    })
+    Ok(Library { include_paths })
 }
 
 fn detect_version_from_includes(include_path: &Path) -> Option<String> {
@@ -566,14 +574,13 @@ fn compile_c_api(library: &Library) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn generate_bindings(library: &Library) -> Result<()> {
-    let out_path = PathBuf::from(env::var("OUT_DIR")?);
-
-    // Use pre-generated bindings when the feature is enabled.
-    // This avoids requiring libclang at build time, which is necessary for
-    // cross-compilation on musl targets where the build script cannot
-    // dlopen libclang.so (musl static binaries don't support dlopen).
     #[cfg(feature = "pregenerated-bindings")]
     {
+        // Use pre-generated bindings when the feature is enabled.
+        // This avoids requiring libclang at build time, which is necessary for
+        // cross-compilation on musl targets where the build script cannot
+        // dlopen libclang.so (musl static binaries don't support dlopen).
+        let out_path = PathBuf::from(env::var("OUT_DIR")?);
         let manifest_dir =
             PathBuf::from(env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR not set")?);
         let bindings_dir = manifest_dir.join("bindings");
@@ -584,15 +591,27 @@ fn generate_bindings(library: &Library) -> Result<()> {
             out_path.join("bindings_cpp.rs"),
         )
         .context("Failed to copy pre-generated C++ bindings")?;
-        let _ = library; // suppress unused warning
+        let _ = library;
         return Ok(());
     }
 
-    #[cfg(not(feature = "pregenerated-bindings"))]
-    generate_bindings_with_bindgen(library, &out_path)
+    #[cfg(all(not(feature = "pregenerated-bindings"), feature = "bindgen"))]
+    {
+        let out_path = PathBuf::from(env::var("OUT_DIR")?);
+        return generate_bindings_with_bindgen(library, &out_path);
+    }
+
+    #[cfg(not(any(feature = "pregenerated-bindings", feature = "bindgen")))]
+    {
+        let _ = library;
+        bail!(
+            "Either the 'bindgen' or 'pregenerated-bindings' feature must be enabled. \
+             Add 'bindgen' to default features or enable 'pregenerated-bindings'."
+        );
+    }
 }
 
-#[cfg(not(feature = "pregenerated-bindings"))]
+#[cfg(feature = "bindgen")]
 fn generate_bindings_with_bindgen(library: &Library, out_path: &Path) -> Result<()> {
     let mut c_api_headers: Vec<PathBuf> = Vec::new();
     let mut cpp_api_headers: Vec<PathBuf> = Vec::new();

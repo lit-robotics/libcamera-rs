@@ -11,7 +11,7 @@ categories = ["api-bindings", "computer-vision", "multimedia"]
 readme = "../README.md"
 
 [features]
-default = ["libcamera_semver_versioning"]
+default = ["libcamera_semver_versioning", "pkg-config", "bindgen"]
 
 # Fallback to semver compatible libcamera control/property bindings when exact version is unavailable
 libcamera_semver_versioning = []
@@ -20,6 +20,8 @@ libcamera_semver_versioning = []
 vendored = ["libcamera-sys/vendored"]
 # Use pkg-config to find system-installed libcamera
 pkg-config = ["libcamera-sys/pkg-config"]
+# Use bindgen to generate bindings at build time (requires libclang)
+bindgen = ["libcamera-sys/bindgen"]
 # Use pre-generated bindgen bindings (for musl cross-compilation)
 pregenerated-bindings = ["libcamera-sys/pregenerated-bindings"]
 
