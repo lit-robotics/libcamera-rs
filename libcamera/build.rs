@@ -12,16 +12,10 @@ struct LibcameraInfo {
 
 fn get_libcamera_info() -> LibcameraInfo {
     // DEP_CAMERA_ vars are set by libcamera-sys build script (via links = "camera")
-    let version = env::var("DEP_CAMERA_VERSION")
-        .expect("DEP_CAMERA_VERSION not set by libcamera-sys");
-    let include_path = PathBuf::from(
-        env::var("DEP_CAMERA_INCLUDE")
-            .expect("DEP_CAMERA_INCLUDE not set by libcamera-sys"),
-    );
-    LibcameraInfo {
-        version,
-        include_path,
-    }
+    let version = env::var("DEP_CAMERA_VERSION").expect("DEP_CAMERA_VERSION not set by libcamera-sys");
+    let include_path =
+        PathBuf::from(env::var("DEP_CAMERA_INCLUDE").expect("DEP_CAMERA_INCLUDE not set by libcamera-sys"));
+    LibcameraInfo { version, include_path }
 }
 
 fn main() {

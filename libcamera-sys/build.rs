@@ -44,10 +44,7 @@ fn main() -> Result<()> {
 
 /// Get the target triple, uppercased with hyphens replaced by underscores.
 fn target_triple_prefix() -> String {
-    env::var("TARGET")
-        .unwrap_or_default()
-        .to_uppercase()
-        .replace('-', "_")
+    env::var("TARGET").unwrap_or_default().to_uppercase().replace('-', "_")
 }
 
 /// Read an env var with optional target-triple prefix override.
@@ -58,15 +55,9 @@ fn get_env(name: &str) -> Option<String> {
 }
 
 fn get_link_kind() -> LinkKind {
-    if get_env("LIBCAMERA_STATIC")
-        .as_deref()
-        .is_some_and(|v| v == "1")
-    {
+    if get_env("LIBCAMERA_STATIC").as_deref().is_some_and(|v| v == "1") {
         LinkKind::Static
-    } else if get_env("LIBCAMERA_DYNAMIC")
-        .as_deref()
-        .is_some_and(|v| v == "1")
-    {
+    } else if get_env("LIBCAMERA_DYNAMIC").as_deref().is_some_and(|v| v == "1") {
         LinkKind::Dynamic
     } else {
         LinkKind::Default
@@ -126,10 +117,7 @@ fn parse_target_arch(target: &str) -> Result<(&'static str, &'static str, &'stat
         "powerpc64le" => Ok(("ppc64", "ppc64le", "little")),
         "powerpc64" => Ok(("ppc64", "ppc64", "big")),
         "s390x" => Ok(("s390x", "s390x", "big")),
-        _ => bail!(
-            "Unsupported target architecture '{}' for meson cross-file",
-            arch
-        ),
+        _ => bail!("Unsupported target architecture '{}' for meson cross-file", arch),
     }
 }
 
@@ -231,8 +219,7 @@ fn generate_meson_cross_file(out_dir: &Path) -> Result<Option<PathBuf>> {
 }
 
 fn build_vendor(link_kind: LinkKind) -> Result<Library> {
-    let manifest_dir =
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
     let source_path = manifest_dir.join("libcamera");
     if !source_path.join("meson.build").exists() {
         bail!(
@@ -299,22 +286,12 @@ fn build_vendor(link_kind: LinkKind) -> Result<Library> {
     run_command(&mut setup_cmd).context("Failed to run meson setup. Is meson installed?")?;
 
     // meson compile
-    run_command(
-        Command::new("meson")
-            .arg("compile")
-            .arg("-C")
-            .arg(&build_path),
-    )
-    .context("Failed to compile libcamera with meson")?;
+    run_command(Command::new("meson").arg("compile").arg("-C").arg(&build_path))
+        .context("Failed to compile libcamera with meson")?;
 
     // meson install
-    run_command(
-        Command::new("meson")
-            .arg("install")
-            .arg("-C")
-            .arg(&build_path),
-    )
-    .context("Failed to install libcamera with meson")?;
+    run_command(Command::new("meson").arg("install").arg("-C").arg(&build_path))
+        .context("Failed to install libcamera with meson")?;
 
     // Find the lib directory (could be lib, lib64, or lib/<triple>)
     let lib_path = find_lib_dir(&install_path);
@@ -346,11 +323,7 @@ fn run_command(cmd: &mut Command) -> Result<()> {
         .status()
         .with_context(|| format!("Failed to execute {:?}", cmd.get_program()))?;
     if !status.success() {
-        bail!(
-            "Command {:?} failed with exit code: {}",
-            cmd.get_program(),
-            status
-        );
+        bail!("Command {:?} failed with exit code: {}", cmd.get_program(), status);
     }
     Ok(())
 }
@@ -365,9 +338,7 @@ fn find_lib_dir(install_path: &Path) -> PathBuf {
             if let Ok(entries) = fs::read_dir(&path) {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
-                    if entry_path.is_dir()
-                        && lib_names.iter().any(|name| entry_path.join(name).exists())
-                    {
+                    if entry_path.is_dir() && lib_names.iter().any(|name| entry_path.join(name).exists()) {
                         return entry_path;
                     }
                 }
@@ -383,8 +354,7 @@ fn find_lib_dir(install_path: &Path) -> PathBuf {
 }
 
 fn read_meson_version(source_path: &Path) -> Result<String> {
-    let meson_build = fs::read_to_string(source_path.join("meson.build"))
-        .context("Failed to read meson.build")?;
+    let meson_build = fs::read_to_string(source_path.join("meson.build")).context("Failed to read meson.build")?;
 
     // The version is in the project() call at the top of meson.build.
     // Limit to first 20 lines to avoid matching dependency versions deeper in the file.
@@ -400,8 +370,7 @@ fn read_meson_version(source_path: &Path) -> Result<String> {
                 if let Some(end) = line[start + 1..].find('\'') {
                     let version = &line[start + 1..start + 1 + end];
                     // Must start with a digit (excludes '>= 1.0.1' etc.)
-                    if version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.')
-                    {
+                    if version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.') {
                         return Ok(version.to_string());
                     }
                 }
@@ -475,8 +444,8 @@ fn find_pkg_config(_link_kind: LinkKind) -> Result<Library> {
 // ---------------------------------------------------------------------------
 
 fn find_explicit(link_kind: LinkKind) -> Result<Library> {
-    let lib_dir = get_env("LIBCAMERA_LIB_DIR")
-        .context("LIBCAMERA_LIB_DIR must be set when using explicit source mode")?;
+    let lib_dir =
+        get_env("LIBCAMERA_LIB_DIR").context("LIBCAMERA_LIB_DIR must be set when using explicit source mode")?;
     let include_dir = get_env("LIBCAMERA_INCLUDE_DIR")
         .context("LIBCAMERA_INCLUDE_DIR must be set when using explicit source mode")?;
 
@@ -484,10 +453,7 @@ fn find_explicit(link_kind: LinkKind) -> Result<Library> {
     let include_path = PathBuf::from(&include_dir);
 
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-    println!(
-        "cargo:rustc-link-lib={}camera",
-        link_kind_cargo_str(&link_kind)
-    );
+    println!("cargo:rustc-link-lib={}camera", link_kind_cargo_str(&link_kind));
 
     // Propagate to dependent crates
     // Try to detect version from the include path's headers
@@ -581,16 +547,12 @@ fn generate_bindings(library: &Library) -> Result<()> {
         // cross-compilation on musl targets where the build script cannot
         // dlopen libclang.so (musl static binaries don't support dlopen).
         let out_path = PathBuf::from(env::var("OUT_DIR")?);
-        let manifest_dir =
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR not set")?);
+        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR not set")?);
         let bindings_dir = manifest_dir.join("bindings");
         fs::copy(bindings_dir.join("bindings.rs"), out_path.join("bindings.rs"))
             .context("Failed to copy pre-generated C bindings")?;
-        fs::copy(
-            bindings_dir.join("bindings_cpp.rs"),
-            out_path.join("bindings_cpp.rs"),
-        )
-        .context("Failed to copy pre-generated C++ bindings")?;
+        fs::copy(bindings_dir.join("bindings_cpp.rs"), out_path.join("bindings_cpp.rs"))
+            .context("Failed to copy pre-generated C++ bindings")?;
         let _ = library;
         return Ok(());
     }
@@ -663,9 +625,7 @@ fn generate_bindings_with_bindgen(library: &Library, out_path: &Path) -> Result<
         builder = builder.header(header.to_str().unwrap());
     }
 
-    let bindings = builder
-        .generate()
-        .context("Unable to generate CPP bindings")?;
+    let bindings = builder.generate().context("Unable to generate CPP bindings")?;
     bindings
         .write_to_file(out_path.join("bindings_cpp.rs"))
         .context("Couldn't write CPP bindings")?;
