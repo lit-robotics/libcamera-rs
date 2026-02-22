@@ -560,7 +560,7 @@ fn generate_bindings(library: &Library) -> Result<()> {
     #[cfg(all(not(feature = "pregenerated-bindings"), feature = "bindgen"))]
     {
         let out_path = PathBuf::from(env::var("OUT_DIR")?);
-        return generate_bindings_with_bindgen(library, &out_path);
+        generate_bindings_with_bindgen(library, &out_path)
     }
 
     #[cfg(not(any(feature = "pregenerated-bindings", feature = "bindgen")))]
