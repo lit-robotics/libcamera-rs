@@ -301,7 +301,7 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libcamera"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bitflags",
  "drm-fourcc",
@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "libcamera-sys"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bindgen",
  "cc",

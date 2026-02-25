@@ -1,6 +1,6 @@
 [package]
 name = "libcamera"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 description = "Safe Rust bindings for libcamera"
 documentation = "https://docs.rs/libcamera"
@@ -25,7 +25,7 @@ vendor_rpi = []
 bitflags = "2.0.0-rc.2"
 drm-fourcc = "2.2"
 libc = "0.2"
-libcamera-sys = { path = "../libcamera-sys", version = "0.6.0", default-features = false }
+libcamera-sys = { path = "../libcamera-sys", version = "0.7.0", default-features = false }
 num_enum = "0.6.1"
 smallvec = "1.10"
 thiserror = "1.0"

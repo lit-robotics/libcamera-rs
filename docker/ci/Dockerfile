@@ -8,7 +8,7 @@
 ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION}
 
-ARG LIBCAMERA_VERSION=v0.6.0
+ARG LIBCAMERA_VERSION=v0.7.0
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build prerequisites for libcamera and Rust.

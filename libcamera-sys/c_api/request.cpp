@@ -13,7 +13,7 @@ libcamera_control_list_t *libcamera_request_controls(libcamera_request_t *reques
     return &request->controls();
 }
 
-libcamera_control_list_t *libcamera_request_metadata(libcamera_request_t *request) {
+const libcamera_control_list_t *libcamera_request_metadata(libcamera_request_t *request) {
     return &request->metadata();
 }
 
