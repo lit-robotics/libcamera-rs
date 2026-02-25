@@ -679,12 +679,13 @@ impl<'d> ActiveCamera<'d> {
         let ptr = req.ptr.as_ptr();
         // Keep the request alive locally until we know queuing succeeded.
         let mut pending = Some(req);
+        let mut state = self.state.lock().unwrap();
         let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), ptr) };
 
         if ret < 0 {
             Err((pending.take().unwrap(), io::Error::from_raw_os_error(-ret)))
         } else {
-            self.state.lock().unwrap().requests.insert(ptr, pending.take().unwrap());
+            state.requests.insert(ptr, pending.take().unwrap());
             Ok(())
         }
     }
