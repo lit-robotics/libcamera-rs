@@ -6,6 +6,8 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
+#include <map>
+#include <string>
 #include <libcamera/controls.h>
 
 typedef libcamera::ControlIdMap libcamera_control_id_map_t;

@@ -26,7 +26,7 @@ impl<'d> RequestRef<'d> {
     }
 
     pub fn metadata(&self) -> &ControlList {
-        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap()) }
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr()) as *mut _).unwrap()) }
     }
 
     pub fn find_buffer(&self, stream: &Stream) -> Option<*mut libcamera_framebuffer_t> {
@@ -146,7 +146,7 @@ impl Request {
     ///
     /// See [controls](crate::controls) for available items.
     pub fn metadata(&self) -> &ControlList {
-        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap()) }
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr()) as *mut _).unwrap()) }
     }
 
     /// Attaches framebuffer to the request.

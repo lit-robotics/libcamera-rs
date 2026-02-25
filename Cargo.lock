@@ -12,6 +12,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.101"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
+
+[[package]]
 name = "bindgen"
 version = "0.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -301,14 +307,13 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libcamera"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "bitflags",
  "drm-fourcc",
  "libc",
  "libcamera-sys",
  "num_enum",
- "pkg-config",
  "semver",
  "smallvec",
  "thiserror",
@@ -330,8 +335,9 @@ dependencies = [
 
 [[package]]
 name = "libcamera-sys"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
+ "anyhow",
  "bindgen",
  "cc",
  "pkg-config",
