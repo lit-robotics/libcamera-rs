@@ -21,6 +21,7 @@ pub enum MemoryMappedFrameBufferError {
     NotWritable,
 }
 
+#[derive(Clone)]
 struct MappedPlane {
     fd: i32,
     offset: usize,
@@ -28,6 +29,7 @@ struct MappedPlane {
 }
 
 /// FrameBuffer wrapper, which exposes internal file descriptors as memory mapped [&[u8]] plane slices.
+#[derive(Clone)]
 pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
     fb: T,
     writable: bool,

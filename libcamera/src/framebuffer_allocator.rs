@@ -130,6 +130,7 @@ impl FrameBufferAllocator {
     }
 }
 
+#[derive(Clone)]
 pub struct FrameBuffer {
     ptr: NonNull<libcamera_framebuffer_t>,
     stream_key: usize,
