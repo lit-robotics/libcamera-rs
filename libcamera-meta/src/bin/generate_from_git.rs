@@ -163,8 +163,8 @@ fn main() {
 
     fn parse_control_files(files: &BTreeMap<String, String>) -> Vec<Control> {
         let control_yamls = files
-            .iter()
-            .flat_map(|(_, contents)| YamlLoader::load_from_str(contents).unwrap());
+            .values()
+            .flat_map(|contents| YamlLoader::load_from_str(contents).unwrap());
 
         let mut controls = Vec::new();
 
@@ -666,7 +666,7 @@ mod generate_rust {
             out += &format!(
                 "    {}{} = {},\n",
                 vendor_feature_gate(ctrl),
-                &ctrl.name,
+                ctrl.name,
                 to_c_type_name(&ctrl.name).to_ascii_uppercase()
             );
         }
