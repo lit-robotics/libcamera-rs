@@ -1,7 +1,7 @@
 use std::{
     io,
     marker::PhantomData,
-    os::fd::{IntoRawFd, OwnedFd},
+    os::fd::{AsRawFd, OwnedFd},
     ptr::NonNull,
 };
 
@@ -343,48 +343,47 @@ pub struct OwnedFrameBuffer {
 unsafe impl Send for OwnedFrameBuffer {}
 
 impl OwnedFrameBuffer {
-    /// Create a framebuffer from a set of planes. Ownership of the fds is transferred.
+    /// Create a framebuffer from a set of planes.
+    ///
+    /// libcamera duplicates each plane fd (`SharedFD(const int &)`), so the returned framebuffer
+    /// holds its own references and the `OwnedFd`s passed in are closed when this returns.
     pub fn new(planes: Vec<FrameBufferPlane>, cookie: Option<u64>) -> io::Result<Self> {
         if planes.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "no planes provided"));
         }
 
         let mut infos: Vec<libcamera_framebuffer_plane_info> = Vec::with_capacity(planes.len());
-        let mut raw_fds = Vec::with_capacity(planes.len());
-
-        for plane in planes {
+        for plane in &planes {
             if plane.offset == u32::MAX || plane.length == 0 {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     "plane offset/length must be valid and non-zero",
                 ));
             }
-            let fd = plane.fd.into_raw_fd();
-            raw_fds.push(fd);
             infos.push(libcamera_framebuffer_plane_info {
-                fd,
+                fd: plane.fd.as_raw_fd(),
                 offset: plane.offset,
                 length: plane.length,
             });
         }
 
+        // `planes` (and its fds) stays alive until after libcamera has duplicated them.
         let ptr = unsafe { libcamera_framebuffer_create(infos.as_ptr(), infos.len(), cookie.unwrap_or(0)) };
-
-        if let Some(ptr) = NonNull::new(ptr) {
-            // Initialize metadata status sentinel to avoid uninitialized reads.
-            unsafe {
-                libcamera_framebuffer_metadata(ptr.as_ptr())
-                    .cast_mut()
-                    .cast::<u32>()
-                    .write(u32::MAX)
-            };
-            Ok(Self { ptr })
-        } else {
-            for fd in raw_fds {
-                unsafe { libc::close(fd) };
+        let result = match NonNull::new(ptr) {
+            Some(ptr) => {
+                // Initialize metadata status sentinel to avoid uninitialized reads.
+                unsafe {
+                    libcamera_framebuffer_metadata(ptr.as_ptr())
+                        .cast_mut()
+                        .cast::<u32>()
+                        .write(u32::MAX)
+                };
+                Ok(Self { ptr })
             }
-            Err(io::Error::last_os_error())
-        }
+            None => Err(io::Error::last_os_error()),
+        };
+        drop(planes);
+        result
     }
 }
 
@@ -441,5 +440,57 @@ impl core::fmt::Debug for OwnedFrameBuffer {
 impl Drop for OwnedFrameBuffer {
     fn drop(&mut self) {
         unsafe { libcamera_framebuffer_destroy(self.ptr.as_ptr()) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::os::fd::FromRawFd;
+
+    use super::*;
+
+    fn open_fd_count() -> usize {
+        std::fs::read_dir("/proc/self/fd").map(|dir| dir.count()).unwrap_or(0)
+    }
+
+    fn memfd(len: usize) -> OwnedFd {
+        let fd = unsafe { libc::memfd_create(c"owned-framebuffer-test".as_ptr(), libc::MFD_CLOEXEC) };
+        assert!(fd >= 0, "memfd_create failed");
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+        assert_eq!(unsafe { libc::ftruncate(fd.as_raw_fd(), len as libc::off_t) }, 0);
+        fd
+    }
+
+    #[test]
+    fn owned_framebuffer_does_not_leak_plane_fds() {
+        // Warm up so lazily opened fds (e.g. by the allocator) are not counted.
+        drop(OwnedFrameBuffer::new(
+            vec![FrameBufferPlane {
+                fd: memfd(4096),
+                offset: 0,
+                length: 4096,
+            }],
+            None,
+        ));
+        let before = open_fd_count();
+        for _ in 0..32 {
+            let fd = memfd(8192);
+            let planes = vec![
+                FrameBufferPlane {
+                    fd: fd.try_clone().unwrap(),
+                    offset: 0,
+                    length: 4096,
+                },
+                FrameBufferPlane {
+                    fd,
+                    offset: 4096,
+                    length: 4096,
+                },
+            ];
+            let buffer = OwnedFrameBuffer::new(planes, Some(7)).expect("create framebuffer");
+            assert_eq!(buffer.cookie(), 7);
+            assert_eq!(buffer.planes().len(), 2);
+        }
+        assert_eq!(open_fd_count(), before, "plane fds leaked");
     }
 }
