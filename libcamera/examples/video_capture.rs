@@ -13,7 +13,7 @@ use libcamera::{
 };
 
 // drm-fourcc does not have MJPEG type yet, construct it from raw fourcc identifier
-const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
+const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes(*b"MJPG"), 0);
 
 fn main() {
     let filename = match std::env::args().nth(1) {
@@ -125,7 +125,7 @@ fn main() {
         let bytes_used = framebuffer.metadata().unwrap().planes().get(0).unwrap().bytes_used as usize;
 
         file.write_all(&frame_data[..bytes_used]).unwrap();
-        println!("Written {} bytes to {}", bytes_used, &filename);
+        println!("Written {} bytes to {}", bytes_used, filename);
 
         // Recycle the request back to the camera for execution
         req.reuse(ReuseFlag::REUSE_BUFFERS);

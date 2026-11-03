@@ -12,7 +12,7 @@ use libcamera::{
 };
 
 // drm-fourcc does not have MJPEG type yet, construct it from raw fourcc identifier
-const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes([b'M', b'J', b'P', b'G']), 0);
+const PIXEL_FORMAT_MJPEG: PixelFormat = PixelFormat::new(u32::from_le_bytes(*b"MJPG"), 0);
 
 fn main() {
     let filename = std::env::args().nth(1).expect("Usage ./jpeg_capture <filename.jpg>");
@@ -106,7 +106,7 @@ fn main() {
     let jpeg_len = framebuffer.metadata().unwrap().planes().get(0).unwrap().bytes_used as usize;
 
     std::fs::write(&filename, &jpeg_data[..jpeg_len]).unwrap();
-    println!("Written {} bytes to {}", jpeg_len, &filename);
+    println!("Written {} bytes to {}", jpeg_len, filename);
 
     // Everything is cleaned up automatically by Drop implementations
 }
