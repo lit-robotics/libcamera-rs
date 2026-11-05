@@ -2,7 +2,6 @@
 #include "fence.h"
 
 #include <vector>
-#include <libcamera/version.h>
 #include <libcamera/base/shared_fd.h>
 #include <unistd.h>
 
@@ -22,7 +21,7 @@ uint64_t libcamera_frame_metadata_timestamp(const libcamera_frame_metadata_t *me
 }
 
 libcamera_frame_metadata_planes_t *libcamera_frame_metadata_planes(libcamera_frame_metadata_t *metadata) {
-    return new libcamera::Span<libcamera::FrameMetadata::Plane>(std::move(metadata->planes()));
+    return new libcamera_frame_metadata_planes_t(metadata->planes());
 }
 
 // --- libcamera_frame_metadata_planes_t ---
@@ -59,12 +58,7 @@ libcamera_framebuffer_t *libcamera_framebuffer_create(const struct libcamera_fra
         fb_planes.push_back(std::move(plane));
     }
 
-#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR < 6
     return new libcamera::FrameBuffer(fb_planes, cookie);
-#else
-    auto span = libcamera::Span<const libcamera::FrameBuffer::Plane>(fb_planes);
-    return new libcamera::FrameBuffer(span, cookie);
-#endif
 }
 
 void libcamera_framebuffer_destroy(libcamera_framebuffer_t *framebuffer) {

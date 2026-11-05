@@ -1,3 +1,4 @@
+#include <libcamera/version.h>
 #include "transform.h"
 #include <cstring>
 
@@ -20,8 +21,15 @@ libcamera_transform_t libcamera_transform_identity() {
 }
 
 libcamera_transform_t libcamera_transform_from_rotation(int angle, bool hflip, bool *success) {
+    libcamera::Transform t;
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR < 8
     bool ok = false;
-    libcamera::Transform t = libcamera::transformFromRotation(angle, &ok);
+    t = libcamera::transformFromRotation(angle, &ok);
+#else
+    auto result = libcamera::transformFromRotation(angle);
+    bool ok = result.has_value();
+    t = result.value_or(libcamera::Transform::Identity);
+#endif
     if (!ok) {
         if (success)
             *success = false;
@@ -55,8 +63,15 @@ libcamera_orientation_t libcamera_transform_apply_orientation(libcamera_orientat
 }
 
 libcamera_orientation_t libcamera_orientation_from_rotation(int angle, bool *success) {
+    libcamera::Orientation ori;
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR < 8
     bool ok = false;
-    libcamera_orientation_t ori = libcamera::orientationFromRotation(angle, &ok);
+    ori = libcamera::orientationFromRotation(angle, &ok);
+#else
+    auto result = libcamera::orientationFromRotation(angle);
+    bool ok = result.has_value();
+    ori = result.value_or(libcamera::Orientation::Rotate0);
+#endif
     if (success)
         *success = ok;
     return ori;

@@ -1,6 +1,7 @@
 #include "controls.h"
 
 #include <libcamera/libcamera.h>
+#include <libcamera/version.h>
 #include <string.h>
 
 struct libcamera_control_id_map_iter {
@@ -299,7 +300,7 @@ const void *libcamera_control_value_get(const libcamera_control_value_t *val) {
 
 void libcamera_control_value_set(libcamera_control_value_t *val, enum libcamera_control_type type, const void *data, bool is_array, size_t num_elements) {
     val->reserve((libcamera::ControlType)type, is_array, num_elements);
-    libcamera::Span<uint8_t> storage = val->data();
+    auto storage = val->data();
     memcpy(storage.data(), data, storage.size());
 }
 

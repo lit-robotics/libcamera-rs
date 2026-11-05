@@ -50,7 +50,7 @@ fn main() {
 
     cc::Build::new()
         .cpp(true)
-        .flag("-std=c++17")
+        .flag("-std=c++20")
         .files(c_api_sources)
         .include(libcamera_include_path)
         .include(
@@ -83,7 +83,7 @@ fn main() {
     // CPP bindings
     let mut builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", libcamera_include_path.display()))
-        .clang_arg("-std=c++17")
+        .clang_arg("-std=c++20")
         .allowlist_type(".*controls.*")
         .allowlist_type(".*properties.*");
     for header in cpp_api_headers {

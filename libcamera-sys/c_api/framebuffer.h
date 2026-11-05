@@ -25,10 +25,15 @@ struct libcamera_framebuffer_plane_info {
 
 #ifdef __cplusplus
 #include <libcamera/camera.h>
+#include <libcamera/version.h>
 
 typedef libcamera::FrameMetadata::Status libcamera_frame_metadata_status_t;
 typedef libcamera::FrameMetadata::Plane libcamera_frame_metadata_plane_t;
+#if LIBCAMERA_VERSION_MAJOR == 0 && LIBCAMERA_VERSION_MINOR < 8
 typedef libcamera::Span<libcamera::FrameMetadata::Plane> libcamera_frame_metadata_planes_t;
+#else
+typedef std::span<libcamera::FrameMetadata::Plane> libcamera_frame_metadata_planes_t;
+#endif
 typedef libcamera::FrameMetadata libcamera_frame_metadata_t;
 typedef libcamera::FrameBuffer::Plane libcamera_framebuffer_plane_t;
 typedef struct libcamera_framebuffer_planes libcamera_framebuffer_planes_t;

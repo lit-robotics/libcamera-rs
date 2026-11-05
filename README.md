@@ -18,7 +18,7 @@ Unreleased documentation for `main`: [here](https://lit-robotics.github.io/libca
 
 ## Building
 
-`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that we don't have a release schedule tied to libcamera yet so breaking changes are likely. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera `v0.4.0` and up.
+`libcamera-sys` requires [libcamera](https://libcamera.org/) installed and accessible via pkg-config. Check official [getting started guide](https://libcamera.org/getting-started.html) on how to build libcamera. Note that we don't have a release schedule tied to libcamera yet so breaking changes are likely. This also means that any binary distributions (e.g. in Ubuntu 22.04) will likely be too old. This crate is known to build with libcamera `v0.4.0` - `v0.8.0`.
 
 No other special dependencies are needed. All crates can be built from the root workspace dir with `cargo build`.
 
@@ -29,7 +29,7 @@ Print `libcamera` version using only `libcamera-sys` ([code](./libcamera-sys/exa
 osboxes@osboxes:~/libcamera-rs$ cargo run --example version
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
      Running `target/debug/examples/version`
-libcamera: v0.0.1+50-aa7b3740
+libcamera: v0.8.0
 ```
 
 List cameras ([code](./libcamera/examples/list_cameras.rs)):
@@ -37,7 +37,7 @@ List cameras ([code](./libcamera/examples/list_cameras.rs)):
 osboxes@osboxes:~/libcamera-rs$ cargo run --example list_cameras
     Finished dev [unoptimized + debuginfo] target(s) in 0.03s
      Running `target/debug/examples/list_cameras`
-[4:16:17.777208430] [25773]  INFO Camera camera_manager.cpp:293 libcamera v0.0.1+50-aa7b3740
+[4:16:17.777208430] [25773]  INFO Camera camera_manager.cpp:293 libcamera v0.8.0
 Camera 0
 ID: \_SB_.PCI0-2:1.0-0c45:2690
 Properties: Immutable(
@@ -58,7 +58,7 @@ Properties: Immutable(
                 height: 1080,
             },
         ),
-        Location: CameraExternal,
+        Location: External,
         Model: Model(
             "AUKEY PCW1: AUKEY PCW1",
         ),
@@ -95,7 +95,7 @@ Capture JPEG image into a file ([code](./libcamera/examples/jpeg_capture.rs)):
 osboxes@osboxes:~/libcamera-rs$ cargo run --example jpeg_capture target/image.jpg
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
      Running `target/debug/examples/jpeg_capture target/image.jpg`
-[4:18:00.104950400] [25950]  INFO Camera camera_manager.cpp:293 libcamera v0.0.1+50-aa7b3740
+[4:18:00.104950400] [25950]  INFO Camera camera_manager.cpp:293 libcamera v0.8.0
 Using camera: AUKEY PCW1: AUKEY PCW1
 Generated config: [
     StreamConfigurationRef {
