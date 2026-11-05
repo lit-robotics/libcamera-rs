@@ -47,6 +47,7 @@ libcamera_framebuffer_t *libcamera_framebuffer_create(const struct libcamera_fra
 
     for (size_t i = 0; i < num_planes; ++i) {
         const auto &p = planes[i];
+        // Duplicates the caller's fd; the caller keeps (and closes) its own.
         libcamera::SharedFD fd(p.fd);
         if (!fd.isValid())
             return nullptr;
